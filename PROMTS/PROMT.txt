@@ -221,11 +221,3 @@ Font.split и plainSubstrByWidth на кириллице, ширина коло�
 
 # 14. СЛЕДУЮЩИЙ ОТВЕТ
 Ответь одним сообщением: подтверди в одну строку, что контекст принят, и предложи проверить в runClient перестроенную лабораторию. Порядок: /hypersomnia_lab reset и новая стройка, затем все пять этажей, лифт 3x3 (вызов, кабина, двери, все этажи), каталог 1-100, комната 47/48 (код 0412), терминал 5 этажа (DLURRU real / URRULD dream), палата Nora (кровать и стол). Компиляция и запуск не подтверждены: нужен твой runClient. Если приложен свежий zip, бери файлы из него и не проси их повторно.
-
-
-git init
-git add .
-git commit -m "base_v1"
-git branch -M main
-git remote add origin https://github.com/ItzB1ack/hypersomnia.git
-git push -u origin main
