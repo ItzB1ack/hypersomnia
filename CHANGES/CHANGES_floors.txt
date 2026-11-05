@@ -1,0 +1,54 @@
+HYPERSOMNIA — пакет «этажи B2–B5»
+База: src.zip из этого чата. В changed.zip лежат все отличия от него, в том числе прошлый lift-safety (LabLift, LabCommand).
+
+РАСХОЖДЕНИЕ
+Ночной пакет сжал всё в B1. По PROMT этажей пять, поэтому B2–B5 восстановлены, а часть находок из B1 разнесена по этажам (см. «Решения»).
+
+ЧТО СДЕЛАНО
+- Чертежи data/hypersomnia/lab: новые real_b2..b5 и dream_b2..b5, изменён real_b1. Проверены скриптом: стены, проходы,
+  двери лифта, таблички, шкафы без дублей документов (12 чертежей OK).
+  B2 ARCHIVE: копировальная, records office, лобби со стойкой, хранилище (SESSION RECORDS 1-50 / 51-100), документ cab_b2_copy.
+  B3 SERVERS: server control с окнами в зал, tape store, зал стоек (RACKS 1-6 / 7-12), документ cab_b3_racks.
+  B4 MEDICAL WING: палаты 2A-2C, пост (cab_b4_roster), PHARMACY, палата 2D (перенесена с B1 как есть: drawing_blank, mem_2_discharge).
+  B5: кабинет директора (mem_3_contract), SESSION CONTROL (mem_7_log, cab_b5_session), тёмный зал капсул с одной лампой,
+      табличка SUBJECTS IN SESSION ARE NOT MOVED.
+  Сон B2-B5: те же планы, но «неправильно»: B2 — обе таблички «1 - 50»; B3 — RECORDING | 1 SOURCE; B4 — вход в 2D заложен,
+      WARD 2D на глухой стене; B5 — кабинета нет, табличка на глухой стене. Документов во сне на B2-B5 нет.
+  real_b1: убраны mem_3_contract (Security), mem_7_log (Power), палата 2D; южная стена сплошная. Пропуск остался на B1.
+- Лифт: MAIN FEED открывает B2-B5 (LabTuning.FEED_REACHED 2 -> 5). Без питания — только G/B1 (EMERGENCY_REACHED = 1, как в cab_evac).
+  Во сне щита нет: при открытом входе сна лифт ходит до того же этажа, что и в реальной лаборатории (DREAM_FOLLOWS_REAL).
+  Код: LabLift.reached(level, d) и enabledMask(level, d), LabHandler, LabBreakers.reset (feed reset -> не выше B1).
+- LabBuilder: мебель 'I' — серверная стойка (2 блока полированного базальта).
+- 4 официальных документа EN + ru_ru (26 строк), иконки doc_cab_b2..b5 (png + модели), overrides в document.json, make_documents.py.
+
+НОВЫЕ РЕШЕНИЯ (мои; можно откатить)
+1. Раскладка: mem_3 и mem_7 -> B5, палата Nora 2D -> B4. Следствие: концовка с правдой (все 7 воспоминаний, кассета 7
+   на мониторе детской, пустой лист) теперь требует MAIN FEED. Кассета счастливого сна (4 воспоминания) доступна без него.
+2. Этажи сна открываются по реальному прогрессу.
+3. Тексты 4 новых документов в рамках канона: 03:13, фидер 5, сеансы 01:00-05:00, приоритет Cradle.
+4. Стойка 'I'.
+
+СУЩЕСТВУЮЩИЙ МИР
+- Нужен /hypersomnia_lab rebuild один раз в Верхнем мире и один раз во сне (rebuild сбрасывает прогресс лаборатории
+  и заново заполняет шкафы — сделай копию мира). Для теста: /hypersomnia_lab feed on.
+- При наложении changed.zip удали из своего src (их нет в ночном полном src, см. ночной CHANGES):
+  src/main/java/com/hypersomnia/client/EyeGlyphs.java
+  src/main/java/com/hypersomnia/document/EyeAlphabet.java
+  src/main/java/com/hypersomnia/lab/BreakerBlock.java
+  src/main/resources/assets/hypersomnia/blockstates/breaker.json
+  src/main/resources/assets/hypersomnia/models/block/breaker_off.json
+  src/main/resources/assets/hypersomnia/models/block/breaker_on.json
+  src/main/resources/assets/hypersomnia/models/item/breaker.json
+  src/main/resources/assets/hypersomnia/sounds/sounds.json   (настоящий — assets/hypersomnia/sounds.json, его не трогать)
+  src/main/resources/assets/hypersomnia/textures/misc/plan_l5.png
+  src/tools/make_plan_l5.py
+  Проще взять полный архив вместо src.
+- src/main/src.main.zip — старый вложенный архив, для сборки не нужен; оставил как был.
+
+НЕ ПРОВЕРЕНО [проверить в runClient]
+- Компиляция и запуск: здесь нет Gradle и JDK 21.
+- Вид стоек, табличек и кроватей, тьма зала капсул, панель лифта на 6 кнопок, переходы B2-B5 в обоих мирах,
+  правило сна (до feed on во сне B2+ закрыты, после — открыты).
+
+ДАЛЬШЕ
+Замки B3-B5 (новые id 6+) с подсказками, станция архива на B2, записки сна для B2-B5.

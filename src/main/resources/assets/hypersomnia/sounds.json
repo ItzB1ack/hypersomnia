@@ -1,0 +1,55 @@
+{
+  "breath_exhale": {
+    "category": "player",
+    "subtitle": "hypersomnia.subtitle.breath",
+    "sounds": ["hypersomnia:breath_exhale", "hypersomnia:breath_exhale_2", "hypersomnia:breath_exhale_3"]
+  },
+  "tape_hiss": {
+    "subtitle": "hypersomnia.subtitle.tape_hiss",
+    "sounds": ["hypersomnia:tape_hiss"]
+  },
+  "tape_click": {
+    "subtitle": "hypersomnia.subtitle.tape_click",
+    "sounds": ["hypersomnia:tape_click"]
+  },
+  "tape_dropout": {
+    "subtitle": "hypersomnia.subtitle.tape_dropout",
+    "sounds": ["hypersomnia:tape_dropout"]
+  },
+  "lab_knock": {
+    "subtitle": "hypersomnia.subtitle.lab_knock",
+    "sounds": [
+      {"name": "minecraft:dig/wood1"}, {"name": "minecraft:dig/wood2"},
+      {"name": "minecraft:dig/wood3"}, {"name": "minecraft:dig/wood4"}
+    ]
+  },
+  "heartbeat": {
+    "category": "player",
+    "subtitle": "hypersomnia.subtitle.heartbeat",
+    "sounds": ["hypersomnia:heartbeat", "hypersomnia:heartbeat_2", "hypersomnia:heartbeat_3"]
+  },
+  "chase_drone": {
+    "category": "hostile",
+    "sounds": ["hypersomnia:chase_drone"]
+  },
+  "chase_rise": {
+    "category": "hostile",
+    "sounds": ["hypersomnia:chase_rise"]
+  },
+  "chase_near": {
+    "category": "hostile",
+    "sounds": ["hypersomnia:chase_near"]
+  },
+  "shard_whisper": {
+    "category": "hostile",
+    "subtitle": "hypersomnia.subtitle.shard_whisper",
+    "sounds": [
+      {"name": "hypersomnia:shard_whisper", "attenuation_distance": 24},
+      {"name": "hypersomnia:shard_whisper_2", "attenuation_distance": 24},
+      {"name": "hypersomnia:shard_whisper_3", "attenuation_distance": 24},
+      {"name": "hypersomnia:shard_whisper_4", "attenuation_distance": 24},
+      {"name": "hypersomnia:shard_whisper_5", "attenuation_distance": 24},
+      {"name": "hypersomnia:shard_whisper_6", "attenuation_distance": 24}
+    ]
+  }
+}

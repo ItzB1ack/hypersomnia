@@ -1,0 +1,108 @@
+HYPERSOMNIA — пакет «погоня по следу + правило взгляда по стадиям»
+База: src.zip из этого чата. В changed.zip — все отличия от него (включая прошлые пакеты: lift-safety, этажи, шифры,
+оборудование/выдох). Если прошлый пакет (equip_breath) уже стоит, хватит 26 файлов из списка «НОВОЕ В ЭТОМ ПАКЕТЕ».
+КЛИЕНТ И СЕРВЕР ОБНОВЛЯТЬ ВМЕСТЕ: версия сети теперь "3", со старой версией не пустит.
+
+ЧТО ПРОВЕРЕНО
+- Компиляция: javac (Java 21) против jar NeoForge 21.1.235 — 0 ошибок. Не Gradle.
+- Выделенный сервер NeoForge 21.1.235 с модом запускается без ошибок; тип урона hypersomnia:fragment и команды
+  /hypersomnia_chase загружаются.
+- Серверная погоня прогнана временным тестом с фейковым игроком (в мод не входит), стадия 3, ровный мир:
+  дверь закрыта за спиной -> дошёл до двери, стучал 70 тиков, ушёл; поимка -> забрал 3 палки из руки, усталость +25%,
+  безумие +1; повернулся к нему -> через 16 тиков взгляда исчез; пробуждение -> палки у кровати, рядом его следы;
+  урон 8 мимо брони.
+НЕ ПРОВЕРЕНО: клиент (runClient) — вид и бег фигуры, сердцебиение на слух, виньетка, чёрный кадр; баланс.
+
+1. ПРАВИЛО ВЗГЛЯДА — ИСЧЕЗАЕТ НА ВСЕХ СТАДИЯХ, НО ДОЛЬШЕ
+Сколько смотреть, чтобы он исчез (ObserverTuning.GAZE_TICKS_BY_STAGE):
+  стадия 0–1: 0,2 с | 2: 0,4 с | 3: 0,8 с | 4: 1,4 с | 5: 2,2 с.   Из укрытия (дерево, окно) +0,3 с.
+Отвёл взгляд — счёт убывает по тику, а не обнуляется. Пока смотришь, с него сыплется чёрная пыль, тем гуще, чем ближе
+он к исчезновению: видно, что взгляд работает.
+Где действует: фигура в мире; во сне (со стадии 4 он ещё и идёт к тебе, пока смотришь, но тоже исчезает); силуэт за
+спиной после неподвижности (стадия 4+: выдержал взгляд — исчез, иначе уходит сам через 3 с); погоня.
+Убрано: «нарушение правила» у обычной фигуры (стоял под взглядом 4–10 с). Команды /hypersomnia_observer director rule
+ghost больше нет (rule still осталась: сам силуэт за спиной).
+Не тронуто: у кровати (в кровати камера не поворачивается), у тела после смерти, финал.
+
+2. ПОГОНЯ (новый эпизод режиссёра CHASE)
+Когда: стадия 2+; не чаще раза в 2 дня осколка; ночью или в темноте (в мире снов — всегда); игрок устал, как для других
+эпизодов. Не начнётся: в лаборатории, в творческом, в воде, огне, на лету, в 16 блоках от монстров, через 10 с после
+удара моба, у лавы, у обрыва 5+ блоков, если позади меньше 15 блоков пройденного пути.
+Ход:
+- Он встаёт на твоём следе в 14–30 блоках пути позади, вне взгляда. Мир смолкает, вырывается выдох, начинает стучать
+  сердце. 3–6 с он стоит: найди и выдержи взглядом — исчезнет, погони не будет.
+- Потом бежит по твоим следам: сквозь стены не ходит; ближе 8 блоков на виду — напрямик. Его шаги слышны.
+  Скорость: стадия 2 — 4 бл/с (медленнее шага), 3 — 5 (бегом уйдёшь), 4 — 5,8, 5 — 6,2 (быстрее бега игрока 5,6).
+- Спастись: выдержать взгляд (по таблице; всё это время он бежит), закрыть за собой дверь (стучит 3,5 с и уходит, если
+  не откроешь), продержаться 15 с (стадии 2–3), 20 с (4), 25 с (5) — после этого он исчезает.
+- Учебная погоня: самая первая и все на стадии 2 — не ловит, рассыпается в 4 блоках от тебя.
+- Поймал: тишина, один удар сердца, чёрный кадр ~1,7 с — его нет. До стадии 5: забирает вещь из руки (предметы мода не
+  трогает) + 25% усталости + 1 безумие. Вещь вернётся через 1–3 дня: при пробуждении лежит у кровати, рядом его следы.
+  Стадия 5: ещё 4 сердца урона (мимо брони и щита, без отброса; «X не разбудили вовремя»). Может убить — тогда он стоит
+  у тела, как раньше.
+- Пока он бежит, лечь спать нельзя («рядом монстры»).
+- Тело: сердцебиение (чем ближе он, тем чаще, громче и выше; после погони ~10 с успокаивается), виньетка по краям в такт.
+Как устроено: решает и ведёт сервер (ChaseHandler: след игрока — точки через 0,5 блока, до 240), клиент рисует ту же
+фигуру по пакетам и если перестал её показывать — просит сервер остановить погоню. Режиссёр: вес 2, цена 60, сильный
+эпизод, кулдаун 1 день; отказ сервера пишется в журнал режиссёра с причиной.
+Числа: chase/ChaseTuning.java; строки CHASE в EP_* в ObserverTuning.
+Данные игрока (день и число погонь, забранные вещи) хранятся в сохранении игрока; старые миры подходят.
+
+3. ЗВУК СЕРДЦА
+heartbeat.ogg, heartbeat_2.ogg — «тук-тук» 0,38–0,40 с (два тона 115->52 Гц и 135->68 Гц, удар по телу, обертоны для
+ноутбучных динамиков). Категория звука «Игроки». Генератор: tools/make_heartbeat_sound.py.
+
+КАК ПРОВЕРИТЬ (мир с читами)
+1. /hypersomnia_progress stage 3, /time set night.
+2. Пройти по ровному месту 20+ блоков, остановиться, смотреть вперёд.
+3. /hypersomnia_observer chase — учебная (если погонь ещё не было или стадия 2); /hypersomnia_observer chase real —
+   настоящая, ловит. Без ответа — /hypersomnia_observer director log (причина, например «no trail», «unsafe place»).
+4. Проверить: сердце и виньетка; повернуться — пыль и исчезновение; уйти за дверь и закрыть — стук; дать поймать —
+   чёрный кадр, вещь пропала; поспать — вещь у кровати (/hypersomnia_progress days ... или 1–3 ночи).
+5. /hypersomnia_chase status — дни, счётчик, забранные вещи; reset — следующая снова учебная; return — вернуть вещи.
+6. Стадия 5 в выживании: поимка ранит на 4 сердца.
+
+[ПРОВЕРИТЬ]
+- Бег фигуры: анимация ног у «призрака» (ObserverGhost.walkAnimation).
+- Громкость: сердце ChaseTuning.HEART_VOLUME_*, шаги STEP_VOLUME, стук KNOCK_VOLUME; слышен ли стук из-за двери.
+- Частота: если погонь почти нет — монстры рядом (ChaseTuning.SAFE_MOB_RADIUS) или вес EP_WEIGHT[CHASE].
+
+УДАЛИТЬ из своего src при наложении changed.zip на src.zip (устарели, как в прошлых пакетах):
+  main/java/com/hypersomnia/client/EyeGlyphs.java
+  main/java/com/hypersomnia/document/EyeAlphabet.java
+  main/java/com/hypersomnia/lab/BreakerBlock.java
+  main/resources/assets/hypersomnia/blockstates/breaker.json
+  main/resources/assets/hypersomnia/models/block/breaker_off.json
+  main/resources/assets/hypersomnia/models/block/breaker_on.json
+  main/resources/assets/hypersomnia/models/item/breaker.json
+  main/resources/assets/hypersomnia/sounds/sounds.json
+  main/resources/assets/hypersomnia/textures/misc/plan_l5.png
+  tools/make_plan_l5.py
+
+НОВОЕ В ЭТОМ ПАКЕТЕ (26 файлов поверх equip_breath; всего отличий от src.zip: 119)
+  main/java/com/hypersomnia/ModAttachments.java
+  main/java/com/hypersomnia/ModSounds.java
+  main/java/com/hypersomnia/ObserverTuning.java
+  main/java/com/hypersomnia/chase/ChaseData.java
+  main/java/com/hypersomnia/chase/ChaseHandler.java
+  main/java/com/hypersomnia/chase/ChaseTuning.java
+  main/java/com/hypersomnia/client/ChaseClient.java
+  main/java/com/hypersomnia/client/ChaseOverlay.java
+  main/java/com/hypersomnia/client/ChaseState.java
+  main/java/com/hypersomnia/client/ImmobilityClient.java
+  main/java/com/hypersomnia/client/ObserverClient.java
+  main/java/com/hypersomnia/client/ObserverDirector.java
+  main/java/com/hypersomnia/dream/DreamTransition.java
+  main/java/com/hypersomnia/network/ChasePayload.java
+  main/java/com/hypersomnia/network/ChaseRequestPayload.java
+  main/java/com/hypersomnia/network/ObserverNetwork.java
+  main/resources/assets/hypersomnia/lang/en_us.json
+  main/resources/assets/hypersomnia/lang/ru_ru.json
+  main/resources/assets/hypersomnia/sounds.json
+  main/resources/assets/hypersomnia/sounds/heartbeat.ogg
+  main/resources/assets/hypersomnia/sounds/heartbeat_2.ogg
+  main/resources/data/hypersomnia/damage_type/fragment.json
+  main/resources/data/minecraft/tags/damage_type/bypasses_armor.json
+  main/resources/data/minecraft/tags/damage_type/bypasses_shield.json
+  main/resources/data/minecraft/tags/damage_type/no_knockback.json
+  tools/make_heartbeat_sound.py

@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "hypersomnia:block/workstation" },
+    "facing=east": { "model": "hypersomnia:block/workstation", "y": 90 },
+    "facing=south": { "model": "hypersomnia:block/workstation", "y": 180 },
+    "facing=west": { "model": "hypersomnia:block/workstation", "y": 270 }
+  }
+}

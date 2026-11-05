@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "minecraft:glass_bottle" },
+    { "item": "minecraft:iron_nugget" },
+    { "item": "minecraft:glowstone_dust" },
+    { "item": "minecraft:fermented_spider_eye" }
+  ],
+  "result": { "id": "hypersomnia:adrenaline_syringe", "count": 1 }
+}

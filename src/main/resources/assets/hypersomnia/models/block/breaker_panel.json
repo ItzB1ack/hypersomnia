@@ -1,0 +1,62 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "hypersomnia:block/breaker_panel_side",
+    "front": "hypersomnia:block/breaker_panel_front",
+    "side": "hypersomnia:block/breaker_panel_side",
+    "handle": "minecraft:block/iron_block",
+    "lamp": "hypersomnia:block/breaker_panel_lamp_off"
+  },
+  "elements": [
+    {
+      "name": "body",
+      "from": [2, 1, 11],
+      "to": [14, 15, 16],
+      "faces": {
+        "north": { "uv": [2, 1, 14, 15], "texture": "#front" },
+        "south": { "uv": [2, 1, 14, 15], "texture": "#side", "cullface": "south" },
+        "east": { "uv": [0, 1, 5, 15], "texture": "#side" },
+        "west": { "uv": [11, 1, 16, 15], "texture": "#side" },
+        "up": { "uv": [2, 11, 14, 16], "texture": "#side" },
+        "down": { "uv": [2, 0, 14, 5], "texture": "#side" }
+      }
+    },
+    {
+      "name": "handle",
+      "from": [3.5, 5, 10],
+      "to": [5, 9, 11],
+      "faces": {
+        "north": { "uv": [11, 7, 12.5, 11], "texture": "#handle" },
+        "east": { "uv": [5, 7, 6, 11], "texture": "#handle" },
+        "west": { "uv": [10, 7, 11, 11], "texture": "#handle" },
+        "up": { "uv": [3.5, 10, 5, 11], "texture": "#handle" },
+        "down": { "uv": [3.5, 5, 5, 6], "texture": "#handle" }
+      }
+    },
+    {
+      "name": "lamp",
+      "from": [7, 12, 10.8],
+      "to": [9, 13.5, 11],
+      "shade": false,
+      "neoforge_data": { "block_light": 15, "sky_light": 15 },
+      "faces": {
+        "north": { "uv": [7, 2.5, 9, 4], "texture": "#lamp" },
+        "east": { "uv": [5, 2.5, 5.2, 4], "texture": "#lamp" },
+        "west": { "uv": [10.8, 2.5, 11, 4], "texture": "#lamp" },
+        "up": { "uv": [7, 10.8, 9, 11], "texture": "#lamp" },
+        "down": { "uv": [7, 5, 9, 5.2], "texture": "#lamp" }
+      }
+    },
+    {
+      "name": "conduit",
+      "from": [6, 15, 12],
+      "to": [10, 16, 15],
+      "faces": {
+        "north": { "uv": [6, 0, 10, 1], "texture": "#side" },
+        "east": { "uv": [1, 0, 4, 1], "texture": "#side" },
+        "west": { "uv": [12, 0, 15, 1], "texture": "#side" },
+        "up": { "uv": [6, 12, 10, 15], "texture": "#side", "cullface": "up" }
+      }
+    }
+  ]
+}

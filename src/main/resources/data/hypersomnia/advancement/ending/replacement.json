@@ -1,0 +1,26 @@
+{
+  "parent": "hypersomnia:root",
+  "display": {
+    "icon": {
+      "id": "minecraft:light_blue_bed",
+      "count": 1
+    },
+    "title": {
+      "translate": "hypersomnia.ending.replacement.title",
+      "fallback": "Replacement"
+    },
+    "description": {
+      "translate": "hypersomnia.ending.replacement.hint",
+      "fallback": "Let it take your place."
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

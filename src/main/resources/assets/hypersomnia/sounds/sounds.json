@@ -1,0 +1,7 @@
+{
+  "breath_exhale": {
+    "category": "player",
+    "subtitle": "hypersomnia.subtitle.breath",
+    "sounds": ["hypersomnia:breath_exhale"]
+  }
+}

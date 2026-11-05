@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "hypersomnia:block/cabinet_side",
+    "north": "hypersomnia:block/cabinet_front",
+    "south": "hypersomnia:block/cabinet_side",
+    "east": "hypersomnia:block/cabinet_side",
+    "west": "hypersomnia:block/cabinet_side",
+    "up": "hypersomnia:block/cabinet_top",
+    "down": "hypersomnia:block/cabinet_top"
+  }
+}

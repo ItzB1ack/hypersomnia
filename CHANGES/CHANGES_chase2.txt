@@ -1,0 +1,107 @@
+HYPERSOMNIA — пакет «погоня 2: поиск пути, новое сердце, музыка и шёпот»
+База: src.zip из этого чата. В changed.zip — все отличия от него (включая прошлые пакеты: lift-safety, этажи, шифры,
+оборудование/выдох, погоня). Если пакет chase уже стоит, хватит файлов из списка «НОВОЕ В ЭТОМ ПАКЕТЕ» (24).
+Сеть не менялась (версия "3"), но КЛИЕНТ И СЕРВЕР ОБНОВЛЯТЬ ВМЕСТЕ: путь ищет сервер, музыку и звуки играет клиент.
+
+ЧТО ПРОВЕРЕНО
+- Компиляция: javac (Java 21) против jar NeoForge 21.1.235 — 0 ошибок. Не Gradle.
+- Выделенный сервер NeoForge 21.1.235 с модом запускается без ошибок, новые звуки регистрируются.
+- Поиск пути прогнан временным тестом (в мод не входит): фейковый игрок, стадия 3, настоящая погоня, ровный мир, 6 сцен:
+  бег по кругу на открытом месте — догнал и поймал (раньше держался в 1,6–2,6 блока сзади и не мог);
+  круги вокруг столба — поймал; между вами стена с проёмом сбоку — обежал через проём, поймал;
+  дом с двумя дверьми, ближняя закрыта — обежал дом к открытой, поймал;
+  дом с одной закрытой дверью — добежал до двери, стучал, ушёл; игрок на столбе в 3 блока — добежал, не залез, ушёл.
+  Время одного поиска: в среднем 1,7 мс, худшее 10 мс (цель недостижима, 1500 клеток) — сервер не тормозит.
+- Звуки сверены по спектрограммам и уровням: шёпот по спектру похож на речь, у петель нет шва на стыке, удар сердца
+  по форме и громкости близок к ванильному сердцу вардена.
+НЕ ПРОВЕРЕНО: клиент (runClient) — всё на слух (сердце, музыка, шёпот), поворот тела фигуры, баланс.
+
+1. ПОИСК ПУТИ («как баритон»)
+Раньше он бежал строго по твоим следам и по кругу не догонял. Теперь сервер ищет путь A* по блокам (chase/ChasePath):
+- обходит стены, ищет другой проём, огибает дома; шаг вверх на 1 блок, спрыгивает до 4, перепрыгивает яму в 1–2 блока,
+  лестницы и лианы, вода; углы не срезает, тело 1x2 блока;
+- закрытая дверь в пути — «дорогая» клетка: есть открытый обход — бежит в обход; нет — бежит к двери и стучит, как раньше;
+- путь пересчитывается раз в 0,5 с (сразу, если ты сместился на 2+ блока); нет пути к тебе — к точке твоего следа;
+  нет и его — по следу, как раньше; куда не дойти (столб, крыша) — стоит внизу и через время уходит;
+- ближе 8 блоков, если между вами ровно и чисто, — напрямик и с упреждением: бежит туда, где ты будешь (до 0,5 с вперёд),
+  поэтому круги срезает;
+- рывок: ближе 3 блоков он в 1,2 раза быстрее (стадия 3 — 6 бл/с, быстрее твоего бега 5,6). В учебной погоне рывка нет.
+  ИЗМЕНЕНИЕ БАЛАНСА: на стадии 3+ подпустил ближе 3 блоков — бегом уже не уйдёшь; спасают взгляд, дверь и время.
+  Вернуть как было: ChaseTuning.LUNGE_SPEED = 1.0.
+Числа: chase/ChaseTuning.java (REPATH_*, PATH_*, LEAD_*, LUNGE_*).
+
+2. СЕРДЦЕ — НЕ БАРАБАН
+Прежний удар был тоном с падением высоты 115 -> 52 Гц, звоном и насыщением — так звучит том-барабан.
+Новый: три варианта (heartbeat, _2, _3, игра выбирает случайно) — глухие короткие толчки без высоты тона, как изнутри
+тела: «тук», через 0,17 с «тук» тише, тихий шум крови.
+Ритм: ~70 ударов в минуту в начале, ~126 вплотную (было до 171); интервал и высота каждого удара чуть гуляют, как у
+живого. Громкость не выше 0,7 (было 1,0). Генератор: tools/make_heartbeat_sound.py (чистый Python).
+
+3. МУЗЫКА И ШЁПОТ ПОГОНИ (категория звука «Враждебные существа»)
+- Гул: низкий ре и диссонанс ре — ми-бемоль — соль-диез, медленно «дышит», далёкие стоны, звон в ушах. С начала
+  погони; громче, когда он побежал.
+- Подъём: тон, который всё время поднимается и не кончается (иллюзия Шепарда), — чем ближе он, тем громче.
+- Бормотание: ближе 8 блоков вокруг головы бормочут несколько голосов, трещит.
+- Шёпот осколка: раз в 1,75–3,5 с бессвязный шёпот (6 вариантов: со вдохом, быстрый, задом наперёд, два голоса разом,
+  медленное «ссс», рваный) — с того места, где он (слышно направление; субтитр «Шёпот»), ближе 4 блоков — у самой
+  головы. Шепчет и в начале, пока стоит на следе: шёпот за спиной — повод обернуться.
+- Ванильная музыка на время погони смолкает.
+- Конец: прогнал взглядом — обрыв в тишину; поймал — обрыв, удар сердца, чёрный кадр; ушёл или закрыл дверь —
+  затухание 3,5 с.
+Генератор: tools/make_chase_sounds.py (нужны numpy и ffmpeg). Код: client/ChaseMusic.java.
+
+4. ФИГУРА В ПОГОНЕ
+Тело поворачивается по ходу бега, голова — к тебе (не дальше 75° от тела): за угол бежит лицом вперёд, а не боком.
+
+КАК ПРОВЕРИТЬ (мир с читами)
+1. /hypersomnia_progress stage 3, /time set night, пройти по ровному месту 20+ блоков.
+2. /hypersomnia_observer chase real.
+3. Бегать кругами по открытому месту — должен срезать и поймать (за 5–8 с).
+4. Уйти за стену с проёмом сбоку — должен обежать через проём.
+5. Слушать: шёпот за спиной на старте, гул, нарастание при приближении, бормотание вплотную; сердце — глухие толчки.
+
+[ПРОВЕРИТЬ]
+- Громкость музыки относительно мира: ChaseTuning.MUSIC_* (гул 0,4/0,6, подъём до 0,55, бормотание до 0,6),
+  шёпот WHISPER_VOLUME. Общий регулятор — «Враждебные существа» в настройках звука.
+- Не слишком ли часто шёпот: WHISPER_MIN_TICKS / WHISPER_MAX_TICKS (35–70 тиков).
+- Сердце: если тихо — HEART_VOLUME_MAX.
+- Сложность: если ловит слишком легко — LUNGE_SPEED 1.1 или LEAD_MAX_TICKS 5.
+- Сложный рельеф (лес, пещеры, лестницы): не застревает ли.
+
+УДАЛИТЬ из своего src при наложении changed.zip на src.zip (устарели, как в прошлых пакетах):
+  main/java/com/hypersomnia/client/EyeGlyphs.java
+  main/java/com/hypersomnia/document/EyeAlphabet.java
+  main/java/com/hypersomnia/lab/BreakerBlock.java
+  main/resources/assets/hypersomnia/blockstates/breaker.json
+  main/resources/assets/hypersomnia/models/block/breaker_off.json
+  main/resources/assets/hypersomnia/models/block/breaker_on.json
+  main/resources/assets/hypersomnia/models/item/breaker.json
+  main/resources/assets/hypersomnia/sounds/sounds.json
+  main/resources/assets/hypersomnia/textures/misc/plan_l5.png
+  tools/make_plan_l5.py
+
+НОВОЕ В ЭТОМ ПАКЕТЕ (24 файла поверх chase; всего отличий от src.zip: 132)
+  main/java/com/hypersomnia/ModSounds.java
+  main/java/com/hypersomnia/chase/ChaseHandler.java
+  main/java/com/hypersomnia/chase/ChasePath.java
+  main/java/com/hypersomnia/chase/ChaseTuning.java
+  main/java/com/hypersomnia/client/ChaseClient.java
+  main/java/com/hypersomnia/client/ChaseMusic.java
+  main/java/com/hypersomnia/client/ObserverClient.java
+  main/resources/assets/hypersomnia/lang/en_us.json
+  main/resources/assets/hypersomnia/lang/ru_ru.json
+  main/resources/assets/hypersomnia/sounds.json
+  main/resources/assets/hypersomnia/sounds/chase_drone.ogg
+  main/resources/assets/hypersomnia/sounds/chase_near.ogg
+  main/resources/assets/hypersomnia/sounds/chase_rise.ogg
+  main/resources/assets/hypersomnia/sounds/heartbeat.ogg
+  main/resources/assets/hypersomnia/sounds/heartbeat_2.ogg
+  main/resources/assets/hypersomnia/sounds/heartbeat_3.ogg
+  main/resources/assets/hypersomnia/sounds/shard_whisper.ogg
+  main/resources/assets/hypersomnia/sounds/shard_whisper_2.ogg
+  main/resources/assets/hypersomnia/sounds/shard_whisper_3.ogg
+  main/resources/assets/hypersomnia/sounds/shard_whisper_4.ogg
+  main/resources/assets/hypersomnia/sounds/shard_whisper_5.ogg
+  main/resources/assets/hypersomnia/sounds/shard_whisper_6.ogg
+  tools/make_chase_sounds.py
+  tools/make_heartbeat_sound.py

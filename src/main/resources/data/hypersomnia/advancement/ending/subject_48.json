@@ -1,0 +1,26 @@
+{
+  "parent": "hypersomnia:root",
+  "display": {
+    "icon": {
+      "id": "hypersomnia:adrenaline_syringe",
+      "count": 1
+    },
+    "title": {
+      "translate": "hypersomnia.ending.subject_48.title",
+      "fallback": "Subject 48"
+    },
+    "description": {
+      "translate": "hypersomnia.ending.subject_48.hint",
+      "fallback": "Begin the next session."
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

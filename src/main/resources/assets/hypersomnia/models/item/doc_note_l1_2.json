@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "hypersomnia:item/doc_note_l1_2"
+  }
+}

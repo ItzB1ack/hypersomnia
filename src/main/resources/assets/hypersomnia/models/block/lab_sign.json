@@ -1,0 +1,19 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": { "particle": "hypersomnia:block/lab_sign_front", "front": "hypersomnia:block/lab_sign_front" },
+  "elements": [
+    {
+      "name": "plate",
+      "from": [1, 4, 15],
+      "to": [15, 12, 16],
+      "faces": {
+        "north": { "uv": [1, 4, 15, 12], "texture": "#front" },
+        "south": { "uv": [1, 4, 15, 12], "texture": "#front", "cullface": "south" },
+        "east": { "uv": [1, 4, 2, 12], "texture": "#front" },
+        "west": { "uv": [14, 4, 15, 12], "texture": "#front" },
+        "up": { "uv": [1, 4, 15, 5], "texture": "#front" },
+        "down": { "uv": [1, 11, 15, 12], "texture": "#front" }
+      }
+    }
+  ]
+}

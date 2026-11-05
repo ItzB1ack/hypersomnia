@@ -1,0 +1,26 @@
+{
+  "parent": "hypersomnia:root",
+  "display": {
+    "icon": {
+      "id": "minecraft:feather",
+      "count": 1
+    },
+    "title": {
+      "translate": "hypersomnia.ending.farewell.title",
+      "fallback": "Farewell"
+    },
+    "description": {
+      "translate": "hypersomnia.ending.farewell.hint",
+      "fallback": "Tell it the truth and wake up."
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

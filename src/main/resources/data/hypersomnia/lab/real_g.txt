@@ -1,0 +1,19 @@
+style real
+height 4
+---
+#############
+#FfF#LYL#RcR#
+#.*.#L@E#hTh#
+#dh.#LLL#.*.#
+#DPv##l##...#
+#......K....#
+#...........#
+#.*.......*.#
+#hh.......hh#
+######=######
+---
+lock K = 1
+station P = gate_g
+cabinet f = cab_intake
+; воспоминание 1: фото с корпоратива — в комнате отдыха
+cabinet c = mem_1_photo

@@ -1,0 +1,47 @@
+style real
+height 5
+---
+             #####             
+             #LYL#             
+             #L@E#             
+             #LLL#             
+###############l###############
+#VVV.FF#......9.K......#..FFRR#
+#hhh...#.hh.........hh.#......#
+#......#1DD....*....DD2#...*..#
+#c.*...#.hh.........hh.#..D..F#
+#g.....=...............=..Ph.F#
+#......#...*........*..#..d..F#
+#...T..#.........DVD...#......#
+#Fp...v#...3.4....h....#pF....#
+###############=###############
+#....*.....*..................#
+#..5..6..7..8................F#
+#..m..n..q..s.......*........F#
+#..m..n..q..s................F#
+#..m..n..q..s...hhh...hhh.....#
+#..m..n..q..s...DDD...DDD.....#
+#..m*.n..q*.s...hhh...hhh....F#
+#..m..n..q..s............*...F#
+#..m..n..q..s................F#
+#..m..n..q..s.............TT..#
+###############################
+---
+sign 1 = COPY ROOM|NIGHTLY 03:13||
+sign 2 = RECORDS|OFFICE||
+sign 3 = CRADLE FACILITY|LEVEL B2|ARCHIVE|
+sign 4 = STORE|SESSION RECORDS|ROWS 1 - 4|
+sign 5 = ROW|1||
+sign 6 = ROW|2||
+sign 7 = ROW|3||
+sign 8 = ROW|4||
+sign 9 = LIFT ACCESS B2|TO LEVEL B3|COPY CHECK CODE|
+; шифр 7 (замок 6): пустые места рядов 1-4 (LabFixtures по зерну) + лист B2-CHK (g); правило — объявление (c)
+lock K = 6
+station P = arc_b2
+cabinet c = cab_b2_copy
+cabinet g = b2_check
+stack m = 1 S E
+stack n = 2 S E
+stack q = 3 S E
+stack s = 4 S E

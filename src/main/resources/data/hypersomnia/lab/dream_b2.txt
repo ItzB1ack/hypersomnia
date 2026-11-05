@@ -1,0 +1,38 @@
+style dream
+height 5
+---
+             #####             
+             #LYL#             
+             #L@E#             
+             #LLL#             
+###############l###############
+#ZZZ.FF#...............#..FFRR#
+#HHH...#.HH.........HH.#......#
+#......#1DD....*....DD2#...*..#
+#F.*...#.HH.........HH.#..D..F#
+#F.....=...............=..ZH.F#
+#......#...*........*..#..d..F#
+#...T..#.........DZD...#......#
+#Fp...v#...3.4....H....#pF....#
+###############=###############
+#....*.....*..................#
+#..5..6..7..8................F#
+#..R..R..R..R.......*........F#
+#..R..R..R..R................F#
+#..R..R..R..R...HHH...HHH.....#
+#..R..R..R..R...DDD...DDD.....#
+#..R*.R..R*.R...HHH...HHH....F#
+#..R..R..R..R............*...F#
+#..R..R..R..R................F#
+#..R..R..R..R.............TT..#
+###############################
+---
+sign 1 = COPY ROOM|NIGHTLY 03:13||
+sign 2 = RECORDS|OFFICE||
+sign 3 = CRADLE FACILITY|LEVEL B2|ARCHIVE|
+sign 4 = STORE|SESSION RECORDS|ROWS 1 - 4|
+; мир снов: все ряды подписаны как первый
+sign 5 = ROW 1|SESSION RECORDS||
+sign 6 = ROW 1|SESSION RECORDS||
+sign 7 = ROW 1|SESSION RECORDS||
+sign 8 = ROW 1|SESSION RECORDS||

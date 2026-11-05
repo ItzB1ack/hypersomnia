@@ -1,0 +1,84 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "hypersomnia:block/chair_metal",
+    "fabric": "hypersomnia:block/chair_fabric",
+    "metal": "hypersomnia:block/chair_metal"
+  },
+  "elements": [
+    {
+      "name": "base_x",
+      "from": [2, 0, 7.25],
+      "to": [14, 1, 8.75],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east": { "texture": "#metal" },
+        "west": { "texture": "#metal" },
+        "up": { "texture": "#metal" },
+        "down": { "texture": "#metal", "cullface": "down" }
+      }
+    },
+    {
+      "name": "base_z",
+      "from": [7.25, 0, 2],
+      "to": [8.75, 1, 14],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east": { "texture": "#metal" },
+        "west": { "texture": "#metal" },
+        "up": { "texture": "#metal" },
+        "down": { "texture": "#metal", "cullface": "down" }
+      }
+    },
+    {
+      "name": "stem",
+      "from": [7.25, 1, 7.25],
+      "to": [8.75, 6.5, 8.75],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east": { "texture": "#metal" },
+        "west": { "texture": "#metal" }
+      }
+    },
+    {
+      "name": "seat",
+      "from": [2.5, 6.5, 2.5],
+      "to": [13.5, 8.5, 13.5],
+      "faces": {
+        "north": { "texture": "#fabric" },
+        "south": { "texture": "#fabric" },
+        "east": { "texture": "#fabric" },
+        "west": { "texture": "#fabric" },
+        "up": { "texture": "#fabric" },
+        "down": { "texture": "#fabric" }
+      }
+    },
+    {
+      "name": "spine",
+      "from": [7, 8.5, 13],
+      "to": [9, 10, 14],
+      "faces": {
+        "north": { "texture": "#metal" },
+        "south": { "texture": "#metal" },
+        "east": { "texture": "#metal" },
+        "west": { "texture": "#metal" }
+      }
+    },
+    {
+      "name": "back",
+      "from": [3, 9.5, 12],
+      "to": [13, 15.5, 14.5],
+      "faces": {
+        "north": { "texture": "#fabric" },
+        "south": { "texture": "#fabric" },
+        "east": { "texture": "#fabric" },
+        "west": { "texture": "#fabric" },
+        "up": { "texture": "#fabric" },
+        "down": { "texture": "#fabric" }
+      }
+    }
+  ]
+}
