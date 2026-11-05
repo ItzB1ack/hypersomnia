@@ -3,7 +3,7 @@ package com.hypersomnia.chase;
 /**
  * Числа погони (ChaseHandler на сервере, ObserverClient и ChaseClient на клиенте). ГИПОТЕЗА для ручного прохождения.
  * Массивы *_BY_STAGE индексируются стадией 0..5. Скорости — блоков за тик (шаг игрока ~0.216, бег ~0.281).
- * Сколько смотреть, чтобы он исчез, — общее правило ObserverTuning.gazeTicks(stage), как у обычной фигуры.
+ * Взгляд в погоне его не прогоняет (в отличие от обычной фигуры): только пока стоит на следе, заметил — сразу бежит.
  */
 public final class ChaseTuning {
     private ChaseTuning() {}
@@ -102,6 +102,8 @@ public final class ChaseTuning {
     public static final double ABORT_DIST = 64.0;
     /** Взгляд на него (сервер): угол от направления взгляда и точки тела над ногами (фигура выше игрока). */
     public static final double STARE_HALF_DEG = 30.0;
+    /** Пока стоит на следе (WARN): столько тиков взгляда на него — и он сразу бежит (взгляд в погоне не прогоняет). */
+    public static final int WARN_SEEN_TICKS = 6;
     public static final double[] STARE_POINTS = {0.9, 1.6, 2.2};
     /** Клиент не получил ответа на просьбу о погоне (тики). */
     public static final int REQUEST_TIMEOUT = 40;
@@ -158,6 +160,8 @@ public final class ChaseTuning {
     public static final float KNOCK_VOLUME = 0.9f;
     /** Пыль, пока на него смотрят: частиц за тик при полном взгляде. */
     public static final int STARE_DUST_MAX = 3;
+    /** «Обесточено» (LabOutage, флаг ChasePayload.I_DARK): тело в темноте не видно — глаза на его лице видны с такого расстояния. */
+    public static final double DARK_EYES_DISTANCE = 40.0;
     /** Тело в погоне поворачивается по ходу бега (доля разницы за тик), голова — к игроку, не дальше HEAD_MAX от тела. */
     public static final float BODY_TURN = 0.35f;
     public static final float HEAD_MAX = 75f;

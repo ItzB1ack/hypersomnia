@@ -27,6 +27,7 @@ public class Hypersomnia {
         ModEntities.ENTITIES.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
         ModSounds.register(modEventBus);
+        ModParticles.register(modEventBus);              // пар изо рта (client/BreathParticle)
         modEventBus.addListener(this::registerPayloads);
     }
 

@@ -56,4 +56,6 @@ public final class ModItems {
             ITEMS.registerSimpleBlockItem("battery_cabinet", ModBlocks.BATTERY_CABINET);
     public static final DeferredItem<net.minecraft.world.item.BlockItem> LIFT_PANEL =
             ITEMS.registerSimpleBlockItem("lift_panel", ModBlocks.LIFT_PANEL);
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> ANTENNA_DRIVE =
+            ITEMS.registerSimpleBlockItem("antenna_drive", ModBlocks.ANTENNA_DRIVE);
 }

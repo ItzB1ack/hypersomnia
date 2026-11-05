@@ -139,7 +139,11 @@ public final class LabTuning {
     // ---- Доступ к этажам B3-B5: панели LIFT ACCESS справа от двери лифта (шифры 7-9, только реальный мир) ----
     /** B2 -> B3. Шифр 7: пустые места в рядах хранилища и лист проверки копии B2-CHK (LabVariants.stacksCode). */
     public static final int LOCK_STACKS = 6;
-    /** B3 -> B4. Шифр 8: буферы стоек, удержанные при потере питания (BUFFER.LOG и лампы стоек, LabVariants.rackCode). */
+    /**
+     * B3 -> B4. Шифр 8: кода нет. Буферы стоек, удержанные при потере питания, уходят на ретранслятор через антенну ANT-1 на
+     * крыше павильона: тарелку поворачивают кареткой на азимут ретранслятора из BUFFER.LOG (на 180° от нынешнего), и панель
+     * открывается сама (LabAntenna). Без MAIN FEED несущей нет.
+     */
     public static final int LOCK_BUFFER = 7;
     /** B4 -> B5. Шифр 9: код директора, который выстукивают из палаты 2D во сне (LabVariants.knockCode). */
     public static final int LOCK_WARD = 8;
@@ -159,14 +163,43 @@ public final class LabTuning {
     public static final String STACKS_KEY = "stacks_copy";
     public static final String STACKS_SHEET_KEY = "stacks_sheet";
 
-    // ---- Шифр 8: серверная B3 (ServerRackBlock, LabFixtures) ----
+    // ---- Серверная B3 (ServerRackBlock, LabFixtures): удержанные буферы в BUFFER.LOG и на лампах, до передачи через ANT-1 ----
     public static final int RACKS = 12;
-    /** Сколько буферов SOURCE 47 удержано (цифр кода); ещё один удержан для копии B2 (ложный след в BUFFER.LOG). */
+    /** Сколько буферов SOURCE 47 удержано (строки HOLD журнала); ещё один удержан для копии B2. */
     public static final int RACK_HELD = 4;
     public static final String RACK_KEY = "rack_buffer";
     public static final String RACK_LAMPS_KEY = "rack_lamps";
     /** Свет верхней половины стойки с горящей лампой состояния, 0-15. */
     public static final int RACK_LIGHT = 3;
+
+    // ---- Шифр 8: антенна ANT-1 на крыше павильона (только реальный мир; LabAntenna, AntennaDriveBlock) ----
+    /** Один оборот штурвала каретки (ПКМ — по часовой стрелке, с Shift — назад), градусы. Азимуты тарелки кратны шагу. */
+    public static final int ANTENNA_STEP = 15;
+    /** Поворот на шаг длится столько тиков (у клиента плавно: teleport_duration дисплеев); раньше штурвал не берётся. */
+    public static final int ANTENNA_TURN_TICKS = 12;
+    /** Тарелка стоит на азимуте ретранслятора без поворотов столько тиков при MAIN FEED -> несущая, буферы ушли. */
+    public static final int ANTENNA_LOCK_TICKS = 60;
+    /** Раз в столько тиков: перестройка крыши старого мира, проверка дисплеев тарелки, проверка несущей. */
+    public static final int ANTENNA_SCAN_TICKS = 10;
+    /** Зерно мира: азимут, на который тарелку отвернули вручную в 03:13 (ретранслятор — на 180° от него). */
+    public static final String ANTENNA_KEY = "antenna_slew";
+    /** Блоков мачты (ограда из полированного сланца) над кареткой; ось поворота тарелки — на верхушке мачты. */
+    public static final int ANTENNA_MAST = 3;
+    /** Угол места тарелки, градусы (наклон чаши вверх от горизонта). */
+    public static final float ANTENNA_ELEVATION = 25f;
+    /** Глубина чаши: z = k * r^2 (облучатель в фокусе 1 / (4k)). */
+    public static final float ANTENNA_DEPTH = 0.16f;
+    /** Центр чаши над осью поворота и вперёд от неё, блоки. */
+    public static final float ANTENNA_HUB_UP = 0.95f;
+    public static final float ANTENNA_HUB_FORWARD = 0.12f;
+    /** Дальность видимости дисплеев тарелки (1 = 64 блока). */
+    public static final float ANTENNA_VIEW_RANGE = 2.0f;
+    /** Сообщение о несущей видят игроки ближе стольких блоков к каретке. */
+    public static final int ANTENNA_MESSAGE_RADIUS = 32;
+    /** Скрип каретки (ванильное точило) и сигнал несущей (маяк): громкость и высота. [проверить на слух] */
+    public static final float ANTENNA_SOUND_VOLUME = 0.7f;
+    public static final float ANTENNA_SOUND_PITCH = 0.55f;
+    public static final float ANTENNA_CARRIER_PITCH = 0.7f;
 
     // ---- Шифр 9: стук из палаты 2D (мир снов, B4; LabKnocks) ----
     public static final String KNOCK_KEY = "ward_knock";
@@ -265,6 +298,8 @@ public final class LabTuning {
     public static final int PANEL_LIGHT = 4;
     /** Сколько тиков экран щита мигает после того, как MAIN FEED выбило. */
     public static final int PANEL_TRIP_FLICKER_TICKS = 12;
+    /** Лампа сработавшего щита (TRIPPED) чуть светится, 0-15: в темноте «обесточено» видно, куда бежать. */
+    public static final int PANEL_TRIPPED_LIGHT = 3;
 
     // ---- Интерьер (LabBuilder) ----
     /** Свет монитора со «снегом» (мир снов), 0-15. */
@@ -300,8 +335,8 @@ public final class LabTuning {
     /** Мир снов: 1 из N блоков поля — камень, которого в этом здании нет (0 = выключено). */
     public static final int WRONG_DREAM = 211;
 
-    // ---- Антенна-тарелка на крыше (задел под загадку) ----
-    /** Сколько блоков над крышей стирать при пересборке (парапет, будка, тарелка). */
+    // ---- Крыша павильона: парапет и антенна (реальный мир — ANT-1, сон — статичная тарелка) ----
+    /** Сколько блоков над крышей стирать при пересборке (парапет, мачта, тарелка). */
     public static final int ROOF_CLEAR = 11;
     /** Шаг столбиков ограды крыши: каждый N-й блок — столбик (плюс все углы). */
     public static final int PARAPET_POST_EVERY = 4;
@@ -315,4 +350,23 @@ public final class LabTuning {
     // ---- Лифт ----
     public static final int LIFT_BASE_TICKS = 50;
     public static final int LIFT_PER_FLOOR = 16;
+
+    // ---- «Обесточено» (LabOutage): погоня в реальной лаборатории после MAIN FEED ----
+    /** Этажи, где бывает (B5 — финал, не трогаем). Щит этажа — у лифта, клетка '&' чертежа (id LabBreakers.BOARD + этаж). */
+    public static final int OUTAGE_MIN_STOP = 1;
+    public static final int OUTAGE_MAX_STOP = 4;
+    /** Мигание перед темнотой: длительности (тики) попеременно «погасли / зажглись», начиная с «погасли»; потом темно. */
+    public static final int[] OUTAGE_FLICKER = {3, 4, 2, 2, 1, 6, 3, 1, 8, 2, 4};
+    /** Свет возвращается: попеременно «зажглись / погасли», начиная с «зажглись»; потом горит. */
+    public static final int[] OUTAGE_RESTORE = {2, 5, 1, 3};
+    /** Свет вернётся сам: через столько тиков после конца погони, но не позже OUTAGE_MAX_TICKS от начала. */
+    public static final int OUTAGE_AFTER_CHASE = 60;
+    public static final int OUTAGE_MAX_TICKS = 1200;
+    /** Звуки: щелчки ламп при мигании, гул обрыва, удар щита, возврат питания (громкость, высота). [проверить на слух] */
+    public static final float OUTAGE_CLICK_VOLUME = 0.35f;
+    public static final float OUTAGE_CLICK_PITCH = 0.6f;
+    public static final float OUTAGE_DOWN_VOLUME = 1.0f;
+    public static final float OUTAGE_DOWN_PITCH = 0.5f;
+    public static final float OUTAGE_UP_VOLUME = 0.8f;
+    public static final float OUTAGE_UP_PITCH = 0.6f;
 }

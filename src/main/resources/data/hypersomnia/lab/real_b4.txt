@@ -6,7 +6,7 @@ height 5
              #L@E#             
              #LLL#             
 ###############l###############
-#FFFF.+#.Fc...9.K..hhh.#Tb~bT.#
+#FFFF.+#.Fc.&.9.K..hhh.#Tb~bT.#
 #......#...h...........#..~...#
 #F.....#1.DPD..*......2#......#
 #F..D..#...............#..*...#
@@ -33,6 +33,7 @@ sign 4 = WARD|2B||
 sign 5 = WARD 2D|PEDIATRIC||
 sign 6 = WARD|2C||
 sign 9 = LIFT ACCESS B4|TO LEVEL B5|DIRECTOR'S CODE|
+panel & = 14
 ; шифр 9 (замок 8): код стучат во сне за заложенной дверью 2D (LabKnocks); правило — записка j в 2D,
 ; панель K видна из окна 2D (столбец x=16 свободен)
 lock K = 8

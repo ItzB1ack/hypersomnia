@@ -19,11 +19,14 @@ public record ChasePayload(int run, int phase, int info, double x, double y, dou
     /** Исходы: выдержал взгляд, продержался, ушёл от двери, учебная (остановился рядом), поймал, прервана. */
     public static final int O_NONE = 0, O_STARED = 1, O_ESCAPED = 2, O_BLOCKED = 3, O_TAUGHT = 4, O_CAUGHT = 5, O_ABORT = 6;
 
+    /** Флаги в info вне PH_END и PH_REJECT: I_DARK — «обесточено» (лаборатория в темноте, LabOutage): глаза видны издалека. */
+    public static final int I_DARK = 1;
+
     /** Причины отказа (для журнала режиссёра). */
     public static final int R_BUSY = 1, R_STAGE = 2, R_DAYS = 3, R_CONTEXT = 4, R_LAB = 5, R_SAFETY = 6, R_TRAIL = 7,
             R_VIEW = 8;
     private static final String[] REASONS = {"-", "already running", "stage", "days", "not night / not dark",
-            "laboratory", "unsafe place", "no trail (walk 15+ blocks)", "every start point in view"};
+            "laboratory (outage: real lab, MAIN FEED, B1-B4, not in the lift)", "unsafe place", "no trail (walk 15+ blocks)", "every start point in view"};
 
     public static String reason(int r) {
         return r >= 0 && r < REASONS.length ? REASONS[r] : "?";

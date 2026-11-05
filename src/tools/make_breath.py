@@ -1,48 +1,51 @@
 """
-Дыхание: мягкое пятно-туман для BreathOverlay.
+Дыхание: текстуры пара изо рта для частицы hypersomnia:breath (client/BreathParticle).
 Запуск из корня: python run_tool.py make_breath (или двойной клик tools.bat).
-Кладёт src/main/resources/assets/hypersomnia/textures/misc/breath.png (+ .mcmeta blur).
+Кладёт src/main/resources/assets/hypersomnia/textures/particle/breath_0.png .. breath_3.png (32x32);
+список кадров - assets/hypersomnia/particles/breath.json (его скрипт не трогает).
+
+Каждая текстура - рыхлое облачко: мягкий круг, изъеденный шумом, края уходят в прозрачность. Цвет #DDE6EC
+(светлый из палитры мода); прозрачность и рост задаёт сама частица. Зёрна фиксированы: те же файлы при повторном запуске.
 """
 import os
-from PIL import Image, ImageDraw, ImageFilter
+import random
+from PIL import Image, ImageFilter
 
-W = H = 512
-out_dir = os.path.join("src", "main", "resources", "assets", "hypersomnia", "textures", "misc")
+S = 32
+COLOR = (221, 230, 236)
+out_dir = os.path.join("src", "main", "resources", "assets", "hypersomnia", "textures", "particle")
 os.makedirs(out_dir, exist_ok=True)
 
-# Несколько наложенных эллипсов, чуть смещённых — пятно несимметричное, «дышит»
-img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-d = ImageDraw.Draw(img)
-blobs = [
-    (256, 280, 200, 140, 90),
-    (200, 250, 160, 120, 70),
-    (310, 300, 150, 110, 60),
-    (260, 340, 220, 90,  55),
-    (240, 220, 130, 100, 50),
-]
-for cx, cy, rx, ry, a in blobs:
-    d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=(221, 230, 236, a))
+# зерно, вытянутость по x и y, сила шума, плотность
+VARIANTS = [(11, 1.00, 0.92, 0.55, 1.00), (23, 1.10, 0.85, 0.65, 0.92),
+            (37, 0.90, 1.00, 0.60, 0.95), (41, 1.05, 1.05, 0.75, 0.85)]
 
-# Размытие — мягкая кромка, как у пара
-img = img.filter(ImageFilter.GaussianBlur(radius=48))
 
-# Радиальная маска: к краям альфа к нулю, пятно не обрезается рамкой
-px = img.load()
-for y in range(H):
-    for x in range(W):
-        dx = (x - W / 2) / (W / 2)
-        dy = (y - H / 2) / (H / 2)
-        r = (dx * dx + dy * dy) ** 0.5
-        k = max(0.0, 1.0 - r)
-        k = k * k
-        if k <= 0:
-            px[x, y] = (0, 0, 0, 0)
-        else:
-            r0, g0, b0, a0 = px[x, y]
-            px[x, y] = (r0, g0, b0, int(a0 * k))
+def value_noise(rnd, cells):
+    """Плавный шум 0..1: случайная сетка cells x cells, растянутая бикубически до S x S."""
+    small = Image.new("L", (cells, cells))
+    small.putdata([rnd.randint(0, 255) for _ in range(cells * cells)])
+    return small.resize((S, S), Image.BICUBIC)
 
-out = os.path.join(out_dir, "breath.png")
-img.save(out)
-with open(out + ".mcmeta", "w", encoding="utf-8") as f:
-    f.write('{"texture":{"blur":true}}')
-print("wrote", out)
+
+for i, (seed, sx, sy, rough, dens) in enumerate(VARIANTS):
+    rnd = random.Random(seed)
+    n1 = value_noise(rnd, 4).load()
+    n2 = value_noise(rnd, 7).load()
+    alpha = Image.new("L", (S, S))
+    pa = alpha.load()
+    for y in range(S):
+        for x in range(S):
+            dx = (x + 0.5 - S / 2) / (S / 2) / sx
+            dy = (y + 0.5 - S / 2) / (S / 2) / sy
+            r = (dx * dx + dy * dy) ** 0.5
+            base = max(0.0, 1.0 - r) ** 1.6                       # мягкий круг
+            n = 0.65 * n1[x, y] / 255.0 + 0.35 * n2[x, y] / 255.0  # рыхлость
+            k = base * (1.0 - rough + rough * n * 1.6) * dens
+            pa[x, y] = max(0, min(255, int(255 * k)))
+    alpha = alpha.filter(ImageFilter.GaussianBlur(radius=0.8))
+    img = Image.new("RGBA", (S, S), COLOR + (0,))
+    img.putalpha(alpha)
+    out = os.path.join(out_dir, "breath_%d.png" % i)
+    img.save(out)
+    print("wrote", out)

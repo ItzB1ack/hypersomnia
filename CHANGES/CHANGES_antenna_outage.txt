@@ -1,0 +1,144 @@
+HYPERSOMNIA — пакет «выдох, антенна, взгляд в погоне, «обесточено», промт катсцен»
+База: src.zip из этого чата. В changed.zip — все отличия от него (включая прошлые пакеты: lift-safety, этажи, шифры,
+оборудование/выдох, погоня, погоня 2). Если пакет chase2 уже стоит, хватит файлов из списка «НОВОЕ В ЭТОМ ПАКЕТЕ» (52).
+Сеть не менялась, но КЛИЕНТ И СЕРВЕР ОБНОВЛЯТЬ ВМЕСТЕ: новые блоки (каретка антенны, погасшая трубка) и частица пара.
+Старые миры: крыша с антенной перестраивается сама при загрузке, щит этажа ставится сам при первом «обесточено».
+
+ЧТО ПРОВЕРЕНО
+- Компиляция: javac (Java 21) против jar NeoForge 21.1.235 — 0 ошибок. Не Gradle.
+- Выделенный сервер NeoForge 21.1.235 с модом и временными тестами (в мод не входят), всё прошло:
+  антенна — 47 проверок (крыша, каретка, повороты, несущая, лифт на B4, перестройка старого мира, мир снов);
+  «обесточено» — 32 проверки, включая две настоящие погони в темноте (поймал / включил щит и ушёл);
+  погоня — взгляд больше не прогоняет (повернулся к нему на 22 блоках — добежал и поймал), дверь и урон как раньше;
+  поиск пути — все 6 сцен как в прошлом пакете.
+- Звук выдоха сверен по спектрограмме и громкости; пар — только расчётом.
+НЕ ПРОВЕРЕНО: клиент (runClient) — звук выдоха на слух, пар на вид, тарелка антенны на вид, темнота, глаза в темноте,
+вид погасших трубок и щита.
+
+1. ВЫДОХ — ПОНЯТНО, ЧТО ЭТО ВЫДОХ
+- Звук (3 варианта): тихий вдох 0,34–0,40 с, пауза, потом явный выдох «хааа» с 0,5 с (гласная «а», толчок воздуха;
+  в 1-м и 3-м вариантах чуть слышен голос). Генератор tools/make_breath_sound.py переписан (нужны numpy и ffmpeg).
+- Пар: новая частица hypersomnia:breath — в момент выдоха изо рта идёт струя вперёд и вниз (0,8 с): сначала густая
+  и быстрая, к концу слабее; клубы растут и тают, у самой камеры не вспыхивают белым. Текстуры — tools/make_breath.py.
+- Когда: на холоде — ночь, снежный биом, высота; в мире снов всегда. Раз в 3–8 с. Субтитр «Дыхание».
+Числа: ObserverTuning.BREATH_* (BREATH_INHALE_TICKS — когда начинается выдох в звуке, PUFF_* — струя, SIZE/ALPHA — вид).
+
+2. СЕРВЕРЫ B3 -> АНТЕННА (шифр 8, замок 7 BUFFER)
+Раньше: код со стоек в серверной B3. Теперь: на крыше центра тарелка ANT-1 на мачте (из block_display, поворачивается
+плавно), рядом каретка (новый блок «Поворотная каретка антенны»), к крыше ведёт лестница.
+- Что делать: в журнале BUFFER.LOG (серверная B3) видно, что в ту ночь тарелку вручную отвернули с азимута ретранслятора
+  (например «285 > 105», числа свои в каждом мире). Выйти на поверхность и кареткой повернуть тарелку обратно на 180°:
+  ПКМ +15°, Shift+ПКМ −15° (12 шагов).
+- При главном вводе (MAIN FEED) на нужном азимуте 3 с без поворотов -> «НЕСУЩАЯ · БУФЕРЫ ПЕРЕДАНЫ · ЛИФТ: B4 ОТКРЫТ»:
+  замок BUFFER открыт, стойки больше не держат лифт. Без питания — «НЕТ ПИТАНИЯ»; код на B3 больше ничего не открывает.
+- Табличка у замка B3: «LIFT ACCESS B3 · TO LEVEL B4 · UPLINK ANT-1»; без несущей замок пишет «ЖДЁТ СВЯЗИ · ANT-1 НЕТ НЕСУЩЕЙ».
+Числа: LabTuning.ANTENNA_* (шаг, время поворота, удержание 60 тиков, вид тарелки). Азимуты — LabVariants (зерно мира).
+
+3. ВЗГЛЯД В ПОГОНЕ НЕ ПРОГОНЯЕТ
+- Пока он стоит на следе (предупреждение), заметил его взглядом — он сразу срывается с места (6 тиков взгляда).
+- Во время бега взгляд ничего не делает, пыль с него не сыплется. Спасают дверь, расстояние и время, в лаборатории — щит.
+- Вне погони правило взгляда прежнее (исчезает, на высоких стадиях дольше смотреть).
+Числа: ChaseTuning.WARN_SEEN_TICKS.
+
+4. ПОГОНЯ В ЛАБОРАТОРИИ: «ОБЕСТОЧЕНО»
+Раньше погоня в лаборатории не начиналась. Теперь её может начать обычный режиссёр погони (условия те же, что снаружи:
+стадия 2+, не чаще раза в 2 дня, след 15+ блоков, безопасно), но только в реальной лаборатории после MAIN FEED,
+на этажах B1–B4, не в кабине лифта. Ночь не нужна — темноту делает сама лаборатория.
+- Начало: трубки на потолке этажа мигают неровным ритмом, все разом (1,8 с, со щелчками), и гаснут. Щит этажа у лифта
+  выбит (лампа красная, чуть светится), звук отключения, у щита хлопает заслонка; в строке: «ЩИТ ЭТАЖА B2: СРАБОТАЛА
+  ЗАЩИТА · ВКЛЮЧИТЬ У ЛИФТА». Лифт стоит: «НЕТ ПИТАНИЯ».
+- Пока мигает свет, он уже стоит на твоём следе; дальше погоня как обычно. В темноте глаза видно до 40 блоков.
+- Свет возвращается (мигнув), когда: включишь щит этажа ПКМ — погоня сразу кончается, ты ушёл; через 3 с после конца
+  погони (поймал / ушёл / вышел из игры); через 60 с в любом случае — тупика нет.
+- Новые блоки: щит этажа (по одному на этажах B1–B5 у лифта, в чертежах клетка «&»), погасшая трубка (без предмета).
+- Сервер остановили в темноте — свет включается до сохранения; упал — при следующем запуске.
+Числа: LabTuning.OUTAGE_* (этажи, ритм мигания, 3 с после погони, 60 с максимум, звуки), PANEL_TRIPPED_LIGHT;
+ChaseTuning.DARK_EYES_DISTANCE.
+
+5. ПРОМТ КАТСЦЕН КОНЦОВОК — файл PROMT_cutscenes.txt (отдельно, в мод не входит)
+Раскадровка всех 7 концовок: по шоту на строку текста экрана концовки, со временем как в игре, кадр/камера/свет/звук,
+строки EN и RU, карточка и штамп; общий стиль, палитра, облик Фрагмента, запреты канона (лицо Норы, отражения,
+«сущность», глаза вне лица Фрагмента, «07»), готовые английские промты для генератора, негатив, референсы, формат
+кадров для мода и чек-лист.
+
+КАК ПРОВЕРИТЬ (мир с читами)
+1. Выдох: ночь или снежный биом, постоять — вдох, «хааа» и пар; /hypersomnia_observer breath — сразу.
+2. Антенна: /hypersomnia_lab feed on, /hypersomnia_lab antenna (азимуты, питание, замок); на крышу по лестнице,
+   каретка у мачты — 12 раз ПКМ; через 3 с сообщение о несущей, лифт едет на B4. /hypersomnia_lab antenna <азимут> —
+   поставить азимут сразу.
+3. Взгляд: /hypersomnia_progress stage 3, ночь, пройти 20+ блоков, /hypersomnia_observer chase real, обернуться
+   к нему, когда побежит, — не исчезает.
+4. «Обесточено»: /hypersomnia_lab feed on, спуститься на B2, пройти по холлу 20+ блоков, /hypersomnia_observer chase real.
+   Убегать к лифту и ПКМ по щиту этажа (стена у лифта, лампа красная). Без погони: /hypersomnia_lab outage on / off.
+
+[ПРОВЕРИТЬ]
+- Выдох: не слишком ли громко/часто — BREATH_SOUND_VOLUME, BREATH_INTERVAL_MIN/MAX; пар не слишком ли густой — BREATH_ALPHA.
+- Тарелка: форма и поворот на вид; не мешает ли лестница; слышно ли поворот (ANTENNA_SOUND_*).
+- Темнота: достаточно ли темно на этажах с окнами-экранами; видно ли глаза (DARK_EYES_DISTANCE).
+- Щит этажа: находится ли быстро; если трудно — OUTAGE_MAX_TICKS меньше.
+
+УДАЛИТЬ из своего src при наложении changed.zip на src.zip (устарели, как в прошлых пакетах):
+  main/java/com/hypersomnia/client/EyeGlyphs.java
+  main/java/com/hypersomnia/document/EyeAlphabet.java
+  main/java/com/hypersomnia/lab/BreakerBlock.java
+  main/resources/assets/hypersomnia/blockstates/breaker.json
+  main/resources/assets/hypersomnia/models/block/breaker_off.json
+  main/resources/assets/hypersomnia/models/block/breaker_on.json
+  main/resources/assets/hypersomnia/models/item/breaker.json
+  main/resources/assets/hypersomnia/sounds/sounds.json
+  main/resources/assets/hypersomnia/textures/misc/plan_l5.png
+  tools/make_plan_l5.py
+
+НОВОЕ В ЭТОМ ПАКЕТЕ (52 файла поверх chase2; всего отличий от src.zip: 151)
+  main/java/com/hypersomnia/Hypersomnia.java
+  main/java/com/hypersomnia/ModBlocks.java
+  main/java/com/hypersomnia/ModItems.java
+  main/java/com/hypersomnia/ModParticles.java
+  main/java/com/hypersomnia/ModTabs.java
+  main/java/com/hypersomnia/ObserverTuning.java
+  main/java/com/hypersomnia/chase/ChaseHandler.java
+  main/java/com/hypersomnia/chase/ChaseTuning.java
+  main/java/com/hypersomnia/client/BreathClient.java
+  main/java/com/hypersomnia/client/BreathParticle.java
+  main/java/com/hypersomnia/client/LabTerminalScreen.java
+  main/java/com/hypersomnia/client/ObserverClient.java
+  main/java/com/hypersomnia/document/DocumentDefs.java
+  main/java/com/hypersomnia/lab/AntennaDriveBlock.java
+  main/java/com/hypersomnia/lab/ArchiveDefs.java
+  main/java/com/hypersomnia/lab/LabAntenna.java
+  main/java/com/hypersomnia/lab/LabBreakers.java
+  main/java/com/hypersomnia/lab/LabBuilder.java
+  main/java/com/hypersomnia/lab/LabCommand.java
+  main/java/com/hypersomnia/lab/LabFixtures.java
+  main/java/com/hypersomnia/lab/LabLift.java
+  main/java/com/hypersomnia/lab/LabLocks.java
+  main/java/com/hypersomnia/lab/LabOutage.java
+  main/java/com/hypersomnia/lab/LabProtection.java
+  main/java/com/hypersomnia/lab/LabSavedData.java
+  main/java/com/hypersomnia/lab/LabTuning.java
+  main/java/com/hypersomnia/lab/LabVariants.java
+  main/java/com/hypersomnia/lab/UnlitTubeBlock.java
+  main/java/com/hypersomnia/network/ChasePayload.java
+  main/java/com/hypersomnia/server/LabHandler.java
+  main/resources/assets/hypersomnia/blockstates/antenna_drive.json
+  main/resources/assets/hypersomnia/blockstates/unlit_tube.json
+  main/resources/assets/hypersomnia/lang/en_us.json
+  main/resources/assets/hypersomnia/lang/ru_ru.json
+  main/resources/assets/hypersomnia/models/block/antenna_drive.json
+  main/resources/assets/hypersomnia/models/block/unlit_tube.json
+  main/resources/assets/hypersomnia/models/item/antenna_drive.json
+  main/resources/assets/hypersomnia/particles/breath.json
+  main/resources/assets/hypersomnia/sounds/breath_exhale.ogg
+  main/resources/assets/hypersomnia/sounds/breath_exhale_2.ogg
+  main/resources/assets/hypersomnia/sounds/breath_exhale_3.ogg
+  main/resources/assets/hypersomnia/textures/particle/breath_0.png
+  main/resources/assets/hypersomnia/textures/particle/breath_1.png
+  main/resources/assets/hypersomnia/textures/particle/breath_2.png
+  main/resources/assets/hypersomnia/textures/particle/breath_3.png
+  main/resources/data/hypersomnia/lab/real_b1.txt
+  main/resources/data/hypersomnia/lab/real_b2.txt
+  main/resources/data/hypersomnia/lab/real_b3.txt
+  main/resources/data/hypersomnia/lab/real_b4.txt
+  main/resources/data/hypersomnia/lab/real_b5.txt
+  tools/make_breath.py
+  tools/make_breath_sound.py

@@ -6,7 +6,7 @@ height 5
              #L@E#             
              #LLL#             
 ###############l###############
-#VVV.FF#......9.K......#..FFRR#
+#VVV.FF#....&.9.K......#..FFRR#
 #hhh...#.hh.........hh.#......#
 #......#1DD....*....DD2#...*..#
 #c.*...#.hh.........hh.#..D..F#
@@ -36,6 +36,7 @@ sign 6 = ROW|2||
 sign 7 = ROW|3||
 sign 8 = ROW|4||
 sign 9 = LIFT ACCESS B2|TO LEVEL B3|COPY CHECK CODE|
+panel & = 12
 ; шифр 7 (замок 6): пустые места рядов 1-4 (LabFixtures по зерну) + лист B2-CHK (g); правило — объявление (c)
 lock K = 6
 station P = arc_b2

@@ -34,8 +34,9 @@ public final class LabFixtures {
     }
 
     /**
-     * Реальный мир: удержанные стойки — HOLD, остальные — IDLE, на лампах адрес буфера (LabVariants.rackValue).
-     * Мир снов: всё погашено, кроме первой удержанной стойки — она «пишет» (HOLD, лампы адреса тёмные).
+     * Реальный мир: удержанные стойки — HOLD, пока буферы не ушли через ANT-1 (замок LOCK_BUFFER), остальные — IDLE;
+     * на лампах адрес буфера (LabVariants.rackValue). Мир снов: всё погашено, кроме первой удержанной стойки — она «пишет»
+     * (HOLD, лампы адреса тёмные).
      */
     private static void rack(ServerLevel level, LabSavedData d, BlockPos p, int id, long seed, int[] hold) {
         BlockState st = level.getBlockState(p);
@@ -46,6 +47,7 @@ public final class LabFixtures {
         } else {
             boolean held = false;
             for (int n : hold) held |= n == id;
+            held &= !d.isLockOpen(LabTuning.LOCK_BUFFER);
             want = ServerRackBlock.lamps(st, held ? ServerRackBlock.Status.HOLD : ServerRackBlock.Status.IDLE,
                     LabVariants.rackValue(seed, id));
         }

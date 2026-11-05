@@ -74,6 +74,11 @@ public final class LabProtection {
 
     /** Точка в объёме какого-нибудь построенного этажа этого мира. */
     public static boolean inside(LabSavedData d, BlockPos pos) {
+        return stopAt(d, pos) >= 0;
+    }
+
+    /** Этаж (остановка лифта), в чьём объёме точка, или -1. */
+    public static int stopAt(LabSavedData d, BlockPos pos) {
         int m = LabTuning.PROTECT_MARGIN;
         for (int stop = 0; stop < LabTuning.STOPS; stop++) {
             if (!d.isBuilt(stop)) continue;
@@ -82,8 +87,8 @@ public final class LabProtection {
             if (pos.getY() < fy - 1 || pos.getY() > top) continue;
             if (pos.getX() < d.bbox[stop * 4] - m || pos.getX() > d.bbox[stop * 4 + 2] + m) continue;
             if (pos.getZ() < d.bbox[stop * 4 + 1] - m || pos.getZ() > d.bbox[stop * 4 + 3] + m) continue;
-            return true;
+            return stop;
         }
-        return false;
+        return -1;
     }
 }

@@ -347,8 +347,8 @@ public final class DocumentDefs {
                 new Head("SERVERS B3 / RACKS"),                                    // 0
                 new Para("Racks 1-12 hold the session recordings. Numbers run from the sign at the head of each line."), // 1
                 new Para("Status lamp, top of the rack: light - idle, red - buffer held, dark - off."), // 2
-                new Para("If the main feed is lost, a recording in progress is held in the buffer of its rack. The buffer address is on the four lamps under the status lamp."), // 3
-                new Para("Read them from the top: 8, 4, 2, 1. The address is the sum of the lit lamps."), // 4
+                new Para("If the main feed is lost, a recording in progress is held in the buffer of its rack until the uplink sends it to the relay."), // 3
+                new Para("The four lamps under the status lamp are the buffer address, for the service engineer: 8, 4, 2, 1 from the top."), // 4
                 new Para("Do not switch off a rack while its buffer is held."),   // 5
                 new Stamp("INTERNAL"))));                                          // 6
         add(new Doc("cab_b4_roster", "Ward Roster: Level B4", Style.OFFICIAL, List.of(

@@ -308,7 +308,7 @@ public final class LabVariants {
         return sb.toString();
     }
 
-    // ---------------- Шифр 8: буферы стоек B3 (BUFFER.LOG и лампы адреса 8-4-2-1) ----------------
+    // ---------------- Серверная B3: удержанные буферы (строки HOLD в BUFFER.LOG, лампы стоек) ----------------
 
     /** Номера стоек (1..RACKS) в порядке удержания буфера: первые RACK_HELD — SOURCE 47, последняя — копия B2. */
     public static int[] rackHold(long seed) {
@@ -332,12 +332,17 @@ public final class LabVariants {
         return v;
     }
 
-    /** Код LIFT ACCESS B3: адреса буферов SOURCE 47 в порядке удержания. */
-    public static String rackCode(long seed) {
-        int[] h = rackHold(seed);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < LabTuning.RACK_HELD; i++) sb.append(rackValue(seed, h[i]));
-        return sb.toString();
+    // ---------------- Шифр 8: антенна ANT-1 на крыше (LabAntenna) ----------------
+
+    /** Азимут, на который тарелку отвернули вручную в 03:13 (с него она начинает): 0..345, кратно ANTENNA_STEP; 0 = север. */
+    public static int antennaStart(long seed) {
+        int steps = 360 / LabTuning.ANTENNA_STEP;
+        return WorldVariant.random(seed, LabTuning.ANTENNA_KEY).nextInt(steps) * LabTuning.ANTENNA_STEP;
+    }
+
+    /** Азимут ретранслятора (строка UPLINK в BUFFER.LOG): на 180° от начального. На нём буферы уходят, панель B3 открывается. */
+    public static int antennaTarget(long seed) {
+        return (antennaStart(seed) + 180) % 360;
     }
 
     // ---------------- Шифр 9: стук из палаты 2D (мир снов, B4) ----------------

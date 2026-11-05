@@ -6,7 +6,7 @@ height 5
              #L@E#             
              #LLL#             
 ###############l###############
-#dVVVPR#.hhh..4*...hhhp#FFBKoj#
+#dVVVPR#.hhh&.4*...hhhp#FFBKoj#
 #..h.hv#...............#......#
 #...*..#1.*.........*.2#v....i#
 #......#.....DDVDD.....#..*..D#
@@ -21,6 +21,7 @@ sign 2 = POWER|ROOM||
 sign 3 = CRADLE FACILITY|LEVEL B1|RECEPTION|
 sign 4 = LIFT|B2 AND BELOW|ON MAIN FEED|
 panel B = 0
+panel & = 11
 station P = sec_b1
 station Q = eng_b1
 cabinet f = cab_night_memo

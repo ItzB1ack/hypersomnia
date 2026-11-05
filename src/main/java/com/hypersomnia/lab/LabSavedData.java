@@ -31,6 +31,8 @@ public final class LabSavedData extends SavedData {
     public static final int KIND_STACK = 10;
     /** Заложенная дверь, за которой стучат (строка knock): kind * 1000 + замок, чей код выстукивают (LabKnocks). */
     public static final int KIND_KNOCK = 11;
+    /** Поворотная каретка антенны ANT-1 на крыше реального павильона (AntennaDriveBlock): kind * 1000. ПКМ — LabAntenna.use. */
+    public static final int KIND_ANTENNA = 12;
 
     /** Биты flags: сюжетные события мира. */
     public static final int FLAG_FEED = 0;
@@ -38,8 +40,10 @@ public final class LabSavedData extends SavedData {
     /**
      * Версия формата данных (тег version; в старых сохранениях нет = 0). 2 — лифт ниже B2 открывают замки LIFT ACCESS 6-8:
      * при загрузке старого мира, где MAIN FEED открывал всё до B5, reached срезается до LabLocks.accessTop.
+     * 3 — шифр 8 через антенну ANT-1: у реального мира со старой статичной тарелкой ставится roofPending, и LabAntenna
+     * перестраивает крышу (LabBuilder.roofUpgrade), когда её чанки загружены.
      */
-    public static final int DATA_VERSION = 2;
+    public static final int DATA_VERSION = 3;
 
     // ---- Точка входа (Верхний мир) ----
     public boolean sited;
@@ -74,9 +78,19 @@ public final class LabSavedData extends SavedData {
     public boolean breakerTripped;
     /** Остановка с закрытыми во время рейса дверями или -1. */
     public int closedDoor = -1;
-    /** Антенна-тарелка: центр (упакованный BlockPos) и текущий угол поворота (задел под загадку). */
+    /**
+     * Антенна: позиция (упакованный BlockPos) и азимут тарелки, градусы (0 = север, по часовой стрелке). Реальный мир —
+     * каретка ANT-1 (LabAntenna), сон — угол основания статичной тарелки (угол 0).
+     */
     public long dishPos;
     public int dishAngle;
+    /** Старый мир (версия данных < 3): крышу перестроить под ANT-1, когда её чанки загрузятся (LabAntenna). */
+    public boolean roofPending;
+    /** Не сохраняются: игровое время последнего поворота тарелки и до какого тика штурвал занят (LabAntenna). */
+    public long dishTurnedAt;
+    public long dishBusyUntil;
+    /** Этаж, где сейчас «обесточено» (LabOutage), или -1. Сохраняется: упал сервер в темноте — при запуске свет вернётся. */
+    public int outageStop = -1;
     public int[] stopY = new int[LabTuning.STOPS];
     public int[] stopH = new int[LabTuning.STOPS];
     public int[] bbox = new int[LabTuning.STOPS * 4];
@@ -140,6 +154,8 @@ public final class LabSavedData extends SavedData {
         built = false;
         builtMask = 0;
         closedDoor = -1;
+        roofPending = false;
+        outageStop = -1;
         inter.clear();
         setDirty();
     }
@@ -176,6 +192,8 @@ public final class LabSavedData extends SavedData {
         tag.putInt("closedDoor", closedDoor);
         tag.putLong("dishPos", dishPos);
         tag.putInt("dishAngle", dishAngle);
+        tag.putBoolean("roofPending", roofPending);
+        tag.putInt("outageStop", outageStop);
         tag.putIntArray("stopY", stopY);
         tag.putIntArray("stopH", stopH);
         tag.putIntArray("bbox", bbox);
@@ -214,6 +232,8 @@ public final class LabSavedData extends SavedData {
         d.closedDoor = tag.contains("closedDoor") ? tag.getInt("closedDoor") : -1;
         d.dishPos = tag.getLong("dishPos");
         d.dishAngle = tag.getInt("dishAngle");
+        d.roofPending = tag.getBoolean("roofPending");
+        d.outageStop = tag.contains("outageStop") ? tag.getInt("outageStop") : -1;
         int[] a = tag.getIntArray("stopY");
         if (a.length == d.stopY.length) d.stopY = a;
         a = tag.getIntArray("stopH");
@@ -225,7 +245,9 @@ public final class LabSavedData extends SavedData {
         long[] keys = tag.getLongArray("interKeys");
         int[] vals = tag.getIntArray("interVals");
         for (int i = 0; i < keys.length && i < vals.length; i++) d.inter.put(keys[i], vals[i]);
-        if (tag.getInt("version") < DATA_VERSION && d.hasFlag(FLAG_FEED)) d.reached = Math.min(d.reached, LabLocks.accessTop(d));
+        int version = tag.getInt("version");
+        if (version < 2 && d.hasFlag(FLAG_FEED)) d.reached = Math.min(d.reached, LabLocks.accessTop(d));
+        if (version < 3 && d.built && !d.dream && d.isBuilt(0)) d.roofPending = true;
         return d;
     }
 }

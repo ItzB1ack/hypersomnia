@@ -37,6 +37,7 @@ public final class ModTabs {
                             output.accept(ModItems.UPS_CABINET.get());
                             output.accept(ModItems.BATTERY_CABINET.get());
                             output.accept(ModItems.LIFT_PANEL.get());
+                            output.accept(ModItems.ANTENNA_DRIVE.get());
                             for (com.hypersomnia.document.DocumentDefs.Doc d : com.hypersomnia.document.DocumentDefs.all()) {
                                 output.accept(com.hypersomnia.document.DocumentItem.make(d.id()));
                             }

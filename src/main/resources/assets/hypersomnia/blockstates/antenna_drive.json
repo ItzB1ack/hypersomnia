@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "hypersomnia:block/antenna_drive" },
+    "facing=east": { "model": "hypersomnia:block/antenna_drive", "y": 90 },
+    "facing=south": { "model": "hypersomnia:block/antenna_drive", "y": 180 },
+    "facing=west": { "model": "hypersomnia:block/antenna_drive", "y": 270 }
+  }
+}

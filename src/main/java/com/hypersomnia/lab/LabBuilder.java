@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
+import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -118,7 +119,7 @@ public final class LabBuilder {
         return Blocks.END_ROD.defaultBlockState().setValue(net.minecraft.world.level.block.EndRodBlock.FACING, pointing); // [проверить: EndRodBlock.FACING]
     }
 
-    /** Фасад павильона (только поверхность): пилястры и антенна над входом. */
+    /** Фасад павильона (только поверхность): тёмные пилястры по углам и на сторонах (мимо входа). */
     private static void facade(ServerLevel lv, Style s, int fy, int h, int x1, int z1, int x2, int z2, int[] door) {
         pilaster(lv, s, fy, h, x1, z1); // углы — тёмные столбы во всю высоту
         pilaster(lv, s, fy, h, x2, z1);
@@ -141,15 +142,16 @@ public final class LabBuilder {
         }
     }
 
+    /** Сторона зоны антенны на крыше (квадрат DISH_ZONE x DISH_ZONE). */
+    private static final int DISH_ZONE = 4;
+
     /**
-     * Антенна: три плоскости по три железных люка (пол и две стенки), каждая «Г» из 2x2 без
-     * дальней клетки; вместе образуют угол куба, с любой стороны читается «Г» с тонкими кромками
-     * двух других плоскостей. Всего 9 люков. Позиция и угол поворота сохраняются в LabSavedData:
-     * позже антенну будет вращать терминал для загадки с замком.
+     * Угол (x, z) зоны антенны DISH_ZONE x DISH_ZONE на крыше: ближе к центру, мимо машинного помещения над лифтом и люков;
+     * null — крыша мала. Одинаков при каждой стройке (по нему же roofUpgrade находит старую тарелку).
      */
-    private static void dish(ServerLevel lv, Style s, int fy, int h, int x1, int z1, int x2, int z2, int[] lift, LabSavedData d) {
-        int size = 4; // плита-основание 4x4
-        if (x2 - x1 < size + 2 || z2 - z1 < size + 2) return;
+    private static int[] dishSpot(int x1, int z1, int x2, int z2, int[] lift) {
+        int size = DISH_ZONE;
+        if (x2 - x1 < size + 2 || z2 - z1 < size + 2) return null;
         int inset = LabTuning.ROOF_HATCH_INSET;
         int hx1 = x1 + inset, hz1 = z1 + inset, hx2 = x2 - inset, hz2 = z2 - inset;
         int midX = (x1 + x2) / 2, midZ = (z1 + z2) / 2;
@@ -166,7 +168,19 @@ public final class LabBuilder {
                 }
             }
         }
-        if (best == Integer.MIN_VALUE) return;
+        return best == Integer.MIN_VALUE ? null : new int[]{bestX, bestZ};
+    }
+
+    /**
+     * Мир снов: статичная тарелка — три плоскости по три железных люка (пол и две стенки), каждая «Г» из 2x2 без
+     * дальней клетки; вместе образуют угол куба, с любой стороны читается «Г» с тонкими кромками
+     * двух других плоскостей. Всего 9 люков. В реальном мире вместо неё антенна ANT-1 (antenna()).
+     */
+    private static void dish(ServerLevel lv, Style s, int fy, int h, int x1, int z1, int x2, int z2, int[] lift, LabSavedData d) {
+        int size = DISH_ZONE; // плита-основание 4x4
+        int[] spot = dishSpot(x1, z1, x2, z2, lift);
+        if (spot == null) return;
+        int bestX = spot[0], bestZ = spot[1];
         int y = fy + h; // кровля
         // Основа 2x2 прямо на кровле: две ограды из каменного кирпича (2 блока) по одной диагонали
         // и два полированных андезита (1 блок) по другой. Тарелка лежит на оградах.
@@ -198,8 +212,74 @@ public final class LabBuilder {
         set(lv, x0 - 1, p + 1, z0, wallW);
         for (int k = 0; k < 6; k++) set(lv, x0 + 1, p + k, z0 + 1, Blocks.IRON_BARS.defaultBlockState()); // мачта из тарелки
         set(lv, x0 + 1, p + 6, z0 + 1, rod(Direction.UP));  // холодный огонёк на конце
-        d.dishPos = new BlockPos(bestX + 1, y + 1, bestZ + 1).asLong(); // задел под поворот через терминал
+        d.dishPos = new BlockPos(bestX + 1, y + 1, bestZ + 1).asLong();
         d.dishAngle = 0;
+    }
+
+    /**
+     * Реальный мир: антенна ANT-1 (шифр 8, LabAntenna). В клетке мачты прежней тарелки — поворотная каретка
+     * (AntennaDriveBlock, штурвал к востоку, к лестнице) и мачта из ограды полированного сланца; саму тарелку (дисплеи)
+     * ставит LabAntenna. Снаружи восточной стены — лестница на крышу, в парапете над ней проём, рядом табличка ROOF.
+     * Азимут: начальный по зерну мира или азимут ретранслятора, если буферы уже ушли (замок LOCK_BUFFER открыт).
+     */
+    private static void antenna(ServerLevel lv, Style s, int fy, int h, int x1, int z1, int x2, int z2, int[] lift, LabSavedData d) {
+        int[] spot = dishSpot(x1, z1, x2, z2, lift);
+        if (spot == null) return;
+        int y = fy + h; // кровля
+        for (int a = 0; a < DISH_ZONE; a++)
+            for (int b = 0; b < DISH_ZONE; b++)
+                for (int k = 1; k <= 9; k++) set(lv, spot[0] + a, y + k, spot[1] + b, AIR);
+        int mx = spot[0] + 2, mz = spot[1] + 2; // клетка мачты прежней тарелки
+        BlockPos drive = new BlockPos(mx, y + 1, mz);
+        put(lv, drive, ModBlocks.ANTENNA_DRIVE.get().defaultBlockState().setValue(AntennaDriveBlock.FACING, Direction.EAST), 2);
+        for (int k = 0; k < LabTuning.ANTENNA_MAST; k++) set(lv, mx, y + 2 + k, mz, Blocks.POLISHED_DEEPSLATE_WALL.defaultBlockState());
+        d.inter.put(drive.asLong(), LabSavedData.KIND_ANTENNA * 1000);
+        d.dishPos = drive.asLong();
+        long seed = LabSavedData.cipherSeed(lv.getServer());
+        d.dishAngle = d.isLockOpen(LabTuning.LOCK_BUFFER) ? LabVariants.antennaTarget(seed) : LabVariants.antennaStart(seed);
+        int lz = ladderZ(z1, z2);
+        BlockState ladder = Blocks.LADDER.defaultBlockState().setValue(LadderBlock.FACING, Direction.EAST);
+        for (int ly = fy; ly <= y; ly++) set(lv, x2 + 1, ly, lz, ladder);
+        set(lv, x2, y + 1, lz, AIR); // проём в парапете над лестницей
+        set(lv, x2, y + 2, lz, AIR);
+        LabSigns.wall(lv, new BlockPos(x2 + 1, fy + 1, lz + 1), Direction.EAST, "ROOF", "ANT-1", "AUTHORISED", "STAFF ONLY");
+    }
+
+    /** z лестницы на восточной стене: ближе к середине, не под столбиком парапета и не на пилястре фасада (как facade()). */
+    private static int ladderZ(int z1, int z2) {
+        int mid = (z1 + z2) / 2;
+        double f = LabTuning.PILASTER_FRACTION;
+        int aZ = z1 + (int) ((z2 - z1 + 1) * f), bZ = z2 - (int) ((z2 - z1 + 1) * f);
+        for (int i = 0; i <= z2 - z1; i++) {
+            int z = mid + ((i & 1) == 1 ? (i + 1) / 2 : -(i / 2));
+            if (z <= z1 + 1 || z >= z2 - 1) continue;
+            if (isPost(z - z1, z2 - z1, LabTuning.PARAPET_POST_EVERY) || z == aZ || z == bZ) continue;
+            return z;
+        }
+        return mid;
+    }
+
+    /**
+     * Старый реальный мир (LabSavedData.roofPending): статичная тарелка уступает место антенне ANT-1 с лестницей и
+     * табличкой, табличка у панели LOCK_BUFFER на B3 получает новый текст. Зовёт LabAntenna, когда чанки загружены.
+     */
+    public static void roofUpgrade(ServerLevel lv, LabSavedData d) {
+        if (!d.isBuilt(0)) return;
+        int fy = d.stopY[0], h = d.stopH[0];
+        int x1 = d.bbox[0], z1 = d.bbox[1], x2 = d.bbox[2], z2 = d.bbox[3];
+        int[] lift = {d.originX, 0, d.originZ};
+        int[] spot = dishSpot(x1, z1, x2, z2, lift);
+        if (spot == null) return;
+        int y = fy + h;
+        for (int k = 9; k >= 1; k--) // сверху вниз, без обновления соседей: ничего не отваливается предметом
+            for (int a = 0; a < DISH_ZONE; a++)
+                for (int b = 0; b < DISH_ZONE; b++) put(lv, new BlockPos(spot[0] + a, y + k, spot[1] + b), AIR, CLEAR_FLAGS);
+        antenna(lv, style(false), fy, h, x1, z1, x2, z2, lift, d);
+        BlockPos lock = d.lockPos(LabTuning.LOCK_BUFFER);
+        if (lock == null) return;
+        for (BlockPos p : BlockPos.betweenClosed(lock.offset(-3, -1, -3), lock.offset(3, 1, 3)))
+            if (lv.getBlockEntity(p) instanceof LabSignBlockEntity sign && sign.key().equals("lift_access_b3_to_level_b4_held_buffers_ack"))
+                sign.setLines("LIFT ACCESS B3", "TO LEVEL B4", "UPLINK ANT-1"); // как sign 9 в real_b3.txt
     }
 
     /** Железный люк: open=true — вертикальная панель, open=false — горизонтальная. */
@@ -235,7 +315,7 @@ public final class LabBuilder {
     /**
      * Рельеф плоской крыши (никаких скатов): ограда из каменного кирпича по краю со столбиками
      * (блок + полублок сверху) на углах и с шагом, машинное помещение над кабиной лифта и два люка.
-     * Плюс антенна (dish()).
+     * Плюс антенна: во сне статичная тарелка (dish()), в реальном мире ANT-1 (antenna()).
      */
     private static void roofDetails(ServerLevel lv, Style s, int fy, int h, int x1, int z1, int x2, int z2, int[] lift) {
         int y = fy + h + 1; // первый ряд над кровлей: сама ограда
@@ -431,7 +511,8 @@ public final class LabBuilder {
         if (surface) {
             facade(level, s, fy, h, minX, minZ, maxX, maxZ, door);
             roofDetails(level, s, fy, h, minX, minZ, maxX, maxZ, lift);
-            dish(level, s, fy, h, minX, minZ, maxX, maxZ, lift, d);
+            if (bp.dream) dish(level, s, fy, h, minX, minZ, maxX, maxZ, lift, d);
+            else antenna(level, s, fy, h, minX, minZ, maxX, maxZ, lift, d);
         }
 
         d.stopY[stop] = fy;
@@ -549,6 +630,34 @@ public final class LabBuilder {
             default -> IronBarsBlock.WEST;
         }, true);
         for (int y = fy + 2; y < fy + h; y++) set(level, wx, y, wz, conduit);
+    }
+
+    /**
+     * Щит этажа stop (id LabBreakers.BOARD + stop, клетка чертежа из строки panel с этим id) или null. Старый мир, построенный
+     * до щитов этажей: щит ставится сейчас (LabOutage.begin), если клетка от пола до потолка пуста, а за ней стена.
+     */
+    public static BlockPos board(ServerLevel level, LabSavedData d, int stop) {
+        if (!d.isBuilt(stop) || d.dream) return null;
+        int id = LabBreakers.BOARD + stop;
+        BlockPos have = d.find(LabSavedData.KIND_BREAKER * 1000 + id);
+        if (have != null) return have;
+        LabBlueprint bp = LabBlueprint.get(LabTuning.blueprintName(false, stop));
+        int fy = d.stopY[stop], h = d.stopH[stop];
+        for (int z = 0; z < bp.d; z++)
+            for (int x = 0; x < bp.w; x++) {
+                Integer pid = bp.panels.get(bp.at(x, z));
+                if (pid == null || pid != id) continue;
+                int wx = d.originX + x - bp.ax, wz = d.originZ + z - bp.az;
+                BlockPos pos = new BlockPos(wx, fy + 1, wz);
+                BlockPos wall = pos.relative(facing(bp, x, z).getOpposite());
+                if (!level.getBlockState(wall).isSolidRender(level, wall)) return null;
+                for (int y = fy; y < fy + h; y++) if (!level.getBlockState(new BlockPos(wx, y, wz)).isAir()) return null;
+                panel(level, bp, x, z, wx, wz, fy, h, id, d);
+                d.setDirty();
+                LabBreakers.refresh(level, d);
+                return pos;
+            }
+        return null;
     }
 
     /** Мебель клетки c (см. легенду). false — символ не мебель. */
@@ -984,6 +1093,7 @@ public final class LabBuilder {
      */
     public static void clear(ServerLevel level, LabSavedData d, int stop) {
         if (!d.isBuilt(stop)) return;
+        if (stop == 0) LabAntenna.removeDisplays(level, d); // тарелка ANT-1 — сущности, блоками не стирается
         int fy = d.stopY[stop], h = d.stopH[stop];
         int x1 = d.bbox[stop * 4], z1 = d.bbox[stop * 4 + 1], x2 = d.bbox[stop * 4 + 2], z2 = d.bbox[stop * 4 + 3];
         if (stop == 0) { // фонари у входа стоят за границей чертежа — стираем вместе с ними

@@ -432,6 +432,14 @@ public final class LabTerminalScreen extends Screen {
                     String t = Component.translatableWithFallback(key, fallback).getString();
                     return Component.literal(t.replaceFirst("R\\d\\d", String.format(java.util.Locale.ROOT, "R%02d", hold[k])));
                 }
+                for (int k = 0; k < ArchiveDefs.ANTENNA_ROWS.length; k++) { // шифр 8: азимуты ANT-1 — по миру
+                    if (ArchiveDefs.ANTENNA_ROWS[k] != index) continue;
+                    String t = Component.translatableWithFallback(key, fallback).getString();
+                    String to = String.format(java.util.Locale.ROOT, "%03d", LabVariants.antennaTarget(seed));
+                    String from = String.format(java.util.Locale.ROOT, "%03d", LabVariants.antennaStart(seed));
+                    return Component.literal(k == 0 ? t.replaceFirst("\\b\\d{3}\\b", to)
+                            : t.replaceFirst("\\b\\d{3} > \\d{3}\\b", to + " > " + from));
+                }
             }
         }
         return Component.translatableWithFallback(key, fallback);

@@ -1,5 +1,6 @@
 package com.hypersomnia;
 
+import com.hypersomnia.lab.AntennaDriveBlock;
 import com.hypersomnia.lab.BreakerPanelBlock;
 import com.hypersomnia.lab.CabinetBlock;
 import com.hypersomnia.lab.ChairBlock;
@@ -11,6 +12,7 @@ import com.hypersomnia.lab.LabTuning;
 import com.hypersomnia.lab.LiftPanelBlock;
 import com.hypersomnia.lab.MonitorBlock;
 import com.hypersomnia.lab.ServerRackBlock;
+import com.hypersomnia.lab.UnlitTubeBlock;
 import com.hypersomnia.lab.WorkstationBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -34,11 +36,16 @@ public final class ModBlocks {
                 .pushReaction(PushReaction.BLOCK);
     }
 
-    /** Щит MAIN FEED: один блок на все рубильники (экран щита). Лампа ON слабо светится (LabTuning.PANEL_LIGHT). */
+    /** Щит MAIN FEED и щиты этажей: один блок на все рубильники (экран щита). Лампа ON слабо светится (LabTuning.PANEL_LIGHT),
+     *  TRIPPED — ещё слабее (PANEL_TRIPPED_LIGHT): в темноте «обесточено» видно щит. */
     public static final DeferredBlock<BreakerPanelBlock> BREAKER_PANEL = BLOCKS.register("breaker_panel", () -> new BreakerPanelBlock(
             lab(MapColor.METAL, SoundType.METAL)
                     .noOcclusion()
-                    .lightLevel(state -> state.getValue(BreakerPanelBlock.LAMP) == BreakerPanelBlock.Lamp.ON ? LabTuning.PANEL_LIGHT : 0)));
+                    .lightLevel(state -> switch (state.getValue(BreakerPanelBlock.LAMP)) {
+                        case ON -> LabTuning.PANEL_LIGHT;
+                        case TRIPPED -> LabTuning.PANEL_TRIPPED_LIGHT;
+                        default -> 0;
+                    })));
 
     /** Рабочая станция CRADLE WORKSTATION: стоит на столе DESK; экран слабо светится (LabTuning.WS_LIGHT). */
     public static final DeferredBlock<WorkstationBlock> WORKSTATION = BLOCKS.register("workstation", () -> new WorkstationBlock(
@@ -88,6 +95,17 @@ public final class ModBlocks {
             lab(MapColor.COLOR_GRAY, SoundType.METAL)));
     public static final DeferredBlock<LabEquipmentBlock> BATTERY_CABINET = BLOCKS.register("battery_cabinet", () -> new LabEquipmentBlock(
             lab(MapColor.COLOR_GRAY, SoundType.METAL)));
+
+    /** Поворотная каретка антенны ANT-1 на крыше павильона: штурвал (FACING) поворачивает тарелку, LabAntenna через LabHandler. */
+    public static final DeferredBlock<AntennaDriveBlock> ANTENNA_DRIVE = BLOCKS.register("antenna_drive", () -> new AntennaDriveBlock(
+            lab(MapColor.COLOR_GRAY, SoundType.METAL)
+                    .noOcclusion()));
+
+    /** Погасшая трубка (LabOutage, «обесточено»): модель торцевого стержня без света; предмета нет. */
+    public static final DeferredBlock<UnlitTubeBlock> UNLIT_TUBE = BLOCKS.register("unlit_tube", () -> new UnlitTubeBlock(
+            lab(MapColor.QUARTZ, SoundType.GLASS)
+                    .noOcclusion()
+                    .forceSolidOff()));
 
     /** Табличка лаборатории: тёмная пластина на стене; строки хранит LabSignBlockEntity, рисует LabSignRenderer. */
     public static final DeferredBlock<LabSignBlock> LAB_SIGN = BLOCKS.register("lab_sign", () -> new LabSignBlock(

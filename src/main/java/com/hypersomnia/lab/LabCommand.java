@@ -22,12 +22,16 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import com.hypersomnia.dream.DreamDimension;
 
 /**
- * /hypersomnia_lab where | tp | status | rebuild | resite | unlock <0-5> | lock <id> open | feed on|reset | ws <станция> | index [reroll].
+ * /hypersomnia_lab where | tp | status | rebuild | resite | unlock <0-5> | lock <id> open | feed on|reset | ws <станция> | index [reroll]
+ * | antenna [азимут] | outage [on|off].
  * rebuild: стирает старую постройку этого мира, сбрасывает прогресс и строит заново по чертежам.
  * ws: открыть рабочую станцию (ArchiveDefs.Station.key) с доступом по текущему состоянию мира — для проверки содержимого.
  * index: порядок строк карточки RECORDER 47-OP в этом сохранении и ответ, варианты MAIN FEED, входного замка, отсека и формы 12-B,
  * коды панелей LIFT ACCESS B2-B4 (шифры 7-9) с подсказкой, откуда они;
  * reroll — новое зерно шифров (все варианты меняются, знаки тоже).
+ * antenna: азимут тарелки ANT-1 (шифр 8), начальный и ретранслятора, питание, замок; с числом — поставить азимут (кратно шагу).
+ * outage: «обесточено» (LabOutage) — состояние; on — погасить свет этажа под игроком без погони (проверка света, щита этажа,
+ * лифта; погоня — отладкой режиссёра в лаборатории), off — вернуть свет.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class LabCommand {
@@ -154,7 +158,27 @@ public final class LabCommand {
                             // стойки B3 и пустые места хранилища B2 зависят от зерна: перекрасить в обоих мирах
                             for (ServerLevel lv : new ServerLevel[]{p.server.overworld(), p.server.getLevel(com.hypersomnia.dream.DreamDimension.LEVEL)})
                                 if (lv != null && LabSavedData.get(lv).built) LabFixtures.refresh(lv, LabSavedData.get(lv));
+                            LabAntenna.reseed(p.server.overworld(), LabSavedData.get(p.server.overworld())); // начальный азимут ANT-1
                             return index(p);
+                        })))
+                .then(Commands.literal("antenna")
+                        .executes(ctx -> antenna(ctx.getSource().getPlayerOrException(), -1))
+                        .then(Commands.argument("azimuth", IntegerArgumentType.integer(0, 359)).executes(ctx ->
+                                antenna(ctx.getSource().getPlayerOrException(), IntegerArgumentType.getInteger(ctx, "azimuth")))))
+                .then(Commands.literal("outage")
+                        .executes(ctx -> say(ctx.getSource(), LabOutage.status(ctx.getSource().getLevel())))
+                        .then(Commands.literal("on").executes(ctx -> {
+                            ServerPlayer p = ctx.getSource().getPlayerOrException();
+                            ServerLevel lv = p.serverLevel();
+                            int stop = LabProtection.stopAt(LabSavedData.get(lv), p.blockPosition());
+                            boolean ok = stop >= 1 && LabOutage.begin(lv, stop, p);
+                            return say(ctx.getSource(), ok ? "Outage started on " + LabTuning.stopLabel(stop)
+                                    : "Outage: stand on a built floor B1-B5 of the real lab (no outage running, tubes present)");
+                        }))
+                        .then(Commands.literal("off").executes(ctx -> {
+                            ServerLevel lv = ctx.getSource().getLevel();
+                            LabOutage.restore(lv, LabSavedData.get(lv));
+                            return say(ctx.getSource(), LabOutage.status(lv));
                         })))
                 .then(Commands.literal("ws")
                         .then(Commands.argument("station", StringArgumentType.word())
@@ -171,6 +195,22 @@ public final class LabCommand {
                                     PacketDistributor.sendToPlayer(p, new LabTerminalPayload(st.id(), snap.listed(), snap.readable()));
                                     return 1;
                                 }))));
+    }
+
+    /** Антенна ANT-1 Верхнего мира: состояние; az >= 0 — поставить азимут (вниз до кратного шагу). */
+    private static int antenna(ServerPlayer p, int az) {
+        ServerLevel level = p.server.overworld();
+        LabSavedData d = LabSavedData.get(level);
+        if (LabAntenna.drive(d) == null) {
+            p.sendSystemMessage(Component.literal("No ANT-1 in the Overworld lab" + (d.roofPending ? " yet: roof upgrade pending (load the site)" : "")));
+            return 0;
+        }
+        if (az >= 0) LabAntenna.set(level, d, az / LabTuning.ANTENNA_STEP * LabTuning.ANTENNA_STEP);
+        long seed = LabSavedData.cipherSeed(p.server);
+        p.sendSystemMessage(Component.literal("ANT-1 az " + LabAntenna.azimuth(d.dishAngle) + "  start " + LabAntenna.azimuth(LabVariants.antennaStart(seed))
+                + "  relay " + LabAntenna.azimuth(LabVariants.antennaTarget(seed)) + "  feed=" + d.hasFlag(LabSavedData.FLAG_FEED)
+                + "  lock B3=" + (d.isLockOpen(LabTuning.LOCK_BUFFER) ? "open" : "closed") + "  displays=" + LabAntenna.count(level, d)));
+        return 1;
     }
 
     /** Порядок строк карточки (номера воспоминаний сверху вниз), ответ и состояние игрока. */
@@ -196,10 +236,16 @@ public final class LabCommand {
         for (int g : gaps) places.append(places.length() == 0 ? "" : " ").append(g + 1);
         int[] hold = LabVariants.rackHold(seed);
         StringBuilder racks = new StringBuilder();
-        for (int i = 0; i < LabTuning.RACK_HELD; i++) racks.append(i == 0 ? "" : " ").append(hold[i]).append('=').append(LabVariants.rackValue(seed, hold[i]));
+        for (int i = 0; i < LabTuning.RACK_HELD; i++) racks.append(i == 0 ? "" : " ").append(hold[i]);
         p.sendSystemMessage(Component.literal("Lift access: B2->B3 " + LabVariants.stacksCode(seed) + " (empty places " + places
-                + ")  B3->B4 " + LabVariants.rackCode(seed) + " (racks " + racks + ", copy " + hold[LabTuning.RACK_HELD]
+                + ")  B3->B4 ANT-1 " + LabAntenna.azimuth(LabVariants.antennaStart(seed)) + " -> " + LabAntenna.azimuth(LabVariants.antennaTarget(seed))
+                + " (relay azimuth in BUFFER.LOG; held racks " + racks + ", copy " + hold[LabTuning.RACK_HELD]
                 + ")  B4->B5 " + LabVariants.knockCode(seed) + " (knocked in the dream, B4 ward 2D)"));
+        return 1;
+    }
+
+    private static int say(net.minecraft.commands.CommandSourceStack src, String text) {
+        src.sendSuccess(() -> Component.literal(text), false);
         return 1;
     }
 }

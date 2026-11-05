@@ -173,5 +173,18 @@
   "hypersomnia.lab.rack.status.hold": "BUFFER HELD",
   "hypersomnia.lab.stack": "ROW %s · PLACE %s",
   "hypersomnia.lab.knock.wall": "Bricked up. The mortar is fresh.",
-  "hypersomnia.lab.protected": "It does not give."
+  "hypersomnia.lab.protected": "It does not give.",
+  "block.hypersomnia.antenna_drive": "Antenna Slew Drive",
+  "hypersomnia.lab.antenna": "ANT-1 · AZ %s° · %s",
+  "hypersomnia.lab.antenna.nocarrier": "NO CARRIER",
+  "hypersomnia.lab.antenna.search": "SEARCHING...",
+  "hypersomnia.lab.antenna.carrier": "CARRIER",
+  "hypersomnia.lab.antenna.sent": "CARRIER · BUFFERS SENT · LIFT: B4 RELEASED",
+  "hypersomnia.lab.antenna.nopower": "NO POWER",
+  "hypersomnia.lab.lock.uplink": "WAITING FOR UPLINK · ANT-1 NO CARRIER",
+  "block.hypersomnia.unlit_tube": "Unlit Tube",
+  "hypersomnia.lab.outage.tripped": "FLOOR BOARD %s TRIPPED · RESET BY THE LIFT",
+  "hypersomnia.lab.outage.reset": "FLOOR BOARD %s ON",
+  "hypersomnia.lab.board.fed": "FLOOR BOARD %s · ON MAIN FEED",
+  "hypersomnia.lab.board.nofeed": "FLOOR BOARD %s · NO FEED"
 }

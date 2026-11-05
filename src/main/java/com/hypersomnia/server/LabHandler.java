@@ -4,11 +4,13 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
 import com.hypersomnia.lab.ArchiveAccess;
+import com.hypersomnia.lab.LabAntenna;
 import com.hypersomnia.lab.CabinetBlockEntity;
 import com.hypersomnia.lab.LabBreakers;
 import com.hypersomnia.lab.LabFixtures;
 import com.hypersomnia.lab.LabLift;
 import com.hypersomnia.lab.LabLocks;
+import com.hypersomnia.lab.LabOutage;
 import com.hypersomnia.lab.LabSavedData;
 import com.hypersomnia.lab.LabTuning;
 import com.hypersomnia.network.LabLiftPayload;
@@ -36,7 +38,8 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * ПКМ по панелям лаборатории: панель лифта, кодовые панели замков, рабочие станции, щит MAIN FEED, запечатанные шкафы,
- * серверные стойки и места хранилища (номер в полосе над хотбаром), заложенная дверь палаты 2D.
+ * серверные стойки и места хранилища (номер в полосе над хотбаром), заложенная дверь палаты 2D, каретка антенны ANT-1,
+ * щиты этажей (LabOutage: во время «обесточено» возвращают свет; лифт тогда стоит).
  * Сервер проверяет все ответы клиента. При входе отправляет зерно вариантов шифров мира.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
@@ -63,6 +66,11 @@ public final class LabHandler {
         if (kind == LabSavedData.KIND_LIFT) {
             int cur = LabLift.stopOf(player, d);
             if (cur < 0) return;
+            if (LabOutage.active(level)) { // «обесточено»: лифт стоит
+                level.playSound(null, event.getPos(), SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.4f, 0.6f);
+                player.displayClientMessage(Component.translatable("hypersomnia.lab.lock.nopower"), true);
+                return;
+            }
             int enabled = LabLift.enabledMask(player.serverLevel(), d) & ~(1 << cur);
             PacketDistributor.sendToPlayer(player, new LabLiftPayload(cur, enabled, d.builtMask));
         } else if (kind == LabSavedData.KIND_LOCK) {
@@ -72,6 +80,11 @@ public final class LabHandler {
             }
             if (LabTuning.lockNeedsFeed(id) && !d.hasFlag(LabSavedData.FLAG_FEED)) {
                 player.displayClientMessage(Component.translatable("hypersomnia.lab.lock.nopower"), true);
+                return;
+            }
+            if (id == LabTuning.LOCK_BUFFER) { // шифр 8: кода нет — панель ждёт, пока ANT-1 на крыше отправит буферы
+                level.playSound(null, event.getPos(), SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.4f, 0.7f);
+                player.displayClientMessage(Component.translatable("hypersomnia.lab.lock.uplink"), true);
                 return;
             }
             String draft = LabTuning.lockKeepsInput(id) ? player.getData(ModAttachments.OBSERVER).indexDraft() : "";
@@ -88,6 +101,10 @@ public final class LabHandler {
             ArchiveAccess.Snapshot snap = ArchiveAccess.snapshot(player, d, id);
             PacketDistributor.sendToPlayer(player, new LabTerminalPayload(id, snap.listed(), snap.readable()));
         } else if (kind == LabSavedData.KIND_BREAKER) {
+            if (id > LabBreakers.BOARD) { // щит этажа: экрана нет; во время «обесточено» возвращает свет
+                LabOutage.board(player, level, d, id - LabBreakers.BOARD, event.getPos());
+                return;
+            }
             level.playSound(null, event.getPos(), SoundEvents.IRON_TRAPDOOR_OPEN, SoundSource.BLOCKS, 0.4f, 1.3f);
             PacketDistributor.sendToPlayer(player, panelState(d, true));
         } else if (kind == LabSavedData.KIND_GATE) {
@@ -103,6 +120,8 @@ public final class LabHandler {
             player.displayClientMessage(LabFixtures.stackInfo(id), true);
         } else if (kind == LabSavedData.KIND_KNOCK) {
             player.displayClientMessage(Component.translatable("hypersomnia.lab.knock.wall"), true);
+        } else if (kind == LabSavedData.KIND_ANTENNA) {
+            LabAntenna.use(player, level, d, event.getPos());
         }
     }
 

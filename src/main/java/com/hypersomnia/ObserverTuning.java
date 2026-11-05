@@ -358,11 +358,36 @@ public final class ObserverTuning {
     public static final float BREATH_COLD_TEMP = 0.15f;
     /** Высота (Y) выше которой всегда холодно. */
     public static final int BREATH_COLD_Y = 120;
-    /** Сколько частиц в одном выдохе. */
-    public static final int BREATH_PARTICLES = 3;
-    /** Звук выдоха: громкость и питч. */
-    public static final float BREATH_SOUND_VOLUME = 0.35f;
+    /** Звук breath_exhale - это вдох и выдох; выдох начинается через столько тиков после начала звука
+     *  (0.50 с = EXHALE_AT в tools/make_breath_sound.py). В этот момент изо рта идёт пар. */
+    public static final int BREATH_INHALE_TICKS = 10;
+    /** Струя пара: сколько тиков идёт (0.8 с) и частиц за тик в первой половине (во второй - вдвое меньше). */
+    public static final int BREATH_PUFF_TICKS = 16;
+    public static final int BREATH_PUFF_PER_TICK = 2;
+    /** Скорость струи изо рта (блоков/тик) в начале выдоха; к концу падает до 35 %. Струя идёт вперёд и вниз
+     *  (DOWN - доля скорости вниз): пар остаётся в нижней трети экрана, уходит на ~1 блок и тает. */
+    public static final double BREATH_PUFF_SPEED = 0.065;
+    public static final double BREATH_PUFF_DOWN = 0.35;
+    /** Рот: вперёд от глаз и вниз (блоки). Ближе 0.3 частица лезет в камеру. */
+    public static final double BREATH_MOUTH_FORWARD = 0.32;
+    public static final double BREATH_MOUTH_DOWN = 0.13;
+    /** Частица пара (client/BreathParticle): жизнь (тики), размер в начале и в конце (блоки), непрозрачность. */
+    public static final int BREATH_LIFE_MIN = 22;
+    public static final int BREATH_LIFE_MAX = 34;
+    public static final float BREATH_SIZE_START = 0.05f;
+    public static final float BREATH_SIZE_END = 0.24f;
+    public static final float BREATH_ALPHA = 0.30f;
+    /** Торможение пара за тик и подъём тёплого пара (блоков/тик за тик). */
+    public static final float BREATH_FRICTION = 0.91f;
+    public static final double BREATH_RISE = 0.0006;
+    /** Ближе этого к камере пар тает (не вспыхивает белым, когда идёшь сквозь него). */
+    public static final double BREATH_NEAR_FADE = 0.45;
+    /** Пар не темнее этого света блока (0-15): ночью виден, но не светится. */
+    public static final int BREATH_MIN_LIGHT = 5;
+    /** Звук: громкость, питч и его случайный разброс (питч сдвигает и начало выдоха - пар подстраивается). */
+    public static final float BREATH_SOUND_VOLUME = 0.30f;
     public static final float BREATH_SOUND_PITCH = 1.00f;
+    public static final float BREATH_SOUND_PITCH_SPREAD = 0.05f;
 
     // ---- Укрытия при появлении (client/ObserverCover) ----
     /** Доля появлений в укрытии (за деревом или за стеклом), по стадиям; на стадии 1 только укрытие. */

@@ -123,6 +123,8 @@ public final class ObserverClient {
     private static int chaseStopped;
     private static int chasePhase;
     private static float chaseStare;
+    /** «Обесточено» (флаг ChasePayload.I_DARK): этаж в темноте — глаза видны издалека (ChaseTuning.DARK_EYES_DISTANCE). */
+    private static boolean chaseDark;
     /** Позиция прошлого тика: рендер ведёт фигуру плавно между пакетами. Путь до следующего шага, тики до стука. */
     private static Vec3 prevPos = Vec3.ZERO;
     private static double stepLeft;
@@ -808,6 +810,7 @@ public final class ObserverClient {
             pos = at;
             chasePhase = ph;
             chaseStare = pl.stare();
+            chaseDark = (pl.info() & ChasePayload.I_DARK) != 0;
             if (ph == ChasePayload.PH_CAUGHT) ChaseClient.caught(mc);
             return;
         }
@@ -823,6 +826,7 @@ public final class ObserverClient {
                 show(mc, player, at, false, Mode.CHASE);
                 chasePhase = ph;
                 chaseStare = pl.stare();
+                chaseDark = (pl.info() & ChasePayload.I_DARK) != 0;
                 stepLeft = ChaseTuning.STEP_EVERY;
                 knockIn = 0;
                 hushWorld(mc);
@@ -893,6 +897,7 @@ public final class ObserverClient {
         chaseEnded = false;
         chasePhase = ChasePayload.PH_IDLE;
         chaseStare = 0f;
+        chaseDark = false;
         ChaseClient.end();
         ChaseMusic.end(false);
     }
@@ -1292,8 +1297,8 @@ public final class ObserverClient {
 
         PoseStack ps = event.getPoseStack();
         float t = age + partial;
-        boolean eyes = isDream(mc) || (mc.player != null
-                && mc.player.position().distanceTo(at) < ObserverTuning.EYES_DISTANCE);
+        double eyesDist = mode == Mode.CHASE && chaseDark ? ChaseTuning.DARK_EYES_DISTANCE : ObserverTuning.EYES_DISTANCE;
+        boolean eyes = isDream(mc) || (mc.player != null && mc.player.position().distanceTo(at) < eyesDist);
         double rad = Math.toRadians(ghost.getYRot());
         double side = Math.sin(t * ObserverTuning.ECHO_SPEED) * ObserverTuning.ECHO_OFFSET;
         for (int pass = 0; pass < 2; pass++) {

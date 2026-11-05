@@ -19,14 +19,19 @@ import java.util.Map;
  * Источник истины — LabSavedData (breakerSeq, breakerTripped, FLAG_FEED); лампа блока лишь отражает его (refresh).
  * Правило: замкнуть рубильники в порядке мира (LabVariants.feedOrder, ревизия C бланка SW-B1-01), затем главный. Иначе главный выбивает,
  * все рубильники размыкаются, можно начать заново. Включённое питание не выключается.
+ * <p>
+ * Щиты этажей (id BOARD + этаж, клетка '&' чертежа у лифта): питаются от MAIN FEED, экрана нет. Во время «обесточено»
+ * (LabOutage) щит своего этажа выбит (TRIPPED); ПКМ по нему возвращает свет (LabHandler -> LabOutage.board).
  */
 public final class LabBreakers {
     private LabBreakers() {}
 
     public static final int MAIN = 0;
+    /** Щит этажа n: id BOARD + n (11..15). */
+    public static final int BOARD = 10;
 
     /**
-     * Ставит щит (при постройке этажа). id >= 0 — щит лаборатории (KIND_BREAKER, сейчас только MAIN FEED = 0);
+     * Ставит щит (при постройке этажа). id >= 0 — щит лаборатории (KIND_BREAKER: MAIN FEED = 0, щиты этажей BOARD + n);
      * id < 0 — декоративный щит без связи (ПКМ пишет NOT CONNECTED). Лампу выставит refresh().
      */
     public static void place(ServerLevel level, BlockPos pos, Direction facing, int id, LabSavedData d) {
@@ -91,11 +96,12 @@ public final class LabBreakers {
         player.displayClientMessage(Component.translatable("hypersomnia.lab.feed.tripped"), true);
     }
 
-    /** Лампа щита по данным: питание — ON, выбило — TRIPPED, иначе OFF. */
+    /** Лампы щитов по данным: MAIN FEED — lamp(d), щиты этажей — boardLamp. */
     public static void refresh(ServerLevel level, LabSavedData d) {
-        BreakerPanelBlock.Lamp lamp = lamp(d);
         for (Map.Entry<Long, Integer> e : d.inter.entrySet()) {
             if (e.getValue() / 1000 != LabSavedData.KIND_BREAKER) continue;
+            int id = e.getValue() % 1000;
+            BreakerPanelBlock.Lamp lamp = id > BOARD ? boardLamp(level, d, id - BOARD) : lamp(d);
             BlockPos p = BlockPos.of(e.getKey());
             BlockState st = level.getBlockState(p);
             if (st.is(ModBlocks.BREAKER_PANEL.get()) && st.getValue(BreakerPanelBlock.LAMP) != lamp)
@@ -103,9 +109,16 @@ public final class LabBreakers {
         }
     }
 
+    /** Щит MAIN FEED: питание — ON, выбило — TRIPPED, иначе OFF. */
     public static BreakerPanelBlock.Lamp lamp(LabSavedData d) {
         if (d.hasFlag(LabSavedData.FLAG_FEED)) return BreakerPanelBlock.Lamp.ON;
         return d.breakerTripped ? BreakerPanelBlock.Lamp.TRIPPED : BreakerPanelBlock.Lamp.OFF;
+    }
+
+    /** Щит этажа: на этаже темно (LabOutage) — TRIPPED, есть MAIN FEED — ON, иначе OFF. */
+    public static BreakerPanelBlock.Lamp boardLamp(ServerLevel level, LabSavedData d, int stop) {
+        if (LabOutage.tripped(level, stop)) return BreakerPanelBlock.Lamp.TRIPPED;
+        return d.hasFlag(LabSavedData.FLAG_FEED) ? BreakerPanelBlock.Lamp.ON : BreakerPanelBlock.Lamp.OFF;
     }
 
     public static boolean isClosed(int seq, int id) {

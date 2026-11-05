@@ -101,6 +101,10 @@ public final class LabLift {
             msg(player, "hypersomnia.lab.lift.busy");
             return;
         }
+        if (LabOutage.active(level)) { // «обесточено»: лифт стоит, пока не вернётся свет
+            msg(player, "hypersomnia.lab.lock.nopower");
+            return;
+        }
         if (target == from) {
             msg(player, "hypersomnia.lab.lift.same");
             return;

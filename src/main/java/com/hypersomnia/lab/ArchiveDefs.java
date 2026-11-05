@@ -135,6 +135,11 @@ public final class ArchiveDefs {
     public static final String BUFFER_LOG = "v_buffer_log";
     /** Индексы элементов-строк HOLD: BUFFER_ROWS[k] показывает стойку rackHold(seed)[k] (последняя — копия B2). */
     public static final int[] BUFFER_ROWS = {3, 5, 6, 7, 4};
+    /**
+     * Строки ANT-1 (шифр 8): [0] — первое трёхзначное число = азимут ретранслятора (LabVariants.antennaTarget),
+     * [1] — «ретранслятор > куда отвернули» (antennaTarget > antennaStart). Терминал подставляет по зерну мира.
+     */
+    public static final int[] ANTENNA_ROWS = {8, 9};
 
     /** Часы панели задач в мире снов (в реальном мире — время мира). */
     public static final String DREAM_CLOCK = "03:13";
@@ -429,7 +434,7 @@ public final class ArchiveDefs {
                 new Para("M. Ashby, Records")));                                                      // 4
         mail(ST_ARC_B2, "a_lift_codes", Folder.INBOX, 20, "sec.office", "level4", "28.08 09:00", "Lift codes below B2", REAL, List.of(
                 new Para("Below B2 the lift is released from the LIFT ACCESS panel by the lift door on each level."), // 0
-                new Para("B2: the check code of the night's copy. B3: acknowledgement of the held buffers. B4: the Director's code."), // 1
+                new Para("B2: the check code of the night's copy. B3: no code, the panel is released when the held buffers are sent. B4: the Director's code."), // 1
                 new Para("The codes are not kept on paper and not given out by phone."),           // 2
                 new Para("Security Office")));                                                        // 3
         log(ST_ARC_B2, "a_copy_log", 10, "COPY.LOG", "Nightly Copy", "COPY B2", "03.09 03:13", REAL, List.of(
@@ -441,8 +446,9 @@ public final class ArchiveDefs {
                 new Mono("03.09  03:13  BOXES          NOT RETURNED"),                                // 5
                 new Mono("03.09  03:13  CHECK CODE     NOT ENTERED")));                               // 6
 
-        // ================= Пульт серверной B3 (шифр 8: адреса удержанных буферов SOURCE 47) =================
-        // Номера стоек в строках HOLD (BUFFER_ROWS) терминал подставляет по зерну мира; здесь и в lang — запасной текст.
+        // ================= Пульт серверной B3 (шифр 8: буферы SOURCE 47 ушли бы через ANT-1, тарелку отвернули) =================
+        // Номера стоек в строках HOLD (BUFFER_ROWS) и азимуты ANT-1 (ANTENNA_ROWS) терминал подставляет по зерну мира;
+        // здесь и в lang — запасной текст.
         log(ST_SRV_B3, BUFFER_LOG, 10, "BUFFER.LOG", "Recording Buffers", "SRV-B3", "03.09 03:13", REAL, List.of(
                 new Head("SERVERS B3 / BUFFER LOG"),                                                  // 0
                 new Mono("03:12:58  SESSION 12   STREAM  SOURCE 47"),                                 // 1
@@ -452,13 +458,16 @@ public final class ArchiveDefs {
                 new Mono("03:13:02  HOLD   R11   SOURCE 47"),                                         // 5
                 new Mono("03:13:02  HOLD   R04   SOURCE 47"),                                         // 6
                 new Mono("03:13:03  HOLD   R09   SOURCE 47"),                                         // 7
-                new Mono("03:13:04  UPS LOW      WRITE OFF"),                                         // 8
-                new Mono("03:13:04  LIFT B4      INTERLOCKED")));                                     // 9
+                new Mono("03:13:03  UPLINK  ANT-1  RELAY AZ 285  SEND"),                              // 8
+                new Mono("03:13:04  ANT-1   SLEW BY HAND  285 > 105"),                                // 9
+                new Mono("03:13:04  UPLINK  NO CARRIER    HOLD KEPT"),                                // 10
+                new Mono("03:13:05  UPS LOW      WRITE OFF"),                                         // 11
+                new Mono("03:13:05  LIFT B4      INTERLOCKED")));                                     // 12
         mail(ST_SRV_B3, "v_interlock", Folder.INBOX, 10, "t.brandt", "srv.night", "21.08 11:30", "Lift interlock B4", REAL, List.of(
-                new Para("After a feed loss the lift to B4 stays interlocked while a buffer holds a recording."), // 0
-                new Para("To release it, acknowledge the held buffers at LIFT ACCESS B3: their addresses, in the order they were held."), // 1
-                new Para("The log keeps only rack numbers. Read the addresses from the lamps of the racks, see the notice in the cabinet."), // 2
-                new Para("Copy buffers clear themselves with the copy. Do not acknowledge them."),  // 3
+                new Para("After a feed loss the lift to B4 stays interlocked while the buffers hold a recording."), // 0
+                new Para("The buffers clear once they are sent to the relay through ANT-1, the dish on the roof. LIFT ACCESS B3 is released by itself when the carrier comes."), // 1
+                new Para("The dish is turned by hand from the slew drive at the foot of the mast: one turn of the wheel, 15 degrees. The roof ladder is on the east wall."), // 2
+                new Para("Set the dish on the relay azimuth from the buffer log and leave it until the carrier comes. Nothing goes out without the main feed."), // 3
                 new Para("T. Brandt, Chief Engineer")));                                              // 4
 
         // ================= Пост медсестры B4 (шифр 9: подсказка; правило — записка в палате 2D) =================

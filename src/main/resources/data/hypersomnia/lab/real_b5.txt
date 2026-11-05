@@ -6,7 +6,7 @@ height 5
              #L@E#             
              #LLL#             
 ###############l###############
-#RR.cFp#...........hh..#t.s.RR#
+#RR.cFp#....&......hh..#t.s.RR#
 #......#...............#......#
 #.D.*..#1......*......2#......#
 #hVh...#..DVD..........#..*...#
@@ -31,6 +31,7 @@ sign 2 = SESSION|CONTROL||
 sign 3 = CRADLE FACILITY|LEVEL B5|SESSION HALL|
 sign 4 = SESSION|HALL||
 sign 5 = SUBJECTS IN|SESSION ARE|NOT MOVED|
+panel & = 15
 ; находки: контракт C-47 у директора, последний журнал оператора и правила зала на пульте
 cabinet c = mem_3_contract
 cabinet t = mem_7_log

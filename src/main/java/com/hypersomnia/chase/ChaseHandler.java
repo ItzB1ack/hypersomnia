@@ -5,9 +5,9 @@ import com.hypersomnia.FatigueTuning;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
-import com.hypersomnia.ObserverTuning;
 import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.finale.FinaleLogic;
+import com.hypersomnia.lab.LabOutage;
 import com.hypersomnia.lab.LabProtection;
 import com.hypersomnia.network.ChasePayload;
 import com.hypersomnia.network.ChaseRequestPayload;
@@ -24,6 +24,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
@@ -69,9 +70,11 @@ import java.util.UUID;
  * время суток, безопасность места, взгляд, двери, поимка и последствия. Клиент только рисует ту же фигуру
  * (ObserverClient, Mode.CHASE) по пакетам ChasePayload и не может «потерять» её: если он её не показывает, просит STOP.
  * <p>
- * Фазы: WARN — стоит далеко на следе (выдержал взгляд — исчез, погони нет); RUN — бежит; BLOCKED — на пути закрытая
- * дверь (обхода нет или он намного длиннее) или стена на следе: стучит и уходит, если не откроют; CAUGHT — чёрный кадр. Взгляд прогоняет его на всех стадиях, но чем
- * выше стадия, тем дольше надо смотреть (ObserverTuning.gazeTicks), а он всё это время бежит.
+ * Фазы: WARN — стоит далеко на следе (заметил его — сразу бежит); RUN — бежит; BLOCKED — на пути закрытая
+ * дверь (обхода нет или он намного длиннее) или стена на следе: стучит и уходит, если не откроют; CAUGHT — чёрный кадр.
+ * Взгляд в погоне его НЕ прогоняет (решение пользователя): спасают дверь, время и в лаборатории — питание (LabOutage).
+ * В лаборатории погоня бывает только как «обесточено» (LabOutage): этаж гаснет, лифт стоит, спасает щит этажа у лифта;
+ * темнота своя, поэтому ночь не нужна; пакеты таких погонь несут флаг ChasePayload.I_DARK (клиент видит глаза издалека).
  * Поимка до стадии DAMAGE_MIN_STAGE забирает вещь из руки (вернётся у кровати через 1-3 дня, рядом с его шагами),
  * прибавляет усталость и безумие; с неё — ещё и ранит (тип урона hypersomnia:fragment, мимо брони). Пока он бежит,
  * лечь спать нельзя («рядом монстры»).
@@ -118,6 +121,8 @@ public final class ChaseHandler {
         boolean onTrail;
         /** Закрытая дверь, в которую он упёрся (BLOCKED), иначе null. */
         BlockPos door;
+        /** «Обесточено»: этаж лаборатории в темноте (LabOutage), иначе -1. */
+        int outage = -1;
     }
 
     private static final Map<UUID, Trail> TRAILS = new HashMap<>();
@@ -185,16 +190,14 @@ public final class ChaseHandler {
             else send(player, run, ChasePayload.PH_CAUGHT, ChasePayload.O_NONE);
             return;
         }
-        // Правило взгляда: исчезает на всех стадиях, но смотреть надо тем дольше, чем выше стадия
-        if (lookedAt(player, run.pos)) run.stare++;
-        else if (run.stare > 0) run.stare--;
-        if (run.stare >= ObserverTuning.gazeTicks(run.stage)) {
-            end(player, run, ChasePayload.O_STARED);
-            return;
-        }
+        // Взгляд в погоне не прогоняет. Пока он стоит на следе: заметил его (WARN_SEEN_TICKS взгляда) — сразу бежит
+        if (run.phase == ChasePayload.PH_WARN && lookedAt(player, run.pos)) run.stare++;
         switch (run.phase) {
             case ChasePayload.PH_WARN -> {
-                if (run.phaseTicks >= run.warnTicks) phase(run, ChasePayload.PH_RUN);
+                if (run.phaseTicks >= run.warnTicks || run.stare >= ChaseTuning.WARN_SEEN_TICKS) {
+                    run.stare = 0;
+                    phase(run, ChasePayload.PH_RUN);
+                }
             }
             case ChasePayload.PH_RUN -> {
                 if (++run.runTicks > ChaseTuning.RUN_TICKS_BY_STAGE[run.stage]) {
@@ -488,12 +491,31 @@ public final class ChaseHandler {
     private static void end(ServerPlayer player, Run run, int outcome) {
         RUNS.remove(player.getUUID());
         send(player, run, ChasePayload.PH_END, outcome);
+        dropped(player, run);
+    }
+
+    /** Погоня снята (конец, STOP клиента, выход): после «обесточено» свет вернётся сам (LabOutage.chaseEnded). */
+    private static void dropped(ServerPlayer player, Run run) {
+        if (run != null && run.outage >= 0) LabOutage.chaseEnded(player.serverLevel());
+    }
+
+    /** Свет вернулся (LabOutage.restore): погони «обесточено» кончаются — он исчезает (поимку не прерываем). */
+    public static void outageOver(MinecraftServer server) {
+        List<UUID> ids = new ArrayList<>();
+        for (Map.Entry<UUID, Run> e : RUNS.entrySet())
+            if (e.getValue().outage >= 0 && e.getValue().phase != ChasePayload.PH_CAUGHT) ids.add(e.getKey());
+        for (UUID id : ids) {
+            ServerPlayer p = server.getPlayerList().getPlayer(id);
+            Run r = RUNS.get(id);
+            if (p != null && r != null) end(p, r, ChasePayload.O_ESCAPED);
+        }
     }
 
     private static void send(ServerPlayer player, Run run, int phase, int info) {
-        float stare = Math.min(1f, run.stare / (float) ObserverTuning.gazeTicks(run.stage));
+        // stare в пакете — 0: взгляд в погоне не работает, пыли «он исчезает» нет. Вне PH_END info — флаги (I_DARK)
+        if (phase != ChasePayload.PH_END && run.outage >= 0) info |= ChasePayload.I_DARK;
         PacketDistributor.sendToPlayer(player, new ChasePayload(run.id, phase, info, run.pos.x, run.pos.y, run.pos.z,
-                stare, player.getData(ModAttachments.CHASE).nextDay()));
+                0f, player.getData(ModAttachments.CHASE).nextDay()));
     }
 
     private static void sendIdle(ServerPlayer player, int phase, int info) {
@@ -509,7 +531,7 @@ public final class ChaseHandler {
         ctx.enqueueWork(() -> {
             if (!(ctx.player() instanceof ServerPlayer player)) return;
             if (pl.action() == ChaseRequestPayload.STOP) {
-                RUNS.remove(player.getUUID());
+                dropped(player, RUNS.remove(player.getUUID()));
                 return;
             }
             int force = pl.force() > 0 && player.hasPermissions(2) ? pl.force() : 0;
@@ -525,7 +547,11 @@ public final class ChaseHandler {
         boolean dream = level.dimension().equals(DreamDimension.LEVEL);
         if (!dream && !level.dimension().equals(Level.OVERWORLD)) return ChasePayload.R_CONTEXT;
         if (FinaleLogic.completed(player)) return ChasePayload.R_CONTEXT;
-        if (LabProtection.inside(level, player.blockPosition())) return ChasePayload.R_LAB;
+        int outage = -1; // в лаборатории — только «обесточено» (реальный мир, после MAIN FEED, этажи B1-B4)
+        if (LabProtection.inside(level, player.blockPosition())) {
+            outage = LabOutage.stopFor(player);
+            if (outage < 0) return ChasePayload.R_LAB;
+        }
         ObserverProgressData prog = player.getData(ModAttachments.OBSERVER);
         ChaseData data = player.getData(ModAttachments.CHASE);
         int stage = prog.stage();
@@ -533,7 +559,7 @@ public final class ChaseHandler {
             if (stage < ChaseTuning.MIN_STAGE) return ChasePayload.R_STAGE;
             if (prog.getDays() < data.nextDay()) return ChasePayload.R_DAYS;
             if (player.isCreative()) return ChasePayload.R_CONTEXT;
-            if (!dream && !nightOrDark(level, player)) return ChasePayload.R_CONTEXT;
+            if (!dream && outage < 0 && !nightOrDark(level, player)) return ChasePayload.R_CONTEXT;
         }
         if (!safe(player, level)) return ChasePayload.R_SAFETY;
         Trail t = TRAILS.get(player.getUUID());
@@ -552,6 +578,11 @@ public final class ChaseHandler {
         run.warnTicks = Mth.randomBetweenInclusive(player.getRandom(), ChaseTuning.WARN_MIN, ChaseTuning.WARN_MAX);
         run.pos = pts.get(startIdx);
         run.path.addAll(pts.subList(startIdx + 1, pts.size()));
+        if (outage >= 0) {
+            if (!LabOutage.begin(level, outage, player)) return ChasePayload.R_LAB;
+            run.outage = outage;
+            run.warnTicks += LabOutage.flickerTicks(); // стоит на следе, пока мигает свет, и ещё WARN_MIN..MAX в темноте
+        }
         data.markStarted(prog.getDays());
         RUNS.put(player.getUUID(), run);
         send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
@@ -706,7 +737,8 @@ public final class ChaseHandler {
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        RUNS.remove(event.getEntity().getUUID());
+        Run run = RUNS.remove(event.getEntity().getUUID());
+        if (event.getEntity() instanceof ServerPlayer p) dropped(p, run);
         TRAILS.remove(event.getEntity().getUUID());
     }
 
