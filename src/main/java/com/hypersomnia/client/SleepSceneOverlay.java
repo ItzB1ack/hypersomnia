@@ -290,10 +290,9 @@ public final class SleepSceneOverlay {
             g.pose().popPose();
         }
 
-        // 3b) Укор осколка после закрытого меню; в первые тики ещё и красная вспышка ярости
+        // 3b) Он закрыл меню паузы: красная вспышка ярости (сам укор — голосом и субтитром, FragmentVoice)
         if (SleepSceneState.scoldTicks > 0) {
             int sc = SleepSceneState.scoldTicks;
-            drawScold(g, w, h, Mth.clamp(sc / 12f, 0f, 1f));
             int since = SleepSceneTuning.SCOLD_SHOW_TICKS - sc;
             if (since < 14) g.fill(0, 0, w, h, ((int) ((1f - since / 14f) * 70f) << 24) | 0x40000A);
         }
@@ -318,16 +317,59 @@ public final class SleepSceneOverlay {
         if (t > total - 2f) g.fill(0, 0, w, h, 0xFF000000);
     }
 
-    /** Прозрачность глаз осколка (1 в сцене; в меню паузы растёт от 0). */
-    private static float eyesMul = 1f;
+    /**
+     * Глаза осколка поверх меню паузы, по шагам (SleepSceneTuning.PAUSE_*): экран темнеет и медленно открывается
+     * один глаз, за ним второй (оба смотрят в зрителя), потом со всех сторон проступает толпа глаз разного
+     * размера — все смотрят на курсор. Когда он заговорит, зрачки дрожат. t — тики с открытия меню (дробные).
+     */
+    static void drawPauseEyes(GuiGraphics g, int w, int h, float t, int mx, int my) {
+        if (t < SleepSceneTuning.PAUSE_EYE1_TICKS) return;
+        float pair = Mth.clamp((t - SleepSceneTuning.PAUSE_EYE1_TICKS)
+                / (SleepSceneTuning.PAUSE_EYE2_TICKS + SleepSceneTuning.PAUSE_EYE_OPEN_TICKS - SleepSceneTuning.PAUSE_EYE1_TICKS), 0f, 1f);
+        float crowd = Mth.clamp((t - SleepSceneTuning.PAUSE_CROWD_TICKS)
+                / (SleepSceneTuning.PAUSE_CROWD_FULL_TICKS - SleepSceneTuning.PAUSE_CROWD_TICKS), 0f, 1f);
+        float dark = SleepSceneTuning.PAUSE_DARK_EYES * pair
+                + (SleepSceneTuning.PAUSE_DARK_CROWD - SleepSceneTuning.PAUSE_DARK_EYES) * crowd;
+        g.fill(0, 0, w, h, ((int) (Mth.clamp(dark, 0f, 1f) * 255f) << 24) | 0x03050A);
+        boolean rage = t >= SleepSceneTuning.PAUSE_VOICE_TICKS;
+        long now = System.currentTimeMillis();
+        RandomSource rnd = RandomSource.create(System.nanoTime());
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        if (t >= SleepSceneTuning.PAUSE_CROWD_TICKS) drawCrowd(g, w, h, t, mx, my, rage, now, rnd);
 
-    /** Глаза осколка поверх меню паузы: экран темнеет, глаза проступают, к концу зрачки дрожат. a = 0..1. */
-    static void drawPauseEyes(GuiGraphics g, int w, int h, float a) {
-        a = Mth.clamp(a, 0f, 1f);
-        if (a <= 0f) return;
-        g.fill(0, 0, w, h, ((int) (a * 120f) << 24) | 0x03050A);
+        // Пара глаз сцены: сначала левый, потом правый
         float k = h / 18f;
-        eyesMul = a;
+        g.pose().pushPose();
+        g.pose().translate(w / 2f, h * 0.42f - EYE_Y * k, 0f);
+        for (int side = -1; side <= 1; side += 2) {
+            boolean right = side > 0;
+            float o = ease((t - (right ? SleepSceneTuning.PAUSE_EYE2_TICKS : SleepSceneTuning.PAUSE_EYE1_TICKS))
+                    / SleepSceneTuning.PAUSE_EYE_OPEN_TICKS);
+            if (o <= 0.03f) continue;
+            float sy = o * blinkFactor(now, right ? 4300 : 3700, right ? 900 : 0);
+            float size = EYE_SCALE * (right ? 0.94f : 1f);
+            float alpha = (right ? 0.82f : 1f) * (0.90f + 0.10f * rnd.nextFloat());
+            float cxU = side * EYE_DX;
+            float cyU = EYE_Y + (right ? 0.35f : 0f);
+            layer(g, right ? EYE_SCLERA_R : EYE_SCLERA_L, cxU, cyU, k, size, size * sy, alpha);
+            float tx = rage ? (rnd.nextFloat() - 0.5f) * 0.55f : 0f;
+            float ty = rage ? (rnd.nextFloat() - 0.5f) * 0.22f : 0f;
+            layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
+            layer(g, right ? EYE_LIDS_R : EYE_LIDS_L, cxU, cyU, k, size, size * sy, 1f);
+        }
+        g.pose().popPose();
+        RenderSystem.disableBlend();
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
+    }
+
+    /** Пара глаз сцены поверх кадра (испуг ObserverScare): затемнение, оба глаза открыты и смотрят в зрителя. */
+    static void drawScareEyes(GuiGraphics g, int w, int h) {
+        g.fill(0, 0, w, h, (120 << 24) | 0x03050A);
+        float k = h / 18f;
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.enableBlend();
@@ -339,24 +381,69 @@ public final class SleepSceneOverlay {
         RenderSystem.disableBlend();
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
-        eyesMul = 1f;
     }
 
-    /** Укор осколка по центру кадра; a = 0..1. Вызывается и из оверлея, и поверх меню паузы. */
-    static void drawScold(GuiGraphics g, int w, int h, float a) {
-        Minecraft mc = Minecraft.getInstance();
-        int i = SleepSceneState.scoldCount % 2;
-        Component text = Component.translatableWithFallback("hypersomnia.scene.scold." + i,
-                i == 0 ? "Why won't you listen?" : "Stay. With. Me.");
-        int tw = Math.max(1, mc.font.width(text));
-        int alpha = (int) (Mth.clamp(a, 0f, 1f) * 255f);
-        if (alpha < 8) return;
-        g.pose().pushPose();
-        g.pose().translate(w / 2f, h * 0.28f, 0f);
-        g.pose().scale(1.7f, 1.7f, 1f);
-        g.fill(-tw / 2 - 4, -3, tw / 2 + 4, 11, (alpha / 2) << 24);
-        g.drawCenteredString(mc.font, text, 0, 0, (alpha << 24) | 0xC8B8BC);
-        g.pose().popPose();
+    /**
+     * Толпа глаз: сетка клеток, в клетке глаз в случайном месте (раскладка постоянна для этого раза), не на паре
+     * в центре и не под субтитром. Проступают по одному, всё чаще; моргают вразнобой; смотрят на курсор.
+     */
+    private static void drawCrowd(GuiGraphics g, int w, int h, float t, int mx, int my, boolean rage, long now,
+                                  RandomSource jitter) {
+        RandomSource r = RandomSource.create(SleepSceneState.seed * 31L + SleepSceneState.scoldCount * 7919L + 17L);
+        int cols = SleepSceneTuning.PAUSE_CROWD_COLS;
+        int rows = SleepSceneTuning.PAUSE_CROWD_ROWS;
+        int n = cols * rows;
+        int[] rank = new int[n];
+        int[] order = new int[n];
+        for (int i = 0; i < n; i++) order[i] = i;
+        for (int i = n - 1; i > 0; i--) {
+            int j = r.nextInt(i + 1);
+            int tmp = order[i];
+            order[i] = order[j];
+            order[j] = tmp;
+        }
+        for (int i = 0; i < n; i++) rank[order[i]] = i;
+        float cw = w / (float) cols;
+        float ch = h / (float) rows;
+        float span = SleepSceneTuning.PAUSE_CROWD_FULL_TICKS - SleepSceneTuning.PAUSE_CROWD_TICKS;
+        for (int c = 0; c < n; c++) {
+            // Одинаковое число бросков на клетку: раскладка не зависит от пропусков
+            float fill = r.nextFloat();
+            float px = r.nextFloat();
+            float py = r.nextFloat();
+            float sr = r.nextFloat();
+            float tilt = r.nextFloat();
+            float mir = r.nextFloat();
+            float period = r.nextFloat();
+            float phase = r.nextFloat();
+            float al = r.nextFloat();
+            if (fill > SleepSceneTuning.PAUSE_CROWD_FILL) continue;
+            float x = (c % cols + 0.15f + 0.7f * px) * cw;
+            float y = (c / cols + 0.15f + 0.7f * py) * ch;
+            if (Math.abs(x - w / 2f) < w * 0.17f && Math.abs(y - h * 0.42f) < h * 0.14f) continue;
+            if (Math.abs(x - w / 2f) < w * 0.38f && y > h * 0.76f && y < h * 0.95f) continue;
+            float appear = SleepSceneTuning.PAUSE_CROWD_TICKS + span * (float) Math.pow(rank[c] / (float) n, 0.6);
+            float o = ease((t - appear) / SleepSceneTuning.PAUSE_CROWD_OPEN_TICKS);
+            if (o <= 0.03f) continue;
+            o *= blinkFactor(now, 2600 + (int) (period * 4000f), (int) (phase * 5000f));
+            float dx = mx - x;
+            float dy = my - y;
+            float len = Mth.sqrt(dx * dx + dy * dy) + 1e-3f;
+            float reach = Mth.clamp(len / (h * 0.2f), 0.25f, 1f);
+            float gx = dx / len * reach;
+            float gy = dy / len * reach;
+            if (rage) {
+                gx += (jitter.nextFloat() - 0.5f) * 0.5f;
+                gy += (jitter.nextFloat() - 0.5f) * 0.5f;
+            }
+            float size = Mth.lerp(sr * sr * sr, SleepSceneTuning.PAUSE_CROWD_SIZE_MIN, SleepSceneTuning.PAUSE_CROWD_SIZE_MAX) * h;
+            EyeSprite.draw(g, x, y, size, o, gx, gy, 0.72f + 0.28f * al, mir < 0.5f, (tilt * 2f - 1f) * 18f, 1f);
+        }
+    }
+
+    private static float ease(float x) {
+        x = Mth.clamp(x, 0f, 1f);
+        return x * x * (3f - 2f * x);
     }
 
     // ------------------------------------------------------------------
@@ -454,7 +541,7 @@ public final class SleepSceneOverlay {
             float blink = frozen ? 1f : blinkFactor(now, right ? 4300 : 3700, right ? 900 : 0);
             float sy = open * blink;
             float size = EYE_SCALE * (right ? 0.94f : 1f);
-            float alpha = base * (right ? 0.82f : 1f) * (frozen ? 1f : 0.90f + 0.10f * rnd.nextFloat()) * eyesMul;
+            float alpha = base * (right ? 0.82f : 1f) * (frozen ? 1f : 0.90f + 0.10f * rnd.nextFloat());
             float cxU = side * EYE_DX;
             float cyU = EYE_Y + (right ? 0.35f : 0f);
 
@@ -463,7 +550,7 @@ public final class SleepSceneOverlay {
             float tx = rage ? (rnd.nextFloat() - 0.5f) * 0.55f : 0f;
             float ty = rage ? (rnd.nextFloat() - 0.5f) * 0.22f : 0f;
             layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + (gx + tx) * size, cyU + (gy + ty) * size * sy, k, size, size * sy, alpha);
-            layer(g, right ? EYE_LIDS_R : EYE_LIDS_L, cxU, cyU, k, size, size * sy, eyesMul);
+            layer(g, right ? EYE_LIDS_R : EYE_LIDS_L, cxU, cyU, k, size, size * sy, 1f);
         }
     }
 

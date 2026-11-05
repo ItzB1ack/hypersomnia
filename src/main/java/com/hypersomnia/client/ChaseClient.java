@@ -46,6 +46,7 @@ public final class ChaseClient {
         target = Math.max(target, ChaseTuning.PANIC_WARN);
         if (panic < ChaseTuning.HEART_MIN_PANIC) panic = ChaseTuning.HEART_MIN_PANIC;
         beatIn = Math.min(beatIn, 1f);
+        ChaseEyes.begin();
     }
 
     /** Каждый тик погони: фаза ChasePayload.PH_* и расстояние до него (блоки). */
@@ -70,6 +71,7 @@ public final class ChaseClient {
         panic = 1f;
         ObserverClient.hushWorld(mc);
         ChaseMusic.caught();
+        ChaseVoice.caught();
         beat(mc, false);
     }
 
@@ -77,10 +79,21 @@ public final class ChaseClient {
     public static void end() {
         active = false;
         target = 0f;
+        ChaseEyes.end();
     }
 
     public static boolean active() {
         return active;
+    }
+
+    /** Паника сейчас 0..1 (глаза по углам: чем она выше, тем их больше). */
+    public static float panicNow() {
+        return panic;
+    }
+
+    /** Удар сердца 0..1 (1 в тик удара, дальше гаснет). */
+    public static float pulse(float partial) {
+        return Mth.lerp(partial, pulseO, pulse);
     }
 
     @SubscribeEvent
@@ -155,6 +168,7 @@ public final class ChaseClient {
         pulseO = 0f;
         beatIn = 0f;
         black = -1;
+        ChaseEyes.reset();
     }
 
     @SubscribeEvent

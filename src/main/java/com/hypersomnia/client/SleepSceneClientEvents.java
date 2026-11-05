@@ -2,6 +2,8 @@ package com.hypersomnia.client;
 
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.scene.SleepSceneTuning;
+import com.hypersomnia.voice.VoiceLine;
+import com.hypersomnia.voice.VoiceTuning;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
@@ -19,6 +21,7 @@ import net.minecraft.client.gui.screens.PauseScreen;
  * Тик сцены, давящая тишина и движение камеры.
  * Собственных звуков у сцены НЕТ: страх делает картинка. Наоборот, всё, что звучало, обрывается,
  * а новые звуки не проигрываются до конца сцены и ещё некоторое время после неё.
+ * Единственное исключение — его голос, когда игрок прячется в меню паузы (FragmentVoice, VoiceLine.PAUSE_*).
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class SleepSceneClientEvents {
@@ -27,10 +30,21 @@ public final class SleepSceneClientEvents {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        // Меню паузы во время сцены: осколок закрывает его сам (это событие приходит и в паузе)
+        // Меню паузы во время сцены: глаз, второй, толпа глаз, его голос — и он закрывает меню сам
+        // (это событие приходит и в паузе)
         if (SleepSceneState.active() && mc.screen instanceof PauseScreen) {
-            if (++SleepSceneState.pauseTicks >= SleepSceneTuning.PAUSE_CLOSE_TICKS) {
+            int t = ++SleepSceneState.pauseTicks;
+            pauseTickNanos = System.nanoTime();
+            if (t == SleepSceneTuning.PAUSE_VOICE_TICKS) {
+                FragmentVoice.say(VoiceLine.pause(SleepSceneState.scoldCount), null, VoiceTuning.VOLUME_NEAR,
+                        VoiceTuning.SHAKE_PAUSE, true, true);
+                SleepSceneState.pauseCloseAt = Math.max(SleepSceneTuning.PAUSE_CLOSE_TICKS,
+                        t + FragmentVoice.speechLeft() + SleepSceneTuning.PAUSE_AFTER_VOICE_TICKS);
+            }
+            int closeAt = SleepSceneState.pauseCloseAt > 0 ? SleepSceneState.pauseCloseAt : SleepSceneTuning.PAUSE_CLOSE_MAX_TICKS;
+            if (t >= Math.min(closeAt, SleepSceneTuning.PAUSE_CLOSE_MAX_TICKS)) {
                 SleepSceneState.pauseTicks = 0;
+                SleepSceneState.pauseCloseAt = 0;
                 SleepSceneState.scoldTicks = SleepSceneTuning.SCOLD_SHOW_TICKS;
                 SleepSceneState.scoldCount++;
                 // Игрок лежит в кровати: возвращаем экран кровати, а не пустой экран
@@ -38,6 +52,7 @@ public final class SleepSceneClientEvents {
             }
         } else {
             SleepSceneState.pauseTicks = 0;
+            SleepSceneState.pauseCloseAt = 0;
         }
         if (mc.isPaused()) return;
         SleepSceneState.tick();
@@ -57,25 +72,24 @@ public final class SleepSceneClientEvents {
         }
     }
 
-    /** Давящая тишина: пока сцена идёт (и недолго после) любой новый звук просто не воспроизводится. */
+    /** Давящая тишина: пока сцена идёт (и недолго после) любой новый звук просто не воспроизводится — кроме его голоса. */
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
-        if (SleepSceneState.silent()) {
+        if (SleepSceneState.silent() && !FragmentVoice.isVoice(event.getOriginalSound())) {
             event.setSound(null);
         }
     }
 
-    /** Пока игрок сидит в меню паузы, поверх него проступает укор (в меню игра стоит, тики идут от экрана). */
+    /** Тик меню паузы пришёл тогда-то: между тиками глаза двигаются плавно (в паузе partialTick стоит). */
+    private static long pauseTickNanos;
+
+    /** Пока игрок сидит в меню паузы, поверх него проступают глаза (в меню игра стоит, тики идут от экрана). Субтитр рисует FragmentVoice. */
     @SubscribeEvent
     public static void onScreenRender(ScreenEvent.Render.Post event) {
         if (!SleepSceneState.active() || !(event.getScreen() instanceof PauseScreen)) return;
-        int g0 = SleepSceneState.pauseTicks;
+        float t = SleepSceneState.pauseTicks + Mth.clamp((System.nanoTime() - pauseTickNanos) / 5.0e7f, 0f, 1f);
         SleepSceneOverlay.drawPauseEyes(event.getGuiGraphics(), event.getScreen().width, event.getScreen().height,
-                (g0 - 8) / 25f);
-        float a = (g0 - 22) / 20f;
-        if (a > 0f) {
-            SleepSceneOverlay.drawScold(event.getGuiGraphics(), event.getScreen().width, event.getScreen().height, a);
-        }
+                t, event.getMouseX(), event.getMouseY());
     }
 
     /** Экран кровати во время сцены заменяем на «не могу пошевелиться» (ESC и кнопка не встают). */

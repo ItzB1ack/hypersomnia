@@ -833,6 +833,7 @@ public final class ObserverClient {
                 BreathClient.triggerNow();
                 ChaseClient.begin();
                 ChaseMusic.begin(mc);
+                ChaseVoice.begin();
                 return;
             }
         }
@@ -869,6 +870,7 @@ public final class ObserverClient {
         double dist = player.position().distanceTo(pos);
         ChaseClient.track(chasePhase, dist);
         ChaseMusic.track(mc, player, chasePhase, pos, dist);
+        ChaseVoice.tick(player, chasePhase, pos, dist);
         placeGhost(player);
     }
 
@@ -878,6 +880,7 @@ public final class ObserverClient {
         // Прогнал взглядом (или поймал) — музыка обрывается; ушёл, упёрся — затихает
         ChaseMusic.end(outcome == ChasePayload.O_STARED || outcome == ChasePayload.O_TAUGHT
                 || outcome == ChasePayload.O_CAUGHT);
+        ChaseVoice.end(outcome, player, pos);
         switch (outcome) {
             case ChasePayload.O_STARED, ChasePayload.O_TAUGHT -> finishGhost(Outcome.LOOK, true);
             case ChasePayload.O_ESCAPED ->
@@ -900,6 +903,7 @@ public final class ObserverClient {
         chaseDark = false;
         ChaseClient.end();
         ChaseMusic.end(false);
+        ChaseVoice.reset();
     }
 
     private static void sendChaseStop(Minecraft mc) {

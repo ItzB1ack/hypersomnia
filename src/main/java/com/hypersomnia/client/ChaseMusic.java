@@ -4,6 +4,7 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModSounds;
 import com.hypersomnia.chase.ChaseTuning;
 import com.hypersomnia.network.ChasePayload;
+import com.hypersomnia.voice.VoiceTuning;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -88,7 +89,8 @@ public final class ChaseMusic {
         apply(mc);
         if (--whisperIn <= 0) {
             whisperIn = Mth.randomBetweenInclusive(RANDOM, ChaseTuning.WHISPER_MIN_TICKS, ChaseTuning.WHISPER_MAX_TICKS);
-            whisper(mc, player, at, dist);
+            // Пока он говорит (и чуть после), не шепчет: реплику должно быть слышно
+            if (!FragmentVoice.speaking(VoiceTuning.WHISPER_GAP)) whisper(mc, player, at, dist);
         }
     }
 

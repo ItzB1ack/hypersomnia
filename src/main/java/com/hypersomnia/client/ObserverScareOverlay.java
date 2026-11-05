@@ -32,7 +32,7 @@ public final class ObserverScareOverlay {
         int h = g.guiHeight();
 
         g.fill(0, 0, w, h, 0xFF000000);
-        SleepSceneOverlay.drawPauseEyes(g, w, h, 1f);
+        SleepSceneOverlay.drawScareEyes(g, w, h);
 
         int i = Math.max(0, Math.min(ObserverScare.LINES.length - 1, ObserverScare.line));
         Component text = Component.translatableWithFallback("hypersomnia.observer.scare." + i,

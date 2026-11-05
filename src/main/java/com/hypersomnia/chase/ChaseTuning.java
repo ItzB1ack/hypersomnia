@@ -191,4 +191,40 @@ public final class ChaseTuning {
     public static final float WHISPER_HEAD_VOLUME = 0.5f;
     public static final double WHISPER_HEAD_DIST = 4.0;
     public static final double WHISPER_HEAD_OFFSET = 1.2;
+
+    // ------------------------------------------------------------------
+    // Глаза по углам экрана (client/ChaseEyes)
+    // ------------------------------------------------------------------
+    /** В каждом углу MIN..MAX глаз в четверти эллипса SPREAD_X x SPREAD_Y от угла (доли высоты экрана), не ближе EDGE к краю. */
+    public static final int EYES_PER_CORNER_MIN = 4;
+    public static final int EYES_PER_CORNER_MAX = 7;
+    public static final float EYES_SPREAD_X = 0.38f;
+    public static final float EYES_SPREAD_Y = 0.29f;
+    public static final float EYES_EDGE = 0.03f;
+    /** Ширина глаза (доля высоты экрана): у самого угла SIZE_MAX, дальше от него до SIZE_MIN; разброс ±20%. */
+    public static final float EYES_SIZE_MIN = 0.045f;
+    public static final float EYES_SIZE_MAX = 0.12f;
+    /** Пока он стоит на следе, открыто EYES_WARN; дальше число растёт с паникой до всех. */
+    public static final int EYES_WARN = 3;
+    /** Первый глаз через FIRST_DELAY тиков, следующие раз в OPEN_EVERY_MIN..MAX; открывается за OPEN_TICKS, закрывается за CLOSE_TICKS. */
+    public static final int EYES_FIRST_DELAY = 12;
+    public static final int EYES_OPEN_EVERY_MIN = 5;
+    public static final int EYES_OPEN_EVERY_MAX = 14;
+    public static final int EYES_OPEN_TICKS = 14;
+    public static final int EYES_CLOSE_TICKS = 9;
+    /** Паника спала: лишние сверх HYSTERESIS закрываются раз в CLOSE_EVERY тиков. */
+    public static final int EYES_HYSTERESIS = 2;
+    public static final int EYES_CLOSE_EVERY = 10;
+    /** Погоня кончилась: закрываются по одному раз в END_EVERY_MIN..MAX тиков. */
+    public static final int EYES_END_EVERY_MIN = 3;
+    public static final int EYES_END_EVERY_MAX = 9;
+    /** Моргание раз в BLINK_MIN..MAX тиков, длится BLINK_TICKS; взгляд чуть сдвигается раз в LOOK_MIN..MAX. */
+    public static final int EYES_BLINK_MIN = 50;
+    public static final int EYES_BLINK_MAX = 160;
+    public static final int EYES_BLINK_TICKS = 4;
+    public static final int EYES_LOOK_MIN = 20;
+    public static final int EYES_LOOK_MAX = 70;
+    /** Радужка вздрагивает с ударом сердца (доля размера); наклон глаз до TILT градусов. */
+    public static final float EYES_PULSE = 0.07f;
+    public static final float EYES_TILT = 16f;
 }

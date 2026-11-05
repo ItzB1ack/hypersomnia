@@ -1,11 +1,16 @@
 package com.hypersomnia;
 
+import com.hypersomnia.voice.VoiceLine;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class ModSounds {
     private ModSounds() {}
@@ -33,6 +38,14 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> CHASE_RISE = tape("chase_rise");
     public static final DeferredHolder<SoundEvent, SoundEvent> CHASE_NEAR = tape("chase_near");
     public static final DeferredHolder<SoundEvent, SoundEvent> SHARD_WHISPER = tape("shard_whisper");
+    /** Голос осколка (client/FragmentVoice): событие на каждую реплику — voice.en.<id> (VoiceLine; озвучка только английская). */
+    public static final Map<String, DeferredHolder<SoundEvent, SoundEvent>> VOICE = voice();
+
+    private static Map<String, DeferredHolder<SoundEvent, SoundEvent>> voice() {
+        Map<String, DeferredHolder<SoundEvent, SoundEvent>> m = new LinkedHashMap<>();
+        for (VoiceLine line : VoiceLine.values()) m.put(line.sound(), tape(line.sound()));
+        return Collections.unmodifiableMap(m);
+    }
 
     private static DeferredHolder<SoundEvent, SoundEvent> tape(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(

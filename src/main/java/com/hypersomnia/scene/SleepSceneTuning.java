@@ -47,9 +47,33 @@ public final class SleepSceneTuning {
     public static final int TEXT_FADE_OUT = 16;
     /** Медленный дрейф фразы на месте (GUI-юниты). */
     public static final float TEXT_DRIFT = 5f;
-    /** Меню паузы во время сцены: через столько тиков осколок его закрывает, потом укор висит SCOLD_SHOW_TICKS. */
+    /**
+     * Меню паузы во время сцены, по шагам (тики с открытия меню): темнеет и открывается один глаз (EYE1), за ним
+     * второй (EYE2), каждый за EYE_OPEN_TICKS; потом проступает толпа глаз (CROWD..CROWD_FULL, каждый за
+     * CROWD_OPEN_TICKS); на VOICE он говорит (client/FragmentVoice, реплики VoiceLine.PAUSE_*). Меню он закрывает
+     * сам через AFTER_VOICE тиков после конца речи, но не раньше PAUSE_CLOSE_TICKS и не позже CLOSE_MAX;
+     * потом ярость в сцене (дрожь зрачков, красная вспышка) держится SCOLD_SHOW_TICKS.
+     */
+    public static final int PAUSE_EYE1_TICKS = 8;
+    public static final int PAUSE_EYE2_TICKS = 26;
+    public static final int PAUSE_EYE_OPEN_TICKS = 12;
+    public static final int PAUSE_CROWD_TICKS = 42;
+    public static final int PAUSE_CROWD_FULL_TICKS = 74;
+    public static final int PAUSE_CROWD_OPEN_TICKS = 6;
+    public static final int PAUSE_VOICE_TICKS = 52;
+    public static final int PAUSE_AFTER_VOICE_TICKS = 8;
     public static final int PAUSE_CLOSE_TICKS = 70;
+    public static final int PAUSE_CLOSE_MAX_TICKS = 170;
     public static final int SCOLD_SHOW_TICKS = 80;
+    /** Толпа: сетка COLS x ROWS, в клетке глаз с шансом FILL; ширина SIZE_MIN..SIZE_MAX (доля высоты экрана, крупных мало). */
+    public static final int PAUSE_CROWD_COLS = 10;
+    public static final int PAUSE_CROWD_ROWS = 6;
+    public static final float PAUSE_CROWD_FILL = 0.85f;
+    public static final float PAUSE_CROWD_SIZE_MIN = 0.035f;
+    public static final float PAUSE_CROWD_SIZE_MAX = 0.12f;
+    /** Затемнение поверх меню (0..1): когда открыты оба глаза и когда проступила вся толпа. */
+    public static final float PAUSE_DARK_EYES = 0.55f;
+    public static final float PAUSE_DARK_CROWD = 0.85f;
     /** Окно проявления фраз (тики от начала тела); t1 идёт первой. Каждая проявляется за TEXT_FADE_IN тиков и висит до обрыва. */
     public static final int TEXT_APPEAR_MIN = 12;
     public static final int TEXT_APPEAR_MAX = 80;
