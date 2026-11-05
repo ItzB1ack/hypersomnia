@@ -1,0 +1,4 @@
+{
+  "parent": "hypersomnia:block/lift_panel",
+  "textures": { "particle": "hypersomnia:block/lift_panel_front_5", "front": "hypersomnia:block/lift_panel_front_5" }
+}

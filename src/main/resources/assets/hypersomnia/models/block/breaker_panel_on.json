@@ -1,0 +1,4 @@
+{
+  "parent": "hypersomnia:block/breaker_panel",
+  "textures": { "lamp": "hypersomnia:block/breaker_panel_lamp_on" }
+}

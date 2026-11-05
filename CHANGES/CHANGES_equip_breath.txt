@@ -1,0 +1,101 @@
+HYPERSOMNIA — пакет «оборудование серверной B3, звук выдоха, «Не поддаётся»»
+База: src.zip из этого чата. В changed.zip — все отличия от него (включая прошлые пакеты: lift-safety, этажи, шифры).
+Если прошлый пакет (ciphers) уже стоит, хватит файлов из списка «НОВОЕ В ЭТОМ ПАКЕТЕ».
+Сборка НЕ проверялась (в среде нет Gradle/JDK): нужен runClient, см. [ПРОВЕРИТЬ].
+
+1. БАЗАЛЬТ В СЕРВЕРНОЙ — УБРАН
+Откуда взялся: символ 'I' в чертежах был ранней заглушкой «серверной стойки» из полированного базальта. Когда появились
+настоящие стойки (ServerRackBlock), я пустил 'I' под кондиционеры и батареи ИБП, а блок так и остался базальтом. Ошибка моя.
+Теперь новый блок LabEquipmentBlock: 2 блока высотой, только декор, неразрушаемый, ставится рукой как стойка:
+  hypersomnia:crac_unit       — прецизионный кондиционер (светлый корпус, пульт, жалюзи);
+  hypersomnia:ups_cabinet     — шкаф ИБП (экран, кнопки, вентиляция);
+  hypersomnia:battery_cabinet — батарейный шкаф (щели, знак опасности).
+Чертёж: строка equip <символ> = <crac|ups|battery> <N|S|E|W> (куда смотрит лицо). Символа 'I' и базальта больше нет.
+B3, оба мира:
+  зал стоек — западный ряд из шести «кондиционеров» убран; 2 кондиционера в торце холодного коридора, лицом к стойкам;
+  UPS ROOM — вместо трёх рядов: 2 шкафа ИБП у северной стены рядом со щитами, 6 батарейных шкафов вдоль восточной стены.
+Текстуры рисует tools/make_furniture.py (новые генерируются после старых, старые не меняются).
+
+2. ЗВУК ВЫДОХА
+Было: 0,45 с низкого шума с резким началом — получалось пыхтение паровоза.
+Стало: 3 варианта (игра выбирает случайно): мягкое начало, пик через ~0,3 с, плавный спад, длина 1,05–1,5 с; шум воздуха
+с окраской рта/носа (~300–2500 Гц), без гула, к концу темнее. Чуть тише прежнего.
+Громкость и высота: ObserverTuning.BREATH_SOUND_VOLUME / BREATH_SOUND_PITCH. Генератор: tools/make_breath_sound.py.
+
+3. БЕСКОНЕЧНАЯ НАДПИСЬ «НЕ ПОДДАЁТСЯ»
+Причина: защита лаборатории отменяла скорость копания только на сервере. Клиент доламывал блок у себя, а сервер уходил
+в «отложенную поломку», которая никогда не кончалась, и раз в секунду писал «Не поддаётся» — даже когда игрок уже отошёл.
+Теперь сервер сразу отменяет удар по блоку лаборатории, поломка не начинается. Надпись — только пока бьёшь, не чаще раза
+в 2 с (LabTuning.PROTECT_MESSAGE_TICKS = 40). Клиент границ лаборатории не знает: трещины могут появиться и блок на миг
+пропасть — сервер сразу его возвращает.
+
+СУЩЕСТВУЮЩИЙ МИР
+B3 уже построен с базальтом. Сделай бэкап -> /hypersomnia_lab rebuild в Верхнем мире и в мире снов.
+rebuild сбрасывает прогресс лаборатории; вернуться к B3: /hypersomnia_lab feed on, потом /hypersomnia_lab lock 6 open.
+Звук и надпись начнут работать после замены файлов и перезапуска.
+
+[ПРОВЕРИТЬ]
+- Три новых блока: модели и текстуры на месте, лица смотрят в проход (кондиционеры — на север, ИБП — на юг, батареи — на запад).
+- /hypersomnia_observer breath — проиграть выдох; если тихо или громко — BREATH_SOUND_VOLUME.
+- Выживание: ударить стену лаборатории и отойти — надпись пропадает, блок не ломается.
+- PlayerInteractEvent.LeftClickBlock в NeoForge 21.1.235 (отмена на сервере).
+
+Проверки, которые прошли здесь: tools/lab_check.py — OK, 12 чертежей; JSON валидны; ссылки моделей на текстуры есть;
+звуки — Vorbis, 44,1 кГц, моно.
+
+УДАЛИТЬ из своего src (устарели, в рабочей копии их нет):
+  main/java/com/hypersomnia/client/EyeGlyphs.java
+  main/java/com/hypersomnia/document/EyeAlphabet.java
+  main/java/com/hypersomnia/lab/BreakerBlock.java
+  main/resources/assets/hypersomnia/blockstates/breaker.json
+  main/resources/assets/hypersomnia/models/block/breaker_off.json
+  main/resources/assets/hypersomnia/models/block/breaker_on.json
+  main/resources/assets/hypersomnia/models/item/breaker.json
+  main/resources/assets/hypersomnia/sounds/sounds.json
+  main/resources/assets/hypersomnia/textures/misc/plan_l5.png
+  tools/make_plan_l5.py
+
+НОВОЕ В ЭТОМ ПАКЕТЕ (поверх ciphers, пути от src/):
+  main/java/com/hypersomnia/ModBlocks.java
+  main/java/com/hypersomnia/ModItems.java
+  main/java/com/hypersomnia/ModTabs.java
+  main/java/com/hypersomnia/lab/LabBlueprint.java
+  main/java/com/hypersomnia/lab/LabBuilder.java
+  main/java/com/hypersomnia/lab/LabEquipmentBlock.java
+  main/java/com/hypersomnia/lab/LabProtection.java
+  main/java/com/hypersomnia/lab/LabTuning.java
+  main/resources/assets/hypersomnia/blockstates/battery_cabinet.json
+  main/resources/assets/hypersomnia/blockstates/crac_unit.json
+  main/resources/assets/hypersomnia/blockstates/ups_cabinet.json
+  main/resources/assets/hypersomnia/lang/en_us.json
+  main/resources/assets/hypersomnia/lang/ru_ru.json
+  main/resources/assets/hypersomnia/models/block/battery_cabinet_lower.json
+  main/resources/assets/hypersomnia/models/block/battery_cabinet_upper.json
+  main/resources/assets/hypersomnia/models/block/crac_unit_lower.json
+  main/resources/assets/hypersomnia/models/block/crac_unit_upper.json
+  main/resources/assets/hypersomnia/models/block/ups_cabinet_lower.json
+  main/resources/assets/hypersomnia/models/block/ups_cabinet_upper.json
+  main/resources/assets/hypersomnia/models/item/battery_cabinet.json
+  main/resources/assets/hypersomnia/models/item/crac_unit.json
+  main/resources/assets/hypersomnia/models/item/ups_cabinet.json
+  main/resources/assets/hypersomnia/sounds.json
+  main/resources/assets/hypersomnia/sounds/breath_exhale.ogg
+  main/resources/assets/hypersomnia/sounds/breath_exhale_2.ogg
+  main/resources/assets/hypersomnia/sounds/breath_exhale_3.ogg
+  main/resources/assets/hypersomnia/textures/block/battery_front_lower.png
+  main/resources/assets/hypersomnia/textures/block/battery_front_upper.png
+  main/resources/assets/hypersomnia/textures/block/battery_side.png
+  main/resources/assets/hypersomnia/textures/block/battery_top.png
+  main/resources/assets/hypersomnia/textures/block/crac_front_lower.png
+  main/resources/assets/hypersomnia/textures/block/crac_front_upper.png
+  main/resources/assets/hypersomnia/textures/block/crac_side.png
+  main/resources/assets/hypersomnia/textures/block/crac_top.png
+  main/resources/assets/hypersomnia/textures/block/ups_front_lower.png
+  main/resources/assets/hypersomnia/textures/block/ups_front_upper.png
+  main/resources/assets/hypersomnia/textures/block/ups_side.png
+  main/resources/assets/hypersomnia/textures/block/ups_top.png
+  main/resources/data/hypersomnia/lab/dream_b3.txt
+  main/resources/data/hypersomnia/lab/real_b3.txt
+  tools/lab_check.py
+  tools/make_breath_sound.py
+  tools/make_furniture.py

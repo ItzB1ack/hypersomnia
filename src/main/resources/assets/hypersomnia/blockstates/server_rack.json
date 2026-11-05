@@ -1,0 +1,340 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "half": "lower",
+        "facing": "north"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_lower"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_upper"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "status": "idle"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_idle"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "status": "hold"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_hold"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "bit8": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit8"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "bit4": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit4"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "bit2": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit2"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "bit1": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit1"
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "east"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_lower",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_upper",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "status": "idle"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_idle",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "status": "hold"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_hold",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "bit8": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit8",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "bit4": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit4",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "bit2": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit2",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "bit1": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit1",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "south"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_lower",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_upper",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "status": "idle"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_idle",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "status": "hold"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_hold",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "bit8": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit8",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "bit4": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit4",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "bit2": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit2",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "bit1": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit1",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "west"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_lower",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_upper",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "status": "idle"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_idle",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "status": "hold"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_status_hold",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "bit8": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit8",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "bit4": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit4",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "bit2": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit2",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "bit1": "true"
+      },
+      "apply": {
+        "model": "hypersomnia:block/server_rack_bit1",
+        "y": 270
+      }
+    }
+  ]
+}

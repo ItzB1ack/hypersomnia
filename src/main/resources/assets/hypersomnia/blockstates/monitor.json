@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,lit=false": { "model": "hypersomnia:block/monitor" },
+    "facing=north,lit=true": { "model": "hypersomnia:block/monitor_lit" },
+    "facing=east,lit=false": { "model": "hypersomnia:block/monitor", "y": 90 },
+    "facing=east,lit=true": { "model": "hypersomnia:block/monitor_lit", "y": 90 },
+    "facing=south,lit=false": { "model": "hypersomnia:block/monitor", "y": 180 },
+    "facing=south,lit=true": { "model": "hypersomnia:block/monitor_lit", "y": 180 },
+    "facing=west,lit=false": { "model": "hypersomnia:block/monitor", "y": 270 },
+    "facing=west,lit=true": { "model": "hypersomnia:block/monitor_lit", "y": 270 }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "parent": "hypersomnia:root",
+  "display": {
+    "icon": {
+      "id": "minecraft:music_disc_11",
+      "count": 1
+    },
+    "title": {
+      "translate": "hypersomnia.ending.eternal_sleep.title",
+      "fallback": "Eternal Sleep"
+    },
+    "description": {
+      "translate": "hypersomnia.ending.eternal_sleep.hint",
+      "fallback": "Play the edited tape."
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

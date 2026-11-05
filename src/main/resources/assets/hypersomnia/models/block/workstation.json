@@ -1,0 +1,86 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "hypersomnia:block/workstation_case",
+    "case": "hypersomnia:block/workstation_case",
+    "screen": "hypersomnia:block/workstation_screen",
+    "keys": "hypersomnia:block/workstation_keys"
+  },
+  "elements": [
+    {
+      "name": "foot",
+      "from": [5, 0, 6],
+      "to": [11, 0.5, 12],
+      "faces": {
+        "up": { "uv": [10, 8, 16, 14], "texture": "#case" },
+        "north": { "uv": [10, 8, 16, 9], "texture": "#case" },
+        "south": { "uv": [10, 8, 16, 9], "texture": "#case" },
+        "west": { "uv": [10, 8, 16, 9], "texture": "#case" },
+        "east": { "uv": [10, 8, 16, 9], "texture": "#case" }
+      }
+    },
+    {
+      "name": "case",
+      "from": [3, 0.5, 5],
+      "to": [13, 7.5, 9],
+      "faces": {
+        "north": { "uv": [0, 0, 10, 7], "texture": "#case" },
+        "south": { "uv": [0, 9, 10, 16], "texture": "#case" },
+        "west": { "uv": [10, 0, 14, 7], "texture": "#case" },
+        "east": { "uv": [10, 0, 14, 7], "texture": "#case" },
+        "up": { "uv": [0, 9, 10, 13], "texture": "#case" },
+        "down": { "uv": [10, 0, 14, 10], "texture": "#case", "rotation": 90 }
+      }
+    },
+    {
+      "name": "tube",
+      "from": [4.5, 1.5, 9],
+      "to": [11.5, 6.5, 14],
+      "faces": {
+        "south": { "uv": [1, 10, 8, 15], "texture": "#case" },
+        "west": { "uv": [10, 7, 15, 12], "texture": "#case" },
+        "east": { "uv": [10, 7, 15, 12], "texture": "#case" },
+        "up": { "uv": [1, 10, 8, 15], "texture": "#case" },
+        "down": { "uv": [10, 7, 15, 12], "texture": "#case" }
+      }
+    },
+    {
+      "name": "screen",
+      "from": [4, 1.5, 4.8],
+      "to": [12, 6.5, 5],
+      "shade": false,
+      "neoforge_data": { "block_light": 15, "sky_light": 15 },
+      "faces": {
+        "north": { "uv": [0, 0, 16, 10], "texture": "#screen" },
+        "west": { "uv": [0, 10, 1, 15], "texture": "#screen" },
+        "east": { "uv": [0, 10, 1, 15], "texture": "#screen" },
+        "up": { "uv": [0, 10, 16, 11], "texture": "#screen" },
+        "down": { "uv": [0, 10, 16, 11], "texture": "#screen" }
+      }
+    },
+    {
+      "name": "keyboard",
+      "from": [3.5, 0, 1],
+      "to": [12.5, 0.5, 4],
+      "faces": {
+        "up": { "uv": [0, 0, 16, 6], "texture": "#keys" },
+        "north": { "uv": [0, 0, 16, 1], "texture": "#keys" },
+        "south": { "uv": [0, 0, 16, 1], "texture": "#keys" },
+        "west": { "uv": [0, 0, 6, 1], "texture": "#keys" },
+        "east": { "uv": [0, 0, 6, 1], "texture": "#keys" }
+      }
+    },
+    {
+      "name": "mouse",
+      "from": [1.5, 0, 1.5],
+      "to": [2.5, 0.5, 3],
+      "faces": {
+        "up": { "uv": [0, 8, 4, 12], "texture": "#keys" },
+        "north": { "uv": [0, 11, 4, 12], "texture": "#keys" },
+        "south": { "uv": [0, 11, 4, 12], "texture": "#keys" },
+        "west": { "uv": [0, 11, 4, 12], "texture": "#keys" },
+        "east": { "uv": [0, 11, 4, 12], "texture": "#keys" }
+      }
+    }
+  ]
+}

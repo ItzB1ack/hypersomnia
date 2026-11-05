@@ -1,0 +1,4 @@
+{
+  "parent": "hypersomnia:block/keypad",
+  "textures": { "led": "hypersomnia:block/keypad_led_open" }
+}

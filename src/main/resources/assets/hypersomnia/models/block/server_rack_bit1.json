@@ -1,0 +1,74 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "hypersomnia:block/server_rack_lamp",
+    "lamp": "hypersomnia:block/server_rack_lamp"
+  },
+  "elements": [
+    {
+      "name": "bit1",
+      "from": [
+        6,
+        1,
+        -0.25
+      ],
+      "to": [
+        10,
+        3,
+        0
+      ],
+      "shade": false,
+      "neoforge_data": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            4,
+            4,
+            12,
+            12
+          ],
+          "texture": "#lamp"
+        },
+        "east": {
+          "uv": [
+            4,
+            4,
+            5,
+            12
+          ],
+          "texture": "#lamp"
+        },
+        "west": {
+          "uv": [
+            4,
+            4,
+            5,
+            12
+          ],
+          "texture": "#lamp"
+        },
+        "up": {
+          "uv": [
+            4,
+            4,
+            12,
+            5
+          ],
+          "texture": "#lamp"
+        },
+        "down": {
+          "uv": [
+            4,
+            4,
+            12,
+            5
+          ],
+          "texture": "#lamp"
+        }
+      }
+    }
+  ]
+}

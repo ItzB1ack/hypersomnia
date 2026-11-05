@@ -1,0 +1,42 @@
+style dream
+height 5
+---
+             #####             
+             #LYL#             
+             #L@E#             
+             #LLL#             
+###############l###############
+#RRRR..#.ZZZ.......HHH.#...+DF#
+#......#...............#......#
+#RRRR..#1......*......2#..*...#
+#....*.#...............#......#
+#......=...............=..HTH.#
+#RRRR..#...*.......*...#......#
+#......#...............#....HZ#
+#FF.T..#p......3....4..#FF....#
+##################=############
+#....7..8....wZH....FF.#.BBUU.#
+#....a..b....wZH.......#......#
+#....a..b....#ZH..*...5#.....x#
+#....a..b....#.........#.....x#
+#....a..b.*..=.........=.....x#
+#....a..b....#.........#.....x#
+#....a..b....#...HTTH..#.....x#
+#............w.........#*....x#
+#.....ee.....wp...*..FF#......#
+###############################
+---
+sign 1 = TAPE|STORE||
+sign 2 = OPERATORS||
+sign 3 = CRADLE FACILITY|LEVEL B3|SERVERS|
+sign 4 = SERVER|CONTROL||
+sign 5 = UPS ROOM|FEEDER 5||
+; мир снов: как MONITORING / 1 SOURCE на B1; стойки тёмные, одна держит буфер (LabFixtures)
+sign 7 = RECORDING|1 SOURCE||
+sign 8 = RECORDING|1 SOURCE||
+rack a = 1 S E
+rack b = 7 S W
+panel B = -1
+equip e = crac N
+equip U = ups S
+equip x = battery W

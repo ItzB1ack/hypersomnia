@@ -1,0 +1,97 @@
+package com.hypersomnia;
+
+import com.hypersomnia.lab.BreakerPanelBlock;
+import com.hypersomnia.lab.CabinetBlock;
+import com.hypersomnia.lab.ChairBlock;
+import com.hypersomnia.lab.FurnitureBlock;
+import com.hypersomnia.lab.KeypadBlock;
+import com.hypersomnia.lab.LabEquipmentBlock;
+import com.hypersomnia.lab.LabSignBlock;
+import com.hypersomnia.lab.LabTuning;
+import com.hypersomnia.lab.LiftPanelBlock;
+import com.hypersomnia.lab.MonitorBlock;
+import com.hypersomnia.lab.ServerRackBlock;
+import com.hypersomnia.lab.WorkstationBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.PushReaction;
+import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+public final class ModBlocks {
+    private ModBlocks() {}
+
+    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Hypersomnia.MOD_ID);
+
+    /** Общие свойства блоков лаборатории: неразрушаемые, без дропа, не толкаются поршнем. */
+    private static BlockBehaviour.Properties lab(MapColor color, SoundType sound) {
+        return BlockBehaviour.Properties.of()
+                .mapColor(color)
+                .sound(sound)
+                .strength(-1.0f, 3600000.0f)
+                .noLootTable()
+                .pushReaction(PushReaction.BLOCK);
+    }
+
+    /** Щит MAIN FEED: один блок на все рубильники (экран щита). Лампа ON слабо светится (LabTuning.PANEL_LIGHT). */
+    public static final DeferredBlock<BreakerPanelBlock> BREAKER_PANEL = BLOCKS.register("breaker_panel", () -> new BreakerPanelBlock(
+            lab(MapColor.METAL, SoundType.METAL)
+                    .noOcclusion()
+                    .lightLevel(state -> state.getValue(BreakerPanelBlock.LAMP) == BreakerPanelBlock.Lamp.ON ? LabTuning.PANEL_LIGHT : 0)));
+
+    /** Рабочая станция CRADLE WORKSTATION: стоит на столе DESK; экран слабо светится (LabTuning.WS_LIGHT). */
+    public static final DeferredBlock<WorkstationBlock> WORKSTATION = BLOCKS.register("workstation", () -> new WorkstationBlock(
+            lab(MapColor.COLOR_GRAY, SoundType.METAL)
+                    .noOcclusion()
+                    .lightLevel(state -> LabTuning.WS_LIGHT)));
+
+    /** Стол: цельный блок (столешница и тумба). Под станциями и мониторами, а также сам по себе. */
+    public static final DeferredBlock<FurnitureBlock> DESK = BLOCKS.register("desk", () -> new FurnitureBlock(
+            lab(MapColor.COLOR_GRAY, SoundType.METAL)));
+
+    /** Картотечный шкаф: три ящика (экран CabinetScreen), OPEN = верхний ящик выдвинут, пока шкаф открыт. Содержимое кладёт LabCabinets. */
+    public static final DeferredBlock<CabinetBlock> CABINET = BLOCKS.register("cabinet", () -> new CabinetBlock(
+            lab(MapColor.METAL, SoundType.METAL)));
+
+    /** Офисный стул: сиденье на газлифте и спинка, FACING = куда смотрит сиденье. На стул можно сесть (SeatEntity). */
+    public static final DeferredBlock<ChairBlock> CHAIR = BLOCKS.register("chair", () -> new ChairBlock(
+            lab(MapColor.COLOR_BLACK, SoundType.METAL)
+                    .noOcclusion()));
+
+    /** Монитор наблюдения: погасший или со «снегом» (LIT, свет LabTuning.MONITOR_LIGHT). */
+    public static final DeferredBlock<MonitorBlock> MONITOR = BLOCKS.register("monitor", () -> new MonitorBlock(
+            lab(MapColor.COLOR_GRAY, SoundType.METAL)
+                    .noOcclusion()
+                    .lightLevel(state -> state.getValue(MonitorBlock.LIT) ? LabTuning.MONITOR_LIGHT : 0)));
+
+    /** Кодовая панель замка на стене: OPEN = замок открыт (светлая лампа), иначе лампа красная. Ввод кода — экран LabLockScreen. */
+    public static final DeferredBlock<KeypadBlock> KEYPAD = BLOCKS.register("keypad", () -> new KeypadBlock(
+            lab(MapColor.METAL, SoundType.METAL)
+                    .noOcclusion()));
+
+    /** Панель лифта в кабине: STOP = этаж (номер на табло, кнопка этажа светится). Выбор этажа — экран LabLiftScreen. */
+    public static final DeferredBlock<LiftPanelBlock> LIFT_PANEL = BLOCKS.register("lift_panel", () -> new LiftPanelBlock(
+            lab(MapColor.METAL, SoundType.METAL)
+                    .noOcclusion()));
+
+    /** Серверная стойка B3 (2 блока): лампы состояния и адреса буфера; верхняя половина с горящей лампой слабо светится. */
+    public static final DeferredBlock<ServerRackBlock> SERVER_RACK = BLOCKS.register("server_rack", () -> new ServerRackBlock(
+            lab(MapColor.COLOR_BLACK, SoundType.METAL)
+                    .lightLevel(state -> state.getValue(ServerRackBlock.HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER
+                            && state.getValue(ServerRackBlock.STATUS) != ServerRackBlock.Status.OFF ? LabTuning.RACK_LIGHT : 0)));
+
+    /** Оборудование серверной B3 (2 блока, декор, LabEquipmentBlock): прецизионный кондиционер, шкаф ИБП, батарейный шкаф. */
+    public static final DeferredBlock<LabEquipmentBlock> CRAC_UNIT = BLOCKS.register("crac_unit", () -> new LabEquipmentBlock(
+            lab(MapColor.COLOR_LIGHT_GRAY, SoundType.METAL)));
+    public static final DeferredBlock<LabEquipmentBlock> UPS_CABINET = BLOCKS.register("ups_cabinet", () -> new LabEquipmentBlock(
+            lab(MapColor.COLOR_GRAY, SoundType.METAL)));
+    public static final DeferredBlock<LabEquipmentBlock> BATTERY_CABINET = BLOCKS.register("battery_cabinet", () -> new LabEquipmentBlock(
+            lab(MapColor.COLOR_GRAY, SoundType.METAL)));
+
+    /** Табличка лаборатории: тёмная пластина на стене; строки хранит LabSignBlockEntity, рисует LabSignRenderer. */
+    public static final DeferredBlock<LabSignBlock> LAB_SIGN = BLOCKS.register("lab_sign", () -> new LabSignBlock(
+            lab(MapColor.COLOR_BLACK, SoundType.METAL)
+                    .noOcclusion()
+                    .noCollission()));
+}

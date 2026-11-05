@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "facing=north,stop=0": { "model": "hypersomnia:block/lift_panel_0" },
+    "facing=north,stop=1": { "model": "hypersomnia:block/lift_panel_1" },
+    "facing=north,stop=2": { "model": "hypersomnia:block/lift_panel_2" },
+    "facing=north,stop=3": { "model": "hypersomnia:block/lift_panel_3" },
+    "facing=north,stop=4": { "model": "hypersomnia:block/lift_panel_4" },
+    "facing=north,stop=5": { "model": "hypersomnia:block/lift_panel_5" },
+    "facing=east,stop=0": { "model": "hypersomnia:block/lift_panel_0", "y": 90 },
+    "facing=east,stop=1": { "model": "hypersomnia:block/lift_panel_1", "y": 90 },
+    "facing=east,stop=2": { "model": "hypersomnia:block/lift_panel_2", "y": 90 },
+    "facing=east,stop=3": { "model": "hypersomnia:block/lift_panel_3", "y": 90 },
+    "facing=east,stop=4": { "model": "hypersomnia:block/lift_panel_4", "y": 90 },
+    "facing=east,stop=5": { "model": "hypersomnia:block/lift_panel_5", "y": 90 },
+    "facing=south,stop=0": { "model": "hypersomnia:block/lift_panel_0", "y": 180 },
+    "facing=south,stop=1": { "model": "hypersomnia:block/lift_panel_1", "y": 180 },
+    "facing=south,stop=2": { "model": "hypersomnia:block/lift_panel_2", "y": 180 },
+    "facing=south,stop=3": { "model": "hypersomnia:block/lift_panel_3", "y": 180 },
+    "facing=south,stop=4": { "model": "hypersomnia:block/lift_panel_4", "y": 180 },
+    "facing=south,stop=5": { "model": "hypersomnia:block/lift_panel_5", "y": 180 },
+    "facing=west,stop=0": { "model": "hypersomnia:block/lift_panel_0", "y": 270 },
+    "facing=west,stop=1": { "model": "hypersomnia:block/lift_panel_1", "y": 270 },
+    "facing=west,stop=2": { "model": "hypersomnia:block/lift_panel_2", "y": 270 },
+    "facing=west,stop=3": { "model": "hypersomnia:block/lift_panel_3", "y": 270 },
+    "facing=west,stop=4": { "model": "hypersomnia:block/lift_panel_4", "y": 270 },
+    "facing=west,stop=5": { "model": "hypersomnia:block/lift_panel_5", "y": 270 }
+  }
+}

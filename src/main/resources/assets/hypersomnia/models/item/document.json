@@ -1,0 +1,266 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "hypersomnia:item/document_official"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "custom_model_data": 1
+      },
+      "model": "hypersomnia:item/doc_morse_sample"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 2
+      },
+      "model": "hypersomnia:item/doc_note_l1_0"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 3
+      },
+      "model": "hypersomnia:item/doc_note_l1_1"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 4
+      },
+      "model": "hypersomnia:item/doc_note_l1_2"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 5
+      },
+      "model": "hypersomnia:item/doc_drawing_0"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 6
+      },
+      "model": "hypersomnia:item/doc_drawing_1"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 7
+      },
+      "model": "hypersomnia:item/doc_drawing_2"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 8
+      },
+      "model": "hypersomnia:item/doc_drawing_3"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9
+      },
+      "model": "hypersomnia:item/doc_drawing_blank"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 10
+      },
+      "model": "hypersomnia:item/doc_mem_1_photo"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 11
+      },
+      "model": "hypersomnia:item/doc_mem_2_discharge"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 12
+      },
+      "model": "hypersomnia:item/doc_mem_3_contract"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 13
+      },
+      "model": "hypersomnia:item/doc_mem_4_session12"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 14
+      },
+      "model": "hypersomnia:item/doc_mem_5_memo"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 15
+      },
+      "model": "hypersomnia:item/doc_mem_6_protocol"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 16
+      },
+      "model": "hypersomnia:item/doc_mem_7_log"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 17
+      },
+      "model": "hypersomnia:item/doc_employee_pass"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 18
+      },
+      "model": "hypersomnia:item/doc_voss_note"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 19
+      },
+      "model": "hypersomnia:item/doc_drawing_4"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 20
+      },
+      "model": "hypersomnia:item/doc_note_l2_a"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 21
+      },
+      "model": "hypersomnia:item/doc_note_l2_b"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 22
+      },
+      "model": "hypersomnia:item/doc_plan_l5"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 23
+      },
+      "model": "hypersomnia:item/doc_note_l3"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 24
+      },
+      "model": "hypersomnia:item/doc_bay_transfer"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 25
+      },
+      "model": "hypersomnia:item/doc_cab_intake"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 26
+      },
+      "model": "hypersomnia:item/doc_cab_night_memo"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 27
+      },
+      "model": "hypersomnia:item/doc_cab_evac"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 28
+      },
+      "model": "hypersomnia:item/doc_cab_maint"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 29
+      },
+      "model": "hypersomnia:item/doc_cab_dnote_clock"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 30
+      },
+      "model": "hypersomnia:item/doc_cab_dnote_wake"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 31
+      },
+      "model": "hypersomnia:item/doc_cab_dnote_lift"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 32
+      },
+      "model": "hypersomnia:item/doc_cab_dnote_chair"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 33
+      },
+      "model": "hypersomnia:item/doc_op_index"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 34
+      },
+      "model": "hypersomnia:item/doc_op_retention"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 35
+      },
+      "model": "hypersomnia:item/doc_cat_extract"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 36
+      },
+      "model": "hypersomnia:item/doc_tape_edited"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 37
+      },
+      "model": "hypersomnia:item/doc_sedation_47"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 38
+      },
+      "model": "hypersomnia:item/doc_cab_b2_copy"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 39
+      },
+      "model": "hypersomnia:item/doc_cab_b3_racks"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 40
+      },
+      "model": "hypersomnia:item/doc_cab_b4_roster"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 41
+      },
+      "model": "hypersomnia:item/doc_cab_b5_session"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 42
+      },
+      "model": "hypersomnia:item/doc_b2_check"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 43
+      },
+      "model": "hypersomnia:item/doc_note_2d_knock"
+    }
+  ]
+}

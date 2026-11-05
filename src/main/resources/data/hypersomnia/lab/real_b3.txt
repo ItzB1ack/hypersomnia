@@ -1,0 +1,46 @@
+style real
+height 5
+---
+             #####             
+             #LYL#             
+             #L@E#             
+             #LLL#             
+###############l###############
+#RRRR..#.VVV..9.K..hhh.#...+DF#
+#......#...............#......#
+#RRRR..#1......*......2#..*...#
+#....*.#...............#......#
+#......=...............=..hTh.#
+#RRRR..#...*.......*...#......#
+#......#...............#....hV#
+#FF.T..#p......3....4..#FF....#
+##################=############
+#....7..8....wZh....cF.#.BBUU.#
+#....a..b....wPh.......#......#
+#....a..b....#Zh..*...5#.....x#
+#....a..b....#.........#.....x#
+#....a..b.*..=.........=.....x#
+#....a..b....#.........#.....x#
+#....a..b....#...hTTh..#.....x#
+#............w.........#*....x#
+#.....ee.....wp...*..FF#......#
+###############################
+---
+sign 1 = TAPE|STORE||
+sign 2 = OPERATORS||
+sign 3 = CRADLE FACILITY|LEVEL B3|SERVERS|
+sign 4 = SERVER|CONTROL||
+sign 5 = UPS ROOM|FEEDER 5||
+sign 7 = RACKS|1 - 6||
+sign 8 = RACKS|7 - 12||
+sign 9 = LIFT ACCESS B3|TO LEVEL B4|HELD BUFFERS ACK|
+; шифр 8 (замок 7): BUFFER.LOG на станции P (какие стойки и по порядку) + лампы адреса стоек; как читать — шкаф c
+lock K = 7
+station P = srv_b3
+cabinet c = cab_b3_racks
+rack a = 1 S E
+rack b = 7 S W
+panel B = -1
+equip e = crac N
+equip U = ups S
+equip x = battery W

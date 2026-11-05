@@ -1,0 +1,36 @@
+style real
+height 5
+---
+             #####             
+             #LYL#             
+             #L@E#             
+             #LLL#             
+###############l###############
+#dVVVPR#.hhh..4*...hhhp#FFBKoj#
+#..h.hv#...............#......#
+#...*..#1.*.........*.2#v....i#
+#......#.....DDVDD.....#..*..D#
+#......=.....d.h.d.....=....hQ#
+#......#...............#.....d#
+#...*..#.......*.......#.....F#
+#FFf.ea#.....RF3gR.....#F.....#
+###############################
+---
+sign 1 = SECURITY|OFFICE||
+sign 2 = POWER|ROOM||
+sign 3 = CRADLE FACILITY|LEVEL B1|RECEPTION|
+sign 4 = LIFT|B2 AND BELOW|ON MAIN FEED|
+panel B = 0
+station P = sec_b1
+station Q = eng_b1
+cabinet f = cab_night_memo
+cabinet g = cab_evac
+cabinet i = cab_maint
+lock K = 2
+cabinet o = op_retention
+seal o = 2
+cabinet j = op_index
+; шифр 4: левая половина записки (правая — в том же шкафу B1 мира снов)
+cabinet a = note_l2_a
+; раскладка находок: пропуск; воспоминания 3 и 7 — на B5, палата Nora (2D) — на B4
+cabinet e = employee_pass

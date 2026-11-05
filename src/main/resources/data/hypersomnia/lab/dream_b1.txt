@@ -1,0 +1,83 @@
+style dream
+height 5
+---
+             #####             
+             #LYL#             
+             #L@E#             
+             #LLL#             
+###############l###############
+#....FF#p3hhH..*...hhh.#RDVZVd#
+#......#...............#vH.h..#
+#f....v#2.............1#..*...#
+#D..*..#.....DDVDD.....#......#
+#bH....=.....d.h.d.....=.....4#
+#d.....#...............#......#
+#F.....#......*........#..*...#
+#.....a#.p.Rg.....FR...#pF.iFt#
+###############=###############
+     #y.................q#     
+     #6RRRRR...*...RRRRR7#     
+     #...................#     
+     #.RRRRR.......RRRRR.#     
+     #...*...........*...#     
+     #.RRRRR.......RRRRR.#     
+     #...............h...#     
+     #e..H..5..*.K...VD.c#     
+     ##########G##########     
+         #k.........m#         
+         #8A.......U9#         
+         #.A...*...U.#         
+         #.A.......U.#         
+         #Q..........#         
+         #Vh.......HV#         
+         #s......J..x#         
+         ######N######         
+          #.........#          
+          w.........#          
+          #....*....#          
+          #S.urXr...O          
+          #...rrr...#          
+          #....M....#          
+          ###########          
+---
+sign 1 = SECURITY|OFFICE||
+sign 2 = POWER|ROOM||
+sign 3 = CRADLE FACILITY|LEVEL B1|RECEPTION|
+sign 4 = MONITORING|SIGNAL|1 SOURCE|
+sign 5 = CAPSULE|CATALOG|1 - 100|
+sign 6 = CAPSULES|1 - 50||
+sign 7 = CAPSULES|51 - 100||
+sign 8 = CAPSULE|47||
+sign 9 = CAPSULE|48||
+panel b = -1
+cabinet f = cab_dnote_wake
+cabinet g = cab_dnote_lift
+cabinet i = cab_dnote_chair
+; шифр 4: правая половина (левая — в том же шкафу реального B1), выписка каталога и приказ о переводе
+cabinet a = note_l2_b
+cabinet e = cat_extract
+cabinet c = bay_transfer
+lock K = 3
+gate G = 3
+; шифр 5: план зала наблюдения и записка — в блоке 47-48; ворота N ведут в комнату за ним
+cabinet k = plan_l5
+cabinet m = note_l3
+lock J = 4
+gate N = 4
+; финал (канон, пункт 9): детская за воротами N — кровать S (уснуть), дверь O (проснуться), монитор записи M, Фрагмент X
+finale S = bed
+finale O = door
+finale M = recorder
+finale X = fragment
+; секрет «Subject 48»: капсулы 47 и 48, панель смены сеанса Q (код 48), шприц глубокой седации в шкафу s
+capsule A = 47
+capsule U = 48
+lock Q = 5
+cabinet s = sedation_47
+; раскладка находок: воспоминания 4, 5 (мониторинг, каталог), 6 (блок 47-48, за решёткой G), правка Voss
+cabinet t = mem_4_session12
+cabinet q = mem_5_memo
+cabinet y = voss_note
+cabinet x = mem_6_protocol
+; рисунок 4: на красном коврике между кроватью и Фрагментом (FinaleHandler кладёт при входе в детскую)
+finale u = toy
