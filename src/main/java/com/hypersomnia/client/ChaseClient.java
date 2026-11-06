@@ -29,6 +29,8 @@ public final class ChaseClient {
 
     private static final RandomSource RANDOM = RandomSource.create();
     private static boolean active;
+    /** Пауза уже была принудительно закрыта в этой погоне. */
+    private static boolean pauseLocked;
     private static float target;
     private static float panic;
     private static float panicO;
@@ -42,6 +44,7 @@ public final class ChaseClient {
 
     /** Погоня началась (он стоит на следе): сердце начинает биться сразу. */
     public static void begin() {
+        pauseLocked = false;
         active = true;
         target = Math.max(target, ChaseTuning.PANIC_WARN);
         if (panic < ChaseTuning.HEART_MIN_PANIC) panic = ChaseTuning.HEART_MIN_PANIC;
@@ -78,12 +81,22 @@ public final class ChaseClient {
     /** Погоня кончилась любым исходом: паника спадает сама, чёрный кадр (если был) доигрывает. */
     public static void end() {
         active = false;
+        pauseLocked = false;
         target = 0f;
         ChaseEyes.end();
     }
 
     public static boolean active() {
         return active;
+    }
+
+    /** Запрещаем повторное открытие паузы до конца текущей погони. */
+    public static void lockPause() {
+        if (active) pauseLocked = true;
+    }
+
+    public static boolean pauseLocked() {
+        return active && pauseLocked;
     }
 
     /** Паника сейчас 0..1 (глаза по углам: чем она выше, тем их больше). */
@@ -161,6 +174,7 @@ public final class ChaseClient {
 
     public static void reset() {
         active = false;
+        pauseLocked = false;
         target = 0f;
         panic = 0f;
         panicO = 0f;

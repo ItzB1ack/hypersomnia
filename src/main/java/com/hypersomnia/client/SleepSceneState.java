@@ -18,6 +18,8 @@ public final class SleepSceneState {
     public static int scoldCount;
     /** Тик меню паузы, на котором он его закроет (0 — ещё не заговорил). */
     public static int pauseCloseAt;
+    /** После автоматического закрытия меню повторная пауза запрещена до конца этой сцены. */
+    public static boolean pauseLocked;
 
     /** Сколько тиков ещё держится полная тишина (сцена + хвост после неё). */
     private static int silenceTicks;
@@ -37,6 +39,7 @@ public final class SleepSceneState {
     public static void handle(SleepScenePayload payload, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
             seed = payload.seed();
+            pauseLocked = false;
             ticks = 0;
             silenceTicks = SleepSceneTuning.SCENE_TICKS + SleepSceneTuning.SILENCE_TAIL_TICKS;
             beatAge = 1000;
@@ -50,6 +53,7 @@ public final class SleepSceneState {
         if (ticks < 0) return;
         if (++ticks >= SleepSceneTuning.SCENE_TICKS) {
             ticks = -1;
+            pauseLocked = false;
             return;
         }
 
@@ -79,6 +83,7 @@ public final class SleepSceneState {
         beatAge = 1000;
         pauseTicks = 0;
         pauseCloseAt = 0;
+        pauseLocked = false;
         scoldTicks = 0;
         scoldCount = 0;
     }

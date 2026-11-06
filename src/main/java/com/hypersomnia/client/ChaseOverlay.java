@@ -15,8 +15,8 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /**
  * Погоня на экране (ChaseClient): виньетка в такт сердцу (под интерфейсом), глаза по углам (ChaseEyes, над
- * виньеткой) и чёрный кадр поимки (поверх всего). Здесь же субтитры голоса осколка (FragmentVoice) — над чёрным
- * кадром: слои регистрируются в одном месте, чтобы порядок был точным.
+ * виньеткой) и чёрный кадр поимки — поверх интерфейса, но под ванильными субтитрами: его слова при поимке
+ * (FragmentVoice) читаются на чёрном. Слои регистрируются в одном месте, чтобы порядок был точным.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ChaseOverlay {
@@ -35,13 +35,11 @@ public final class ChaseOverlay {
         ResourceLocation vignette = ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_vignette");
         event.registerAbove(vignette,
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_eyes"), ChaseEyes::render);
-        event.registerAboveAll(
+        event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY,
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_black"), ChaseOverlay::renderBlack);
-        event.registerAboveAll(
-                ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "voice_subtitles"), FragmentVoice::renderLayer);
     }
 
-    /** F3+T и смена пакетов ресурсов: тайминги реплик и шрифт субтитров перечитываются. */
+    /** F3+T и смена пакетов ресурсов: тайминги реплик перечитываются. */
     @SubscribeEvent
     public static void registerReload(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener((ResourceManagerReloadListener) rm -> FragmentVoice.clearCaches());

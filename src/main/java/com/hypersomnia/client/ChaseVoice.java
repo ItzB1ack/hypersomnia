@@ -10,9 +10,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Что осколок говорит в погоне (звук и субтитр — FragmentVoice). Дозированно: встал на след — одна реплика
- * (не всегда), на бегу — не больше VoiceTuning.RUN_MAX, у закрытой двери — просит впустить (из-за двери),
- * поймал — вплотную, «в голове», ушёл — вслед. Заметил его, пока он стоял на следе (он сразу срывается с места,
+ * Что осколок говорит в погоне (звук — FragmentVoice, субтитр ванильный). Дозированно: встал на след — одна
+ * реплика (не всегда), на бегу — не больше VoiceTuning.RUN_MAX, у закрытой двери — просит впустить (из-за двери),
+ * поймал — вплотную, «в голове», ушёл — вслед; издалека — тихо, но со стороны фигуры. Заметил его, пока он стоял на следе (он сразу срывается с места,
  * ChaseTuning.WARN_SEEN_TICKS), — «ты меня видишь». Реплики по ступени эскалации стадии.
  * Вызывает ObserverClient (begin/tick/end/reset) и ChaseClient (caught).
  */
@@ -79,8 +79,7 @@ public final class ChaseVoice {
         if (caughtSaid) return;
         caughtSaid = true;
         startIn = -1;
-        FragmentVoice.say(VoiceLine.caught(ObserverState.stage()), null, VoiceTuning.VOLUME_NEAR,
-                VoiceTuning.SHAKE_CAUGHT, false, false);
+        FragmentVoice.say(VoiceLine.caught(ObserverState.stage()), null, VoiceTuning.VOLUME_NEAR, false);
     }
 
     /** Сервер закончил погоню исходом ChasePayload.O_*: ушёл — «не оставляй» (O_STARED сервер больше не шлёт). */
@@ -116,19 +115,19 @@ public final class ChaseVoice {
         return false;
     }
 
-    /** С места фигуры (голова); вплотную — у самого уха, совсем далеко — тихо «в голове». */
+    /** С места фигуры (голова); вплотную — у самого уха, совсем далеко — тихо, со стороны фигуры (FAR_PROXY). */
     private static void say(VoiceLine l, LocalPlayer player, Vec3 at, double dist) {
-        float shake = VoiceTuning.SHAKE_TIER[VoiceLine.tier(ObserverState.stage())];
-        if (dist > VoiceTuning.FAR_HEAD_DIST) {
-            FragmentVoice.say(l, null, VoiceTuning.VOLUME_FAR_HEAD, shake, false, false);
+        Vec3 eye = player.getEyePosition();
+        Vec3 src = new Vec3(at.x, at.y + 1.6, at.z);
+        if (dist > VoiceTuning.FAR_DIST) {
+            Vec3 dir = src.subtract(eye).normalize();
+            FragmentVoice.say(l, eye.add(dir.scale(VoiceTuning.FAR_PROXY)), VoiceTuning.VOLUME_DISTANT, false);
             return;
         }
-        Vec3 src = new Vec3(at.x, at.y + 1.6, at.z);
         if (dist < VoiceTuning.HEAD_DIST) {
             float a = RANDOM.nextFloat() * Mth.TWO_PI;
-            Vec3 eye = player.getEyePosition();
             src = new Vec3(eye.x + Mth.cos(a) * VoiceTuning.HEAD_OFFSET, eye.y, eye.z + Mth.sin(a) * VoiceTuning.HEAD_OFFSET);
         }
-        FragmentVoice.say(l, src, VoiceTuning.VOLUME_FAR, shake, false, false);
+        FragmentVoice.say(l, src, VoiceTuning.VOLUME_FAR, false);
     }
 }

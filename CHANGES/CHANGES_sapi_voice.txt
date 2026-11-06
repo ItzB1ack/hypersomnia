@@ -1,0 +1,81 @@
+HYPERSOMNIA — пакет «голос SAPI 4 и ванильные субтитры» (sapi_voice), поверх voice_en
+База: src.zip из этого чата. В changed.zip — все отличия от него (все прошлые пакеты, включая этот).
+Если voice_en уже стоит, хватит файлов из «НОВОЕ В ЭТОМ ПАКЕТЕ» и удаления из «УДАЛИТЬ, если стоит voice_en».
+Сеть и реестр звуков не менялись (те же 22 голосовых события); клиент и сервер всё равно лучше обновлять вместе.
+
+ЧТО ИЗМЕНИЛОСЬ
+- Субтитры его реплик — ванильные (просьба пользователя): поле "subtitle" в sounds.json, как у всех звуков —
+  внизу справа, со стрелкой, откуда звук. Свой крупный дрожащий текст убран целиком (FragmentFont, шрифт Montserrat,
+  слой voice_subtitles).
+- [новое] Видны, только если в настройках включены субтитры (так работают ванильные; в Minecraft по умолчанию выкл.).
+- [новое] Пока он говорит, субтитр держится: ванильный гас бы через 3 с от начала звука, а длинные реплики — до 4.4 с.
+- [новое] «В голове» (поимка, меню паузы) — субтитр без стрелки: звук без затухания в точке слушателя, не уплывает в сторону.
+- [новое] Издалека (дальше 22 блоков) — тихо, но со стороны фигуры (12 блоков от игрока), а не «в голове»: субтитр
+  показывает, откуда.
+- [новое] Поимка: чёрный кадр теперь под ванильными субтитрами (над остальным интерфейсом) — слова читаются на чёрном.
+- [новое] Меню паузы в сцене у кровати размывает интерфейс — субтитры перерисовываются поверх меню и глаз.
+- Тексты: ключи hypersomnia.voice.<id> -> hypersomnia.subtitle.voice.<id> (ru_ru.json, на месте, тексты те же);
+  в en_us.json добавлены 22 английских (в конец).
+- Голос — SAPI 4 «Sam» (как на tetyys.com/SAPI4, голос по умолчанию): основной Sam (высота 82, скорость 118), под ним
+  тёмный двойник — Sam на высоте 50 (−17 дБ), и шёпот Male Whisper (70; −22 дБ издалека, −12 вплотную). «Плёнка»:
+  полоса, мягкое насыщение, плавание скорости, обратная реверберация перед словами, комната, шипение и фон сети.
+  Провалы плёнки выключены, шёпот и комната тише, чем в первой пробе: иначе слов не разобрать.
+- tools/make_fragment_voice.py переписан под SAPI 4: нет исходников — берёт три слоя с сайта (нужен интернет),
+  --fetch — заново; своя запись — положить tools/voice_src/en/<id>.flac и удалить <id>_low/_whisper.
+  timing.json без "seg" (буквы больше не проявляются по речи).
+- Числа: voice/VoiceTuning — убраны SUB_*, SHAKE_*, SLIP_*; FAR_HEAD_DIST/VOLUME_FAR_HEAD заменены на FAR_DIST 22,
+  FAR_PROXY 12, VOLUME_DISTANT 0.45; добавлен FALLBACK_TICKS 60 (если timing.json не прочитан).
+  voice/VoiceLine — без поля en и key() (английский текст — в комментарии и в en_us.json).
+
+ЛИЦЕНЗИЯ (важно до публикации)
+- SAPI 4 — старые проприетарные движки Microsoft. Записи с tetyys.com широко используют в видео, но права на
+  распространение в моде не оформлены. Для публикации: своя запись или свободный синтез (Piper из voice_en) —
+  положить в tools/voice_src/en и перегенерировать.
+
+ЧТО ПРОВЕРЕНО
+- Компиляция: javac (Java 21) против jar NeoForge 21.1.235 — 0 ошибок.
+- Выделенный сервер NeoForge 21.1.235 с модом: тест погони ChaseSmoke прошёл, исключений нет.
+- sounds.json, en_us.json, ru_ru.json — валидный json; у всех 22 голосовых событий есть subtitle, ключи есть в обоих
+  языках; lang сохранены в прежнем формате.
+- Разборчивость (Vosk, малая английская модель): 19 из 22 реплик распознаны дословно или почти — как у сухого Sam.
+  Не узнаёт «There's no pause here.», «Why won't you listen? …», «You were asleep.».
+- Скрипт: повторный запуск даёт побайтно те же ogg и timing.json. 22 ogg: моно 44.1 кГц, пик не выше −4.8 дБ, 576 КБ.
+НЕ ПРОВЕРЕНО: клиент (runClient) — голос на слух, субтитры вживую (удержание, «в голове» без стрелки, поверх меню
+паузы, чёрный кадр под субтитрами). SubtitleOverlay берётся отражением (у поля в Gui нет геттера); если не найдётся —
+субтитры всё равно будут, но в паузе под размытием, а длинные погаснут через 3 с.
+
+УДАЛИТЬ, если стоит voice_en:
+  main/java/com/hypersomnia/client/FragmentFont.java
+  main/resources/assets/hypersomnia/textures/font/     (вся папка: fragment.png, fragment.png.mcmeta)
+  main/resources/assets/hypersomnia/voice/font.json
+  tools/make_fragment_font.py
+  tools/fonts/                                       (вся папка: Montserrat[wght].ttf, OFL_Montserrat.txt)
+
+УДАЛИТЬ из своего src при наложении changed.zip на src.zip (устарели, как в прошлых пакетах):
+  main/java/com/hypersomnia/client/EyeGlyphs.java
+  main/java/com/hypersomnia/document/EyeAlphabet.java
+  main/java/com/hypersomnia/lab/BreakerBlock.java
+  main/resources/assets/hypersomnia/blockstates/breaker.json
+  main/resources/assets/hypersomnia/models/block/breaker_off.json
+  main/resources/assets/hypersomnia/models/block/breaker_on.json
+  main/resources/assets/hypersomnia/models/item/breaker.json
+  main/resources/assets/hypersomnia/sounds/sounds.json
+  main/resources/assets/hypersomnia/textures/misc/plan_l5.png
+  tools/make_plan_l5.py
+
+НОВОЕ В ЭТОМ ПАКЕТЕ (поверх voice_en: 56 изменено, 44 новых; всего отличий от src.zip: 252)
+  main/java/com/hypersomnia/client/ChaseOverlay.java
+  main/java/com/hypersomnia/client/ChaseVoice.java
+  main/java/com/hypersomnia/client/FragmentVoice.java
+  main/java/com/hypersomnia/client/SleepSceneClientEvents.java
+  main/java/com/hypersomnia/client/SleepSceneOverlay.java          (только комментарий)
+  main/java/com/hypersomnia/voice/VoiceLine.java
+  main/java/com/hypersomnia/voice/VoiceTuning.java
+  main/resources/assets/hypersomnia/lang/en_us.json
+  main/resources/assets/hypersomnia/lang/ru_ru.json
+  main/resources/assets/hypersomnia/sounds.json
+  main/resources/assets/hypersomnia/voice/timing.json
+  main/resources/assets/hypersomnia/sounds/voice/en/*.ogg          (все 22, изменены)
+  tools/make_fragment_voice.py
+  tools/voice_src/en/<id>.flac                                     (все 22, изменены: Sam)
+  tools/voice_src/en/<id>_low.flac, <id>_whisper.flac              (44 новых)

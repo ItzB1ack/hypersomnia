@@ -30,14 +30,13 @@ public final class SleepSceneClientEvents {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        // Меню паузы во время сцены: глаз, второй, толпа глаз, его голос — и он закрывает меню сам
+        // Меню паузы во время сцены или погони: глаза, голос, затем меню закрывается само
         // (это событие приходит и в паузе)
-        if (SleepSceneState.active() && mc.screen instanceof PauseScreen) {
+        if (antiPauseActive() && mc.screen instanceof PauseScreen) {
             int t = ++SleepSceneState.pauseTicks;
             pauseTickNanos = System.nanoTime();
             if (t == SleepSceneTuning.PAUSE_VOICE_TICKS) {
-                FragmentVoice.say(VoiceLine.pause(SleepSceneState.scoldCount), null, VoiceTuning.VOLUME_NEAR,
-                        VoiceTuning.SHAKE_PAUSE, true, true);
+                FragmentVoice.say(VoiceLine.pause(SleepSceneState.scoldCount), null, VoiceTuning.VOLUME_NEAR, true);
                 SleepSceneState.pauseCloseAt = Math.max(SleepSceneTuning.PAUSE_CLOSE_TICKS,
                         t + FragmentVoice.speechLeft() + SleepSceneTuning.PAUSE_AFTER_VOICE_TICKS);
             }
@@ -47,8 +46,12 @@ public final class SleepSceneClientEvents {
                 SleepSceneState.pauseCloseAt = 0;
                 SleepSceneState.scoldTicks = SleepSceneTuning.SCOLD_SHOW_TICKS;
                 SleepSceneState.scoldCount++;
-                // Игрок лежит в кровати: возвращаем экран кровати, а не пустой экран
-                mc.setScreen(mc.player != null && mc.player.isSleeping() ? new SceneBedScreen() : null);
+                // После срабатывания антипаузы повторно поставить игру на паузу нельзя до конца ивента.
+                if (SleepSceneState.active()) SleepSceneState.pauseLocked = true;
+                ChaseClient.lockPause();
+                // Экран кровати возвращаем только во время сцены; при погоне — обратно в игру.
+                mc.setScreen(SleepSceneState.active() && mc.player != null && mc.player.isSleeping()
+                        ? new SceneBedScreen() : null);
             }
         } else {
             SleepSceneState.pauseTicks = 0;
@@ -80,21 +83,38 @@ public final class SleepSceneClientEvents {
         }
     }
 
+    /** Антипауза действует и в сцене у кровати, и во всех фазах активной погони. */
+    private static boolean antiPauseActive() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player != null && mc.level != null && mc.player.isAlive()
+                && (SleepSceneState.active() || ChaseClient.active());
+    }
+
     /** Тик меню паузы пришёл тогда-то: между тиками глаза двигаются плавно (в паузе partialTick стоит). */
     private static long pauseTickNanos;
 
-    /** Пока игрок сидит в меню паузы, поверх него проступают глаза (в меню игра стоит, тики идут от экрана). Субтитр рисует FragmentVoice. */
+    /**
+     * Пока игрок сидит в меню паузы, поверх него проступают глаза (в меню игра стоит, тики идут от экрана).
+     * Его реплику показывает ванильный субтитр: меню размывает интерфейс, поэтому субтитры перерисовываются поверх.
+     */
     @SubscribeEvent
     public static void onScreenRender(ScreenEvent.Render.Post event) {
-        if (!SleepSceneState.active() || !(event.getScreen() instanceof PauseScreen)) return;
+        if (!antiPauseActive() || !(event.getScreen() instanceof PauseScreen)) return;
         float t = SleepSceneState.pauseTicks + Mth.clamp((System.nanoTime() - pauseTickNanos) / 5.0e7f, 0f, 1f);
         SleepSceneOverlay.drawPauseEyes(event.getGuiGraphics(), event.getScreen().width, event.getScreen().height,
                 t, event.getMouseX(), event.getMouseY());
+        FragmentVoice.renderSubtitlesOnTop(event.getGuiGraphics());
     }
 
     /** Экран кровати во время сцены заменяем на «не могу пошевелиться» (ESC и кнопка не встают). */
     @SubscribeEvent
     public static void onScreenOpening(ScreenEvent.Opening event) {
+        if (event.getNewScreen() instanceof PauseScreen
+                && antiPauseActive()
+                && ((SleepSceneState.active() && SleepSceneState.pauseLocked) || ChaseClient.pauseLocked())) {
+            event.setCanceled(true);
+            return;
+        }
         if (SleepSceneState.active()
                 && event.getNewScreen() instanceof InBedChatScreen
                 && !(event.getNewScreen() instanceof SceneBedScreen)) {

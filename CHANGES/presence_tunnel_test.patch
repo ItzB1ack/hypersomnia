@@ -1,0 +1,106 @@
+--- /dev/null
++++ b/src/main/java/com/hypersomnia/server/PresenceTunnelTestCommand.java
+@@ -0,0 +1,103 @@
++package com.hypersomnia.server;
++
++import com.hypersomnia.Hypersomnia;
++import com.hypersomnia.lab.LabProtection;
++import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.commands.Commands;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.network.chat.Component;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.item.ItemEntity;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.WallTorchBlock;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.phys.BlockHitResult;
++import net.minecraft.world.phys.HitResult;
++import net.neoforged.bus.api.SubscribeEvent;
++import net.neoforged.fml.common.EventBusSubscriber;
++import net.neoforged.neoforge.event.RegisterCommandsEvent;
++
++/** Только ручная проба оформления; не выкапывает тоннель и не запускает событие. */
++@EventBusSubscriber(modid = Hypersomnia.MOD_ID)
++public final class PresenceTunnelTestCommand {
++    private PresenceTunnelTestCommand() {}
++
++    private static final double PICKAXE_CHANCE = 0.25; // стартовая проба, не финальный баланс
++    private static final double REACH = 5.0;
++
++    @SubscribeEvent
++    public static void register(RegisterCommandsEvent event) {
++        event.getDispatcher().register(Commands.literal("hypersomnia")
++                .requires(source -> source.hasPermission(2))
++                .then(Commands.literal("tunnel")
++                        .then(Commands.literal("test")
++                                .executes(ctx -> run(ctx.getSource(), false))
++                                .then(Commands.literal("pickaxe")
++                                        .executes(ctx -> run(ctx.getSource(), true))))));
++    }
++
++    private static int run(CommandSourceStack source, boolean forcePickaxe) throws CommandSyntaxException {
++        ServerPlayer player = source.getPlayerOrException();
++        ServerLevel level = player.serverLevel();
++        HitResult result = player.pick(REACH, 1.0f, false);
++        if (!(result instanceof BlockHitResult hit) || result.getType() != HitResult.Type.BLOCK
++                || !hit.getDirection().getAxis().isHorizontal()) {
++            return fail(source, "Наведи прицел на боковую поверхность стены в подготовленном тоннеле (не дальше 5 блоков).");
++        }
++        BlockPos wall = hit.getBlockPos();
++        Direction face = hit.getDirection();
++        BlockPos torch = wall.relative(face);
++        BlockPos item = torch.below();
++        BlockPos floor = item.below();
++        if (!level.hasChunkAt(wall) || !level.hasChunkAt(torch)
++                || !level.hasChunkAt(item) || !level.hasChunkAt(floor)
++                || level.isOutsideBuildHeight(torch) || level.isOutsideBuildHeight(item)
++                || level.isOutsideBuildHeight(floor)) {
++            return fail(source, "Место вне мира или в незагруженном чанке.");
++        }
++        if (LabProtection.inside(level, wall) || LabProtection.inside(level, torch)
++                || LabProtection.inside(level, item) || LabProtection.inside(level, floor)) {
++            return fail(source, "В защищённой лаборатории тест запрещён.");
++        }
++        if (!level.getBlockState(torch).isAir() || !level.getBlockState(item).isAir()
++                || !level.getFluidState(torch).isEmpty() || !level.getFluidState(item).isEmpty()
++                || !level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP)) {
++            return fail(source, "Нужны два пустых блока перед стеной и прочный пол. Существующие блоки не заменяются.");
++        }
++        BlockState torchState = Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, face);
++        if (!torchState.canSurvive(level, torch)) {
++            return fail(source, "На этой поверхности настенный факел не держится.");
++        }
++        if (!level.setBlock(torch, torchState, 3)) {
++            return fail(source, "Не удалось установить факел; проверь защиту места.");
++        }
++        boolean tryPickaxe = forcePickaxe || level.random.nextDouble() < PICKAXE_CHANCE;
++        boolean spawned = false;
++        if (tryPickaxe) {
++            ItemStack stack = new ItemStack(Items.STONE_PICKAXE);
++            stack.setDamageValue(Math.max(0, stack.getMaxDamage() - 1));
++            ItemEntity entity = new ItemEntity(level, item.getX() + 0.5, item.getY() + 0.05,
++                    item.getZ() + 0.5, stack);
++            entity.setDeltaMovement(0.0, 0.0, 0.0);
++            entity.setDefaultPickUpDelay();
++            spawned = level.addFreshEntity(entity);
++        }
++        final boolean placedItem = spawned;
++        final boolean attemptedItem = tryPickaxe;
++        source.sendSuccess(() -> Component.literal("Тест декора: настенный факел установлен. "
++                + (placedItem ? "Изношенная кирка лежит у стены." : attemptedItem
++                ? "Кирку создать не удалось." : "В этот раз без кирки.")
++                + " Тоннель не выкапывался; это не автоматическое событие."), false);
++        return 1;
++    }
++
++    private static int fail(CommandSourceStack source, String text) {
++        source.sendFailure(Component.literal("След присутствия: " + text));
++        return 0;
++    }
++}

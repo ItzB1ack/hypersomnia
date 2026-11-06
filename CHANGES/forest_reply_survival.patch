@@ -1,0 +1,159 @@
+--- a/src/main/java/com/hypersomnia/client/ForestReplyClient.java
++++ b/src/main/java/com/hypersomnia/client/ForestReplyClient.java
+@@ -3,6 +3,7 @@
+ import com.hypersomnia.ForestReplyTuning;
+ import com.hypersomnia.Hypersomnia;
+ import com.hypersomnia.forest.ForestReplyContext;
++import com.hypersomnia.forest.ForestReplyRhythm;
+ import com.hypersomnia.network.ForestReplyAckPayload;
+ import com.hypersomnia.network.ForestReplyPayload;
+ import java.util.ArrayList;
+@@ -27,7 +28,7 @@
+ import net.neoforged.neoforge.client.event.ClientTickEvent;
+ import net.neoforged.neoforge.network.PacketDistributor;
+ 
+-/** Два локальных звука из одной скрытой точки. Ничего не принимает/завершает в ObserverDirector. */
++/** Две последовательности ударов и разрушения из одной скрытой точки. */
+ @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
+ public final class ForestReplyClient {
+     private ForestReplyClient() {}
+@@ -37,7 +38,8 @@
+     private static LocalPlayer listener;
+     private static Vec3 source;
+     private static SimpleSoundInstance first;
+-    private static SimpleSoundInstance second;
++    private static final List<SimpleSoundInstance> sounds = new ArrayList<>();
++    private static int nextCue;
+     private static boolean started;
+     private static int age;
+ 
+@@ -72,7 +74,9 @@
+                 stop(mc, ForestReplyAckPayload.NO_SOURCE);
+                 return;
+             }
+-            first = sound(origin, source);
++            first = sound(origin, source, false);
++            sounds.add(first);
++            nextCue = 1;
+             mc.getSoundManager().play(first);
+             confirmStarted(mc);
+             return;
+@@ -87,15 +91,20 @@
+             stop(mc, ForestReplyAckPayload.INTERRUPTED);
+             return;
+         }
+-        if (second == null && started && age >= offer.gapTicks()) {
++        if (started && nextCue < ForestReplyRhythm.CUE_COUNT
++                && age >= ForestReplyRhythm.tick(nextCue, offer.gapTicks())) {
+             if (!hidden(origin, listener, source)) {
+                 stop(mc, ForestReplyAckPayload.INTERRUPTED);
+                 return;
+             }
+-            second = sound(origin, source);
+-            mc.getSoundManager().play(second);
+-        }
+-        if (second != null && age >= offer.gapTicks() + ForestReplyTuning.AUDIO_TAIL) {
++            SimpleSoundInstance cue = sound(origin, source, ForestReplyRhythm.isBreak(nextCue));
++            sounds.add(cue);
++            mc.getSoundManager().play(cue);
++            nextCue++;
++        }
++        if (nextCue == ForestReplyRhythm.CUE_COUNT
++                && age >= ForestReplyRhythm.tick(ForestReplyRhythm.CUE_COUNT - 1, offer.gapTicks())
++                        + ForestReplyTuning.AUDIO_TAIL) {
+             stop(mc, ForestReplyAckPayload.INTERRUPTED);
+         }
+     }
+@@ -124,8 +133,8 @@
+     }
+ 
+     private static void stop(Minecraft mc, int reason) {
+-        if (first != null) mc.getSoundManager().stop(first);
+-        if (second != null) mc.getSoundManager().stop(second);
++        for (SimpleSoundInstance sound : sounds) mc.getSoundManager().stop(sound);
++        sounds.clear();
+         if (offer != null && !started && mc.getConnection() != null) {
+             PacketDistributor.sendToServer(new ForestReplyAckPayload(offer.ticket(), reason));
+         }
+@@ -134,14 +143,17 @@
+         listener = null;
+         source = null;
+         first = null;
+-        second = null;
++        nextCue = 0;
+         started = false;
+         age = 0;
+     }
+ 
+-    private static SimpleSoundInstance sound(ClientLevel level, Vec3 at) {
+-        return new SimpleSoundInstance(SoundEvents.WOOD_BREAK, SoundSource.BLOCKS,
+-                ForestReplyTuning.VOLUME, ForestReplyTuning.PITCH, level.random, at.x, at.y, at.z);
++    private static SimpleSoundInstance sound(ClientLevel level, Vec3 at, boolean breaking) {
++        // Та же дальность, что у старого ответа: тихий ванильный HIT на расстоянии 8–12 блоков
++        // иначе мог бы вовсе не слышаться из-за затухания позиционного звука.
++        return new SimpleSoundInstance(breaking ? SoundEvents.WOOD_BREAK : SoundEvents.WOOD_HIT,
++                SoundSource.BLOCKS, ForestReplyTuning.VOLUME, ForestReplyTuning.PITCH,
++                level.random, at.x, at.y, at.z);
+     }
+ 
+     /** Сначала дешёвый ограниченный список брёвен, затем не более 32 проверок листвы/укрытия. */
+--- /dev/null
++++ b/src/main/java/com/hypersomnia/forest/ForestReplyRhythm.java
+@@ -0,0 +1,23 @@
++package com.hypersomnia.forest;
++
++import com.hypersomnia.ForestReplyTuning;
++
++/** Две короткие рубки: три удара с шагом в 4 тика, затем разрушение. */
++public final class ForestReplyRhythm {
++    private ForestReplyRhythm() {}
++
++    public static final int CUE_COUNT = 8;
++    private static final int STRIKE_INTERVAL = 4;
++    private static final int MIN_BREAK_GAP = 16;
++
++    public static int tick(int index, int requestedGap) {
++        if (index < 0 || index >= CUE_COUNT) throw new IllegalArgumentException("cue index");
++        int gap = Math.max(MIN_BREAK_GAP, ForestReplyTuning.clampGap(requestedGap));
++        return (index / 4) * gap + (index % 4) * STRIKE_INTERVAL;
++    }
++
++    public static boolean isBreak(int index) {
++        if (index < 0 || index >= CUE_COUNT) throw new IllegalArgumentException("cue index");
++        return index % 4 == 3;
++    }
++}
+--- /dev/null
++++ b/src/devtest/java/com/hypersomnia/forest/ForestReplyRhythmSelfTest.java
+@@ -0,0 +1,31 @@
++package com.hypersomnia.forest;
++
++public final class ForestReplyRhythmSelfTest {
++    private static int checks;
++    private static void check(boolean condition) {
++        checks++;
++        if (!condition) throw new AssertionError("check " + checks);
++    }
++    public static void main(String[] args) {
++        int[] expected = {0, 4, 8, 12, 16, 20, 24, 28};
++        for (int i = 0; i < 8; i++) {
++            check(ForestReplyRhythm.tick(i, 12) == expected[i]);
++            check(ForestReplyRhythm.isBreak(i) == (i == 3 || i == 7));
++        }
++        for (int gap : new int[] {-100, 6, 12, 16, 17, 32, 60, 1000}) {
++            int last = -1;
++            for (int i = 0; i < 8; i++) {
++                int now = ForestReplyRhythm.tick(i, gap);
++                check(now > last);
++                last = now;
++            }
++            int actualGap = ForestReplyRhythm.tick(7, gap) - ForestReplyRhythm.tick(3, gap);
++            check(actualGap == Math.min(60, Math.max(16, gap)));
++        }
++        try { ForestReplyRhythm.tick(-1, 12); throw new AssertionError(); }
++        catch (IllegalArgumentException expectedException) { checks++; }
++        try { ForestReplyRhythm.isBreak(8); throw new AssertionError(); }
++        catch (IllegalArgumentException expectedException) { checks++; }
++        System.out.println("ForestReplyRhythm: " + checks + " checks passed");
++    }
++}

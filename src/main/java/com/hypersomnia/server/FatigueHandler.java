@@ -99,7 +99,7 @@ public final class FatigueHandler {
         player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
 
         // Падение закончилось: засыпаем и попадаем в мир снов
-        DreamTransition.enter(player);
+        DreamTransition.enterNightmare(player, com.hypersomnia.nightmare.NightmareDefs.SHAFT);
     }
 
     private static void syncIfNeeded(ServerPlayer player, FatigueData data, boolean exempt) {

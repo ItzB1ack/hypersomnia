@@ -43,6 +43,8 @@ final class ChasePath {
         final List<BlockPos> cells;
         /** Путь к точке следа (а не к игроку): индекс этой точки в следе погони, иначе -1. */
         int trailIndex = -1;
+        /** Цель недостижима: путь к ближайшей достижимой клетке. */
+        boolean partial;
 
         Route(List<Vec3> points, List<BlockPos> cells) {
             this.points = points;
@@ -233,6 +235,8 @@ final class ChasePath {
         double g;
         Node parent;
         boolean closed;
+        /** Пришли сюда подъёмом по стене от parent (build добавляет вертикальную точку). */
+        boolean scramble;
 
         Node(int x, int y, int z, double floor) {
             this.x = x;
@@ -249,6 +253,11 @@ final class ChasePath {
      * null — нет пути в пределах работы, или старт/цель не на земле.
      */
     Route find(Vec3 from, Vec3 to, int maxNodes) {
+        return find(from, to, maxNodes, false);
+    }
+
+    /** partial = true: цель недостижима — вернёт путь к ближайшей к ней достигнутой клетке (Route.partial). */
+    Route find(Vec3 from, Vec3 to, int maxNodes, boolean partial) {
         lastVisited = 0;
         BlockPos start = locate(from, 2);
         BlockPos goal = locate(to, 3);
@@ -261,14 +270,23 @@ final class ChasePath {
         Node s0 = new Node(sx, sy, sz, floor(sx, sy, sz));
         nodes.put(BlockPos.asLong(sx, sy, sz), s0);
         open.add(new Entry(s0, h(sx, sy, sz, gx, gy, gz), 0));
+        Node best = s0;
+        double bestH = h(sx, sy, sz, gx, gy, gz);
         int range = ChaseTuning.PATH_RANGE;
         while (!open.isEmpty()) {
             Entry e = open.poll();
             Node n = e.node;
             if (n.closed || e.g != n.g) continue;
             n.closed = true;
-            if (++lastVisited > maxNodes) return null;
-            if (Math.abs(n.x - gx) <= 1 && Math.abs(n.z - gz) <= 1 && Math.abs(n.y - gy) <= 1) return build(n);
+            if (++lastVisited > maxNodes) return partial ? build(best, true) : null;
+            if (Math.abs(n.x - gx) <= 1 && Math.abs(n.z - gz) <= 1 && Math.abs(n.y - gy) <= 1) return build(n, false);
+            if (partial) {
+                double hn = h(n.x, n.y, n.z, gx, gy, gz);
+                if (hn < bestH) {
+                    best = n;
+                    bestH = hn;
+                }
+            }
             for (int d = 0; d < 8; d++) {
                 int dx = DX[d], dz = DZ[d];
                 int nx = n.x + dx, nz = n.z + dz;
@@ -293,6 +311,16 @@ final class ChasePath {
                 if (!Double.isNaN(up) && up - n.floor <= JUMP_MAX && free(kind(n.x, n.y + 2, n.z))) {
                     relax(nodes, open, n, nx, n.y + 1, nz, up, 1.0 + ChaseTuning.PATH_UP_COST + extra(nx, n.y + 1, nz),
                             gx, gy, gz);
+                    continue;
+                }
+                // стена в 2-3 блока: лезет вдоль неё в своей клетке и встаёт наверху
+                int sk = scrambleHeight(n, nx, nz);
+                if (sk > 0) {
+                    int sy2 = n.y + sk;
+                    if (relax(nodes, open, n, nx, sy2, nz, floor(nx, sy2, nz),
+                            1.0 + sk * ChaseTuning.PATH_SCRAMBLE_COST + extra(nx, sy2, nz), gx, gy, gz)) {
+                        nodes.get(BlockPos.asLong(nx, sy2, nz)).scramble = true;
+                    }
                     continue;
                 }
                 if (!clearColumn(nx, n.y, nz)) continue;
@@ -337,7 +365,7 @@ final class ChasePath {
                 if (!Double.isNaN(dn)) relax(nodes, open, n, n.x, n.y - 1, n.z, dn, ChaseTuning.PATH_CLIMB_COST, gx, gy, gz);
             }
         }
-        return null;
+        return partial ? build(best, true) : null;
     }
 
     private double extra(int x, int y, int z) {
@@ -347,6 +375,17 @@ final class ChasePath {
         return c;
     }
 
+    /** Высота стены (2..PATH_SCRAMBLE_MAX) у соседней колонки, на которую можно вылезти из клетки n; иначе 0. */
+    private int scrambleHeight(Node n, int nx, int nz) {
+        if (ChaseTuning.PATH_SCRAMBLE_MAX < 2 || kind(nx, n.y + 1, nz) != SOLID
+                || !free(kind(n.x, n.y + 2, n.z))) return 0;
+        for (int k = 2; k <= ChaseTuning.PATH_SCRAMBLE_MAX; k++) {
+            if (!free(kind(n.x, n.y + k + 1, n.z))) return 0;
+            if (!Double.isNaN(floor(nx, n.y + k, nz))) return k;
+        }
+        return 0;
+    }
+
     private static double h(int x, int y, int z, int gx, int gy, int gz) {
         int dx = Math.abs(x - gx), dz = Math.abs(z - gz);
         int lo = Math.min(dx, dz), hi = Math.max(dx, dz);
@@ -354,8 +393,8 @@ final class ChasePath {
         return ChaseTuning.PATH_HEURISTIC * (flat + ChaseTuning.PATH_DROP_COST * Math.abs(y - gy));
     }
 
-    private static void relax(Long2ObjectOpenHashMap<Node> nodes, PriorityQueue<Entry> open, Node from,
-                              int x, int y, int z, double floor, double cost, int gx, int gy, int gz) {
+    private static boolean relax(Long2ObjectOpenHashMap<Node> nodes, PriorityQueue<Entry> open, Node from,
+                                 int x, int y, int z, double floor, double cost, int gx, int gy, int gz) {
         long key = BlockPos.asLong(x, y, z);
         Node m = nodes.get(key);
         double g = from.g + cost;
@@ -363,19 +402,26 @@ final class ChasePath {
             m = new Node(x, y, z, floor);
             nodes.put(key, m);
         } else if (m.closed || g >= m.g) {
-            return;
+            return false;
         }
         m.g = g;
         m.parent = from;
+        m.scramble = false;
         open.add(new Entry(m, g + h(x, y, z, gx, gy, gz), g));
+        return true;
     }
 
-    private static Route build(Node end) {
+    private static Route build(Node end, boolean partial) {
         ArrayList<Vec3> pts = new ArrayList<>();
         ArrayList<BlockPos> cells = new ArrayList<>();
         for (Node n = end; n != null; n = n.parent) {
             pts.add(new Vec3(n.x + 0.5, n.floor, n.z + 0.5));
             cells.add(new BlockPos(n.x, n.y, n.z));
+            if (n.scramble && n.parent != null) {
+                // подъём по стене: сначала вверх в клетке снизу, потом шаг на верх (не сквозь угол блока)
+                pts.add(new Vec3(n.parent.x + 0.5, n.floor, n.parent.z + 0.5));
+                cells.add(new BlockPos(n.parent.x, n.y, n.parent.z));
+            }
         }
         Collections.reverse(pts);
         Collections.reverse(cells);
@@ -384,6 +430,8 @@ final class ChasePath {
             pts.remove(0);
             cells.remove(0);
         }
-        return new Route(pts, cells);
+        Route r = new Route(pts, cells);
+        r.partial = partial;
+        return r;
     }
 }

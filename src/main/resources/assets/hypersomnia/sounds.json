@@ -54,132 +54,154 @@
   },
   "voice.en.start_early": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.start_early",
     "sounds": [
       {"name": "hypersomnia:voice/en/start_early", "attenuation_distance": 32}
     ]
   },
   "voice.en.start_loop": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.start_loop",
     "sounds": [
       {"name": "hypersomnia:voice/en/start_loop", "attenuation_distance": 32}
     ]
   },
   "voice.en.start_accuse": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.start_accuse",
     "sounds": [
       {"name": "hypersomnia:voice/en/start_accuse", "attenuation_distance": 32}
     ]
   },
   "voice.en.start_rage": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.start_rage",
     "sounds": [
       {"name": "hypersomnia:voice/en/start_rage", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_early_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_early_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_early_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_early_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_early_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_early_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_loop_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_loop_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_loop_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_loop_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_loop_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_loop_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_accuse_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_accuse_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_accuse_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_accuse_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_accuse_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_accuse_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_rage_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_rage_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_rage_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.run_rage_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.run_rage_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/run_rage_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.escape_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.escape_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/escape_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.escape_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.escape_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/escape_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.blocked_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.blocked_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/blocked_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.blocked_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.blocked_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/blocked_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.caught_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.caught_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/caught_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.caught_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.caught_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/caught_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.stared": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.stared",
     "sounds": [
       {"name": "hypersomnia:voice/en/stared", "attenuation_distance": 32}
     ]
   },
   "voice.en.pause_0": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.pause_0",
     "sounds": [
       {"name": "hypersomnia:voice/en/pause_0", "attenuation_distance": 32}
     ]
   },
   "voice.en.pause_1": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.pause_1",
     "sounds": [
       {"name": "hypersomnia:voice/en/pause_1", "attenuation_distance": 32}
     ]
   },
   "voice.en.pause_2": {
     "category": "voice",
+    "subtitle": "hypersomnia.subtitle.voice.pause_2",
     "sounds": [
       {"name": "hypersomnia:voice/en/pause_2", "attenuation_distance": 32}
     ]

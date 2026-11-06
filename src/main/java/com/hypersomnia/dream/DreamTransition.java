@@ -14,13 +14,26 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import com.hypersomnia.scene.SceneAttachments;
+import com.hypersomnia.nightmare.NightmareDefs;
+import com.hypersomnia.nightmare.NightmareBuilder;
 
 /** Вход в мир снов и выход из него. Вызывать только на сервере. */
 public final class DreamTransition {
     private DreamTransition() {}
 
-    /** Игрок засыпает: переносим в мир снов, запоминая, куда вернуть. false, если вход невозможен. */
+    /** Обычный сон: переносим в мир снов, запоминая, куда вернуть. false, если вход невозможен. */
     public static boolean enter(ServerPlayer player) {
+        return begin(player, null);
+    }
+
+    /** Кошмар: заранее построенное место и особые правила. Если место не построено, обычный сон. */
+    public static boolean enterNightmare(ServerPlayer player, NightmareDefs nightmare) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !NightmareBuilder.ensureBuilt(server, nightmare)) return enter(player);
+        return begin(player, nightmare);
+    }
+
+    private static boolean begin(ServerPlayer player, NightmareDefs nightmare) {
         // Пока идёт сцена в кровати, в мир снов не уходим
         if (player.getData(SceneAttachments.SCENE).getHold() > 0) return false;
         MinecraftServer server = player.getServer();
@@ -35,17 +48,23 @@ public final class DreamTransition {
         data.setReturn(from.dimension().location().toString(),
                 player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
         data.setInDream(true);
-        data.setTicksLeft(DreamTuning.DURATION_TICKS);
+        data.setKind(nightmare == null ? "" : nightmare.id());
+        data.setTicksLeft(nightmare == null ? DreamTuning.DURATION_TICKS : nightmare.durationTicks());
 
-        // Копия мира совпадает по рельефу, поэтому берём те же координаты (для Незера пересчитываем)
-        boolean nether = from.dimension() == Level.NETHER;
-        double scale = nether ? DreamTuning.NETHER_SCALE : 1.0;
-        int y = nether ? 64 : player.getBlockY();
-        BlockPos target = findSafe(dream, BlockPos.containing(player.getX() * scale, y, player.getZ() * scale));
+        BlockPos target;
+        if (nightmare == null) {
+            // Копия мира совпадает по рельефу, поэтому берём те же координаты (для Незера пересчитываем)
+            boolean nether = from.dimension() == Level.NETHER;
+            double scale = nether ? DreamTuning.NETHER_SCALE : 1.0;
+            int y = nether ? 64 : player.getBlockY();
+            target = findSafe(dream, BlockPos.containing(player.getX() * scale, y, player.getZ() * scale));
+        } else {
+            target = nightmare.spawn();
+        }
 
         player.teleportTo(dream, target.getX() + 0.5, target.getY(), target.getZ() + 0.5,
-                player.getYRot(), player.getXRot());
-        com.hypersomnia.server.ObserverNotesHandler.onEnterDream(player, dream);
+                nightmare == null ? player.getYRot() : nightmare.yaw(), nightmare == null ? player.getXRot() : 0f);
+        if (nightmare == null) com.hypersomnia.server.ObserverNotesHandler.onEnterDream(player, dream);
         return true;
     }
 

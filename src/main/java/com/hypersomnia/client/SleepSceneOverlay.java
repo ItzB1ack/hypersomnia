@@ -290,7 +290,7 @@ public final class SleepSceneOverlay {
             g.pose().popPose();
         }
 
-        // 3b) Он закрыл меню паузы: красная вспышка ярости (сам укор — голосом и субтитром, FragmentVoice)
+        // 3b) Он закрыл меню паузы: красная вспышка ярости (сам укор — его голосом, FragmentVoice, и ванильным субтитром)
         if (SleepSceneState.scoldTicks > 0) {
             int sc = SleepSceneState.scoldTicks;
             int since = SleepSceneTuning.SCOLD_SHOW_TICKS - sc;
@@ -338,6 +338,10 @@ public final class SleepSceneOverlay {
         RenderSystem.depthMask(false);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
+        long nn = System.nanoTime();
+        float dt = Mth.clamp((nn - gazeNanos) / 1.0e9f, 0f, 0.1f);
+        gazeNanos = nn;
+        gazeF = 1f - (float) Math.exp(-dt * 1000f / SleepSceneTuning.PAUSE_GAZE_TAU_MS);
         if (t >= SleepSceneTuning.PAUSE_CROWD_TICKS) drawCrowd(g, w, h, t, mx, my, rage, now, rnd);
 
         // Пара глаз сцены: сначала левый, потом правый
@@ -355,8 +359,16 @@ public final class SleepSceneOverlay {
             float cxU = side * EYE_DX;
             float cyU = EYE_Y + (right ? 0.35f : 0f);
             layer(g, right ? EYE_SCLERA_R : EYE_SCLERA_L, cxU, cyU, k, size, size * sy, alpha);
-            float tx = rage ? (rnd.nextFloat() - 0.5f) * 0.55f : 0f;
-            float ty = rage ? (rnd.nextFloat() - 0.5f) * 0.22f : 0f;
+            long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
+            int si = right ? 1 : 0;
+            float tx = Mth.clamp((mx - w / 2f) / (w * 0.5f), -1f, 1f) * SleepSceneTuning.PAUSE_PAIR_LOOK_X
+                    + (rage ? (noise(q, 900 + si) - 0.5f) * 0.55f : 0f);
+            float ty = Mth.clamp((my - h * 0.42f) / (h * 0.5f), -1f, 1f) * SleepSceneTuning.PAUSE_PAIR_LOOK_Y
+                    + (rage ? (noise(q, 910 + si) - 0.5f) * 0.22f : 0f);
+            PAIR_X[si] += (tx - PAIR_X[si]) * gazeF;
+            PAIR_Y[si] += (ty - PAIR_Y[si]) * gazeF;
+            tx = PAIR_X[si];
+            ty = PAIR_Y[si];
             layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
             layer(g, right ? EYE_LIDS_R : EYE_LIDS_L, cxU, cyU, k, size, size * sy, 1f);
         }
@@ -418,10 +430,15 @@ public final class SleepSceneOverlay {
             float phase = r.nextFloat();
             float al = r.nextFloat();
             if (fill > SleepSceneTuning.PAUSE_CROWD_FILL) continue;
-            float x = (c % cols + 0.15f + 0.7f * px) * cw;
-            float y = (c / cols + 0.15f + 0.7f * py) * ch;
-            if (Math.abs(x - w / 2f) < w * 0.17f && Math.abs(y - h * 0.42f) < h * 0.14f) continue;
-            if (Math.abs(x - w / 2f) < w * 0.38f && y > h * 0.76f && y < h * 0.95f) continue;
+            float size = Mth.lerp((float) Math.pow(sr, 1.6), SleepSceneTuning.PAUSE_CROWD_SIZE_MIN,
+                    SleepSceneTuning.PAUSE_CROWD_SIZE_MAX) * h;
+            // С запасом под наклон: сохраняем области центральной пары и прежнюю область под субтитр.
+            float marginX = size * 0.60f;
+            float marginY = size * 0.49f;
+            float x = Mth.clamp((c % cols + 0.15f + 0.7f * px) * cw, marginX, w - marginX);
+            float y = Mth.clamp((c / cols + 0.15f + 0.7f * py) * ch, marginY, h - marginY);
+            if (Math.abs(x - w / 2f) < w * 0.17f + marginX && Math.abs(y - h * 0.42f) < h * 0.14f + marginY) continue;
+            if (Math.abs(x - w / 2f) < w * 0.38f + marginX && y > h * 0.76f - marginY && y < h * 0.95f + marginY) continue;
             float appear = SleepSceneTuning.PAUSE_CROWD_TICKS + span * (float) Math.pow(rank[c] / (float) n, 0.6);
             float o = ease((t - appear) / SleepSceneTuning.PAUSE_CROWD_OPEN_TICKS);
             if (o <= 0.03f) continue;
@@ -433,11 +450,17 @@ public final class SleepSceneOverlay {
             float gx = dx / len * reach;
             float gy = dy / len * reach;
             if (rage) {
-                gx += (jitter.nextFloat() - 0.5f) * 0.5f;
-                gy += (jitter.nextFloat() - 0.5f) * 0.5f;
+                long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
+                gx += (noise(q, c * 2) - 0.5f) * 0.5f;
+                gy += (noise(q, c * 2 + 1) - 0.5f) * 0.5f;
             }
-            float size = Mth.lerp(sr * sr * sr, SleepSceneTuning.PAUSE_CROWD_SIZE_MIN, SleepSceneTuning.PAUSE_CROWD_SIZE_MAX) * h;
-            EyeSprite.draw(g, x, y, size, o, gx, gy, 0.72f + 0.28f * al, mir < 0.5f, (tilt * 2f - 1f) * 18f, 1f);
+            if (gazeX.length != n) {
+                gazeX = new float[n];
+                gazeY = new float[n];
+            }
+            gazeX[c] += (gx - gazeX[c]) * gazeF;
+            gazeY[c] += (gy - gazeY[c]) * gazeF;
+            EyeSprite.draw(g, x, y, size, o, gazeX[c], gazeY[c], 0.72f + 0.28f * al, mir < 0.5f, (tilt * 2f - 1f) * 18f, 1f);
         }
     }
 
@@ -554,6 +577,22 @@ public final class SleepSceneOverlay {
         }
     }
 
+    /** Взгляд глаз в меню паузы: сглаженные зрачки толпы и пары, время прошлого кадра, коэффициент догоняния за кадр. */
+    private static float[] gazeX = new float[0];
+    private static float[] gazeY = new float[0];
+    private static final float[] PAIR_X = new float[2];
+    private static final float[] PAIR_Y = new float[2];
+    private static long gazeNanos;
+    private static float gazeF = 1f;
+
+    /** Детерминированный шум 0..1 для (шаг времени, номер глаза). */
+    private static float noise(long q, int i) {
+        long h = q * 0x9E3779B97F4A7C15L + i * 0xC2B2AE3D27D4EB4FL;
+        h ^= h >>> 29;
+        h *= 0xBF58476D1CE4E5B9L;
+        h ^= h >>> 32;
+        return (h & 0xFFFF) / 65535f;
+    }
     /** 1 = глаз открыт, ~0.08 = закрыт. Моргание длится 160 мс раз в period мс. */
     private static float blinkFactor(long now, int periodMs, int phaseMs) {
         long ph = (now + phaseMs) % periodMs;

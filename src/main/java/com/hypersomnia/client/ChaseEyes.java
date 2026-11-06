@@ -17,9 +17,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Глаза по углам экрана в погоне: скопления в темноте виньетки, разного размера (у самого угла крупнее).
- * Открываются по одному с начала погони: пока он стоит на следе — несколько, дальше чем сильнее паника
- * (чем он ближе), тем больше; отстал — лишние закрываются. Моргают, смотрят на игрока (в центр кадра),
+ * Глаза по углам экрана в погоне: плотные скопления разных размеров; крупные чаще ближе к углу.
+ * Открываются по одному с начала погони: со временем их становится больше, близость немного ускоряет рост.
+ * Открытые глаза не закрываются при отдалении до конца погони. Моргают, смотрят на игрока (в центр кадра),
  * радужки вздрагивают с ударами сердца. Погоня кончилась — закрываются по одному.
  * Слой chase_eyes (ChaseOverlay): над виньеткой, под чёрным кадром поимки. Числа — ChaseTuning.EYES_*.
  */
@@ -49,17 +49,23 @@ public final class ChaseEyes {
         float gy;
         float tgx;
         float tgy;
+        float gxO;
+        float gyO;
     }
 
     private static final List<Eye> EYES = new ArrayList<>();
     private static boolean active;
     private static int openIn;
     private static int closeIn;
+    private static int chaseTicks;
+    private static int peakWanted;
 
-    /** Погоня началась: раскладка новая (если прошлые глаза уже закрылись), первый откроется через FIRST_DELAY. */
+    /** Новая погоня всегда начинает новую раскладку и отсчёт с нуля. */
     public static void begin() {
-        if (EYES.isEmpty()) layout();
+        layout();
         active = true;
+        chaseTicks = 0;
+        peakWanted = 0;
         openIn = ChaseTuning.EYES_FIRST_DELAY;
     }
 
@@ -72,6 +78,8 @@ public final class ChaseEyes {
     public static void reset() {
         EYES.clear();
         active = false;
+        chaseTicks = 0;
+        peakWanted = 0;
     }
 
     private static void layout() {
@@ -79,18 +87,21 @@ public final class ChaseEyes {
         for (int c = 0; c < 4; c++) {
             int n = Mth.randomBetweenInclusive(RANDOM, ChaseTuning.EYES_PER_CORNER_MIN, ChaseTuning.EYES_PER_CORNER_MAX);
             List<Eye> placed = new ArrayList<>();
-            for (int tries = 0; placed.size() < n && tries < 300; tries++) {
+            for (int tries = 0; placed.size() < n && tries < 2400; tries++) {
                 float r = (float) Math.pow(RANDOM.nextFloat(), 0.85);
                 float ang = RANDOM.nextFloat() * Mth.HALF_PI;
                 Eye e = new Eye();
                 e.corner = c;
-                e.dx = ChaseTuning.EYES_EDGE + r * ChaseTuning.EYES_SPREAD_X * Mth.cos(ang);
-                e.dy = ChaseTuning.EYES_EDGE + r * ChaseTuning.EYES_SPREAD_Y * Mth.sin(ang);
-                e.size = Mth.lerp(r, ChaseTuning.EYES_SIZE_MAX, ChaseTuning.EYES_SIZE_MIN) * (0.8f + 0.4f * RANDOM.nextFloat());
+                float mix = (float) Math.pow(RANDOM.nextFloat(), 1.6);
+                mix += 0.18f * (1f - r) * (1f - mix); // крупные чаще у угла, мелкие возможны везде
+                e.size = Mth.lerp(mix, ChaseTuning.EYES_SIZE_MIN, ChaseTuning.EYES_SIZE_MAX);
+                // Учитываем размер и наклон: глаз не обрезается краем экрана.
+                e.dx = Math.max(e.size * 0.59f, ChaseTuning.EYES_EDGE + r * ChaseTuning.EYES_SPREAD_X * Mth.cos(ang));
+                e.dy = Math.max(e.size * 0.48f, ChaseTuning.EYES_EDGE + r * ChaseTuning.EYES_SPREAD_Y * Mth.sin(ang));
                 boolean free = true;
                 for (Eye p : placed) {
-                    float sx = (e.dx - p.dx) / ((e.size + p.size) * 0.56f);
-                    float sy = (e.dy - p.dy) / ((e.size + p.size) * 0.42f);
+                    float sx = (e.dx - p.dx) / ((e.size + p.size) * 0.50f);
+                    float sy = (e.dy - p.dy) / ((e.size + p.size) * 0.35f);
                     if (sx * sx + sy * sy < 1f) {
                         free = false;
                         break;
@@ -114,10 +125,13 @@ public final class ChaseEyes {
         }
     }
 
-    /** Сколько глаз открыто при панике p: на следе EYES_WARN, дальше растёт до всех. */
+    /** Цель растёт по времени; паника добавляет небольшой опережающий прирост, не заменяя течение времени. */
     private static int wanted(float p) {
-        float k = Mth.clamp((p - ChaseTuning.PANIC_WARN) / (1f - ChaseTuning.PANIC_WARN), 0f, 1f);
-        return Math.min(EYES.size(), ChaseTuning.EYES_WARN + Math.round(k * (EYES.size() - ChaseTuning.EYES_WARN)));
+        float time = Mth.clamp(chaseTicks / (float) ChaseTuning.EYES_FILL_TICKS, 0f, 1f);
+        float panic = Mth.clamp((p - ChaseTuning.PANIC_WARN) / (1f - ChaseTuning.PANIC_WARN), 0f, 1f);
+        float progress = time + ChaseTuning.EYES_PANIC_BOOST * panic * (1f - time);
+        int initial = Math.min(ChaseTuning.EYES_WARN, EYES.size());
+        return Math.min(EYES.size(), initial + Math.round(progress * (EYES.size() - initial)));
     }
 
     @SubscribeEvent
@@ -129,11 +143,13 @@ public final class ChaseEyes {
             return;
         }
         if (mc.isPaused()) return;
+        if (active && !ChaseClient.active()) end();
         int opened = 0;
         for (Eye e : EYES) if (e.state == 1) opened++;
         if (active) {
-            int want = wanted(ChaseClient.panicNow());
-            if (opened < want && --openIn <= 0) {
+            if (chaseTicks < ChaseTuning.EYES_FILL_TICKS) chaseTicks++;
+            peakWanted = Math.max(peakWanted, wanted(ChaseClient.panicNow()));
+            if (opened < peakWanted && --openIn <= 0) {
                 for (Eye e : EYES) {
                     if (e.state == 0) {
                         e.state = 1;
@@ -141,14 +157,6 @@ public final class ChaseEyes {
                     }
                 }
                 openIn = Mth.randomBetweenInclusive(RANDOM, ChaseTuning.EYES_OPEN_EVERY_MIN, ChaseTuning.EYES_OPEN_EVERY_MAX);
-            } else if (opened > want + ChaseTuning.EYES_HYSTERESIS && --closeIn <= 0) {
-                for (int i = EYES.size() - 1; i >= 0; i--) {
-                    if (EYES.get(i).state == 1) {
-                        EYES.get(i).state = 2;
-                        break;
-                    }
-                }
-                closeIn = ChaseTuning.EYES_CLOSE_EVERY;
             }
         } else if (opened > 0 && --closeIn <= 0) {
             int k = RANDOM.nextInt(opened);
@@ -181,8 +189,10 @@ public final class ChaseEyes {
                 e.tgx = (RANDOM.nextFloat() - 0.5f) * 0.5f;
                 e.tgy = (RANDOM.nextFloat() - 0.5f) * 0.5f;
             }
-            e.gx += (e.tgx - e.gx) * 0.35f;
-            e.gy += (e.tgy - e.gy) * 0.35f;
+            e.gxO = e.gx;
+            e.gyO = e.gy;
+            e.gx += (e.tgx - e.gx) * ChaseTuning.EYES_GAZE_FOLLOW;
+            e.gy += (e.tgy - e.gy) * ChaseTuning.EYES_GAZE_FOLLOW;
         }
         if (!active && !any) EYES.clear();
     }
@@ -192,7 +202,8 @@ public final class ChaseEyes {
         float partial = delta.getGameTimeDeltaPartialTick(false);
         int w = g.guiWidth();
         int h = g.guiHeight();
-        float iris = 1f + ChaseTuning.EYES_PULSE * ChaseClient.pulse(partial);
+        float iris = 1f + ChaseTuning.EYES_PULSE * ChaseClient.pulse(partial)
+                + ChaseTuning.EYES_PANIC_IRIS * ChaseClient.panicNow();
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.enableBlend();
@@ -210,7 +221,9 @@ public final class ChaseEyes {
             float vx = w / 2f - x;
             float vy = h / 2f - y;
             float len = Mth.sqrt(vx * vx + vy * vy) + 1e-3f;
-            EyeSprite.draw(g, x, y, e.size * h, open, 0.8f * vx / len + e.gx, 0.8f * vy / len + e.gy,
+            float gx = Mth.lerp(partial, e.gxO, e.gx);
+            float gy = Mth.lerp(partial, e.gyO, e.gy);
+            EyeSprite.draw(g, x, y, e.size * h, open, 0.8f * vx / len + gx, 0.8f * vy / len + gy,
                     e.alpha, e.mirrored, e.tilt, iris);
         }
         RenderSystem.disableBlend();

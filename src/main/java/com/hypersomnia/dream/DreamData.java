@@ -11,9 +11,17 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     private double returnX, returnY, returnZ;
     private float returnYaw, returnPitch;
     private int ticksLeft;
+    private String kind = "";
 
     public boolean isInDream() { return inDream; }
-    public void setInDream(boolean inDream) { this.inDream = inDream; }
+    public void setInDream(boolean inDream) {
+        this.inDream = inDream;
+        if (!inDream) this.kind = ""; // любой выход из сна сбрасывает кошмар
+    }
+
+    /** "" = обычный сон, иначе id из NightmareDefs. Ставить после setInDream(true). */
+    public String getKind() { return kind; }
+    public void setKind(String kind) { this.kind = kind == null ? "" : kind; }
 
     public int getTicksLeft() { return ticksLeft; }
     public void setTicksLeft(int ticks) { this.ticksLeft = Math.max(0, ticks); }
@@ -45,6 +53,7 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         tag.putFloat("ryaw", returnYaw);
         tag.putFloat("rpitch", returnPitch);
         tag.putInt("ticksLeft", ticksLeft);
+        tag.putString("kind", kind);
         return tag;
     }
 
@@ -58,5 +67,6 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         returnYaw = tag.getFloat("ryaw");
         returnPitch = tag.getFloat("rpitch");
         ticksLeft = Math.max(0, tag.getInt("ticksLeft"));
+        kind = tag.getString("kind");
     }
 }

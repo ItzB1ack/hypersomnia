@@ -127,6 +127,9 @@ public final class ObserverClient {
     private static boolean chaseDark;
     /** Позиция прошлого тика: рендер ведёт фигуру плавно между пакетами. Путь до следующего шага, тики до стука. */
     private static Vec3 prevPos = Vec3.ZERO;
+    /** Сглаженная позиция фигуры погони только для рендера: сервер ведёт её по клеткам, ступени и углы сглаживаются здесь. */
+    private static Vec3 chaseShown = Vec3.ZERO;
+    private static Vec3 chaseShownPrev = Vec3.ZERO;
     private static double stepLeft;
     private static int knockIn;
     /** Отладка: следующий запрос погони — 1: без проверок стадии, дней и ночи; 2: ещё и не учебная (догоняет). */
@@ -848,6 +851,10 @@ public final class ObserverClient {
     private static void chaseTick(Minecraft mc, LocalPlayer player) {
         age++;
         ghost.tickCount++;
+        chaseShownPrev = chaseShown;
+        chaseShown = new Vec3(Mth.lerp(ChaseTuning.SHOWN_XZ, chaseShown.x, pos.x),
+                Mth.lerp(ChaseTuning.SHOWN_Y, chaseShown.y, pos.y),
+                Mth.lerp(ChaseTuning.SHOWN_XZ, chaseShown.z, pos.z));
         double moved = Math.hypot(pos.x - prevPos.x, pos.z - prevPos.z);
         ghost.walkAnimation.update((float) Math.min(moved * 4.0, 1.0), 0.4f);
         stepLeft -= moved;
@@ -918,6 +925,8 @@ public final class ObserverClient {
         ghost.setPose(Pose.STANDING);
         pos = feet;
         prevPos = feet;
+        chaseShown = feet;
+        chaseShownPrev = feet;
         age = 0;
         gazeTicks = 0;
         wasLooking = false;
@@ -1291,7 +1300,7 @@ public final class ObserverClient {
         Vec3 cam = event.getCamera().getPosition();
         float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         // В погоне позиция приходит с сервера раз в тик: между тиками ведём плавно
-        Vec3 at = mode == Mode.CHASE ? prevPos.lerp(pos, partial) : pos;
+        Vec3 at = mode == Mode.CHASE ? chaseShownPrev.lerp(chaseShown, partial) : pos;
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         int light = LevelRenderer.getLightColor(mc.level, BlockPos.containing(at.x, at.y + 1.0, at.z));
         if (mode == Mode.BED) {

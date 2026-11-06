@@ -66,14 +66,20 @@ public final class SleepSceneTuning {
     public static final int PAUSE_CLOSE_MAX_TICKS = 170;
     public static final int SCOLD_SHOW_TICKS = 80;
     /** Толпа: сетка COLS x ROWS, в клетке глаз с шансом FILL; ширина SIZE_MIN..SIZE_MAX (доля высоты экрана, крупных мало). */
-    public static final int PAUSE_CROWD_COLS = 10;
-    public static final int PAUSE_CROWD_ROWS = 6;
-    public static final float PAUSE_CROWD_FILL = 0.85f;
-    public static final float PAUSE_CROWD_SIZE_MIN = 0.035f;
-    public static final float PAUSE_CROWD_SIZE_MAX = 0.12f;
+    public static final int PAUSE_CROWD_COLS = 22;
+    public static final int PAUSE_CROWD_ROWS = 13;
+    public static final float PAUSE_CROWD_FILL = 0.94f;
+    public static final float PAUSE_CROWD_SIZE_MIN = 0.025f;
+    public static final float PAUSE_CROWD_SIZE_MAX = 0.22f;
     /** Затемнение поверх меню (0..1): когда открыты оба глаза и когда проступила вся толпа. */
     public static final float PAUSE_DARK_EYES = 0.55f;
     public static final float PAUSE_DARK_CROWD = 0.85f;
+    /** Дрожь зрачков в гневе: шум меняется раз в PAUSE_TREMOR_MS, а не каждый кадр. Взгляд догоняет цель с постоянной PAUSE_GAZE_TAU_MS. */
+    public static final int PAUSE_TREMOR_MS = 60;
+    public static final float PAUSE_GAZE_TAU_MS = 90f;
+    /** Пара в центре тоже следит за курсором: максимальный сдвиг зрачка (доли размера глаза). */
+    public static final float PAUSE_PAIR_LOOK_X = 0.30f;
+    public static final float PAUSE_PAIR_LOOK_Y = 0.12f;
     /** Окно проявления фраз (тики от начала тела); t1 идёт первой. Каждая проявляется за TEXT_FADE_IN тиков и висит до обрыва. */
     public static final int TEXT_APPEAR_MIN = 12;
     public static final int TEXT_APPEAR_MAX = 80;

@@ -1,26 +1,26 @@
 """
-Голос осколка (client/FragmentVoice): реплики в погоне и в сцене у кровати (меню паузы).
+Голос осколка (client/FragmentVoice): реплики в погоне и в сцене у кровати (меню паузы). Только английский.
+Голос — старый синтезатор речи, как в analog horror: Microsoft SAPI 4 «Sam» (через https://www.tetyys.com/SAPI4/).
+Субтитры ванильные: тексты — hypersomnia.subtitle.voice.<id> в en_us.json и ru_ru.json (не здесь).
 Пишет:
   src/main/resources/assets/hypersomnia/sounds/voice/en/<id>.ogg        моно 44.1 кГц, Vorbis q4
-  src/main/resources/assets/hypersomnia/voice/timing.json               тайминги субтитров в тиках (20 в секунду):
-                                                                        on/end - начало и конец речи, len - длина файла,
-                                                                        seg - куски речи между паузами (по фразам)
-Озвучка только английская (решение пользователя): русские субтитры берутся из ru_ru.json и идут по таймингам
-английской речи. Сухой голос (исходник) лежит в src/tools/voice_src/en/<id>.flac. Его можно заменить своей записью
-(wav/flac/ogg/mp3, любая частота, моно или стерео) с тем же именем: скрипт обработает её так же, как синтез.
-Если исходника нет (или флаг --tts), скрипт синтезирует его через Piper (pip install piper-tts):
-  голос CC0 - en_US-joe-medium (https://huggingface.co/rhasspy/piper-voices),
-  положить .onnx и .onnx.json в build/voice_models/ (или указать папку: --models DIR).
-Запуск из корня: python run_tool.py make_fragment_voice [--tts] [--only id1,id2]
-Нужны numpy и ffmpeg в PATH (смена высоты - фильтр rubberband; если ffmpeg собран без него, высота меняется
-через asetrate и голос звучит «плёночнее»).
-
-Обработка («голос из записи»): основной голос ниже (PITCH, 0.93 - на 1.2 тона) и на 6% медленнее; под ним тот же голос ниже
-на 3 тона со сдвигом формант (тёмный двойник, тихо), над ним - на пятую тона выше с задержкой 27 мс (голос
-раздваивается) и шёпот (тот же спектр со случайной фазой: слова без голоса). Потом лента: полоса 110-7200 Гц,
-мягкое насыщение, плавание скорости (wow/flutter); перед словами нарастает обратная реверберация («вдох»
-комнаты), после - короткое эхо; тихое шипение плёнки. near (в голове): меньше эха, больше шёпота.
-Зёрна фиксированы: повторный запуск даёт те же файлы.
+  src/main/resources/assets/hypersomnia/voice/timing.json               в тиках (20 в секунду): on/end - начало и конец
+                                                                        речи, len - длина файла (сколько он «говорит»)
+Сухие слои (исходники, 16 кГц FLAC) лежат в src/tools/voice_src/en/:
+  <id>.flac          основной голос (Sam);
+  <id>_low.flac      тот же Sam на самой низкой высоте (тёмный двойник, совпадает по времени);
+  <id>_whisper.flac  Male Whisper (шёпот под голосом).
+Нет основного слоя (или флаг --fetch) - скрипт берёт все три с сайта (нужен интернет). Свою запись положи вместо
+<id>.flac (wav/flac/ogg/mp3, то же имя) и удали <id>_low/_whisper: скрипт сделает их из записи (сдвиг высоты и шёпот
+из шума со спектром голоса).
+Голоса SAPI 4 - старые движки Microsoft (проприетарные); их запись широко используется в видео, но права на
+распространение в моде не оформлены. Для публикации можно заменить исходники своей записью или свободным синтезом.
+Запуск из корня: python run_tool.py make_fragment_voice [--fetch] [--only id1,id2]
+Нужны numpy и ffmpeg в PATH (сдвиг высоты для своей записи - фильтр rubberband, без него - asetrate).
+Обработка («запись с плёнки»): основной голос, под ним тёмный двойник и шёпот; плёнка (полоса, мягкое насыщение,
+плавание скорости; провалы - MIX drops, сейчас выключены ради разборчивости), перед словами нарастает обратная
+реверберация, после - комната; шипение и тихий фон сети. near (вплотную, в голове): шёпот громче, комната меньше.
+Зёрна фиксированы: из тех же исходников - те же файлы.
 """
 import argparse
 import json
@@ -28,32 +28,40 @@ import os
 import shutil
 import subprocess
 import sys
+import time
+import urllib.parse
+import urllib.request
 import zlib
-
 try:
     import numpy as np
 except ImportError:
     sys.exit("Нужен numpy: pip install numpy")
 
 RES = os.path.join("src", "main", "resources", "assets", "hypersomnia")
-SOUNDS = os.path.join(RES, "sounds", "voice")
+SOUNDS = os.path.join(RES, "sounds", "voice", "en")
 TIMING = os.path.join(RES, "voice", "timing.json")
-SRC = os.path.join("src", "tools", "voice_src")
-MODELS = os.path.join("build", "voice_models")
+SRC = os.path.join("src", "tools", "voice_src", "en")
 SR = 44100
+SRC_SR = 16000
 TPS = 20
-VOICES = {"en": "en_US-joe-medium"}
-# Сдвиг высоты основного голоса (множитель частоты): свою запись подстрой здесь
-PITCH = {"en": 0.93}
-# Громкость слоёв (дБ к основному голосу): far - с места фигуры, near - в голове
-MIX = {
-    "far": {"dark": -16.0, "up": -14.0, "whisper": -11.0, "swell": -19.0, "room": -16.0, "rt60": 0.9, "pre": 0.6},
-    "near": {"dark": -17.0, "up": -15.0, "whisper": -7.0, "swell": -24.0, "room": -21.0, "rt60": 0.45, "pre": 0.35},
+API = "https://www.tetyys.com/SAPI4/SAPI4?text=%s&voice=%s&pitch=%d&speed=%d"
+# Слои SAPI 4: голос, высота (Sam: 50..200, обычно 100), скорость (30..450, обычно 150). Скорость у слоёв одна.
+SPEED = 118
+LAYERS = {
+    "": ("Sam", 82),
+    "_low": ("Sam", 50),
+    "_whisper": ("Male Whisper", 70),
 }
-# Пауза между фразами при синтезе (с): реплики медленные, с паузами
-SENTENCE_GAP = 0.42
+# Громкость слоёв и комнаты (дБ к основному голосу): far - с места фигуры, near - вплотную/в голове.
+# Подобрано по разборчивости (Vosk): громче шёпот, длиннее комната и провалы плёнки - и слова уже не разобрать.
+MIX = {
+    "far": {"low": -17.0, "whisper": -22.0, "swell": -24.0, "room": -20.0, "rt60": 0.6, "pre": 0.5,
+            "band": (140.0, 5600.0), "drive": 1.4, "wow": 0.6, "drops": 0, "hiss": -50.0, "level": -20.0},
+    "near": {"low": -18.0, "whisper": -12.0, "swell": -30.0, "room": -26.0, "rt60": 0.3, "pre": 0.3,
+             "band": (110.0, 7000.0), "drive": 1.2, "wow": 0.4, "drops": 0, "hiss": -54.0, "level": -22.0},
+}
 
-# id (как в VoiceLine.java), манера: far - с места фигуры, near - вплотную/в голове; текст (русский - в ru_ru.json)
+# id (как в VoiceLine.java), манера: far - с места фигуры, near - вплотную/в голове; текст для синтеза
 LINES = [
     ("start_early", "far", "Who are you?"),
     ("start_loop", "far", "There you are."),
@@ -222,7 +230,7 @@ def trim(x, sr=SR, rel_db=-45.0, margin=0.03):
 
 
 def segments(x, rel_db=-30.0, min_gap=0.22, min_len=0.08):
-    """Куски речи между паузами (секунды): по ним субтитры открывают фразы."""
+    """Куски речи между паузами (секунды): начало и конец речи для timing.json и громкость по речи."""
     e, k = envelope(x, 0.02)
     ref = np.percentile(e, 95) + 1e-9
     on = e > ref * db(rel_db)
@@ -245,104 +253,149 @@ def segments(x, rel_db=-30.0, min_gap=0.22, min_len=0.08):
     return [[a * k / SR, b * k / SR] for a, b in merged if (b - a) * k / SR >= min_len]
 
 
-def process(dry, style, seed, pitch):
+def fetch(text, voice, pitch, speed, path):
+    """Сухой слой с сайта SAPI 4 (WAV) -> 16 кГц FLAC в voice_src."""
+    url = API % (urllib.parse.quote(text), urllib.parse.quote(voice), pitch, speed)
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (hypersomnia voice tool)"})
+            data = urllib.request.urlopen(req, timeout=40).read()
+            if data[:4] != b"RIFF":
+                raise IOError("не WAV: " + data[:60].decode("latin-1"))
+            break
+        except Exception as ex:
+            if attempt == 3:
+                sys.exit("Сайт SAPI 4 не ответил (%s): %s" % (voice, ex))
+            time.sleep(2.0 * (attempt + 1))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    subprocess.run([ffmpeg(), "-v", "error", "-y", "-i", "-", "-ac", "1", "-ar", str(SRC_SR), "-c:a", "flac",
+                    "-sample_fmt", "s16", path], input=data, check=True)
+    time.sleep(0.4)
+
+
+def find_src(lid, layer):
+    for ext in (".flac", ".wav", ".ogg", ".mp3"):
+        p = os.path.join(SRC, lid + layer + ext)
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def align(ref, x, max_s=0.35):
+    """Сдвинуть слой x так, чтобы его речь совпала с ref (по огибающей, шаг 5 мс)."""
+    er, k = envelope(ref, 0.005)
+    ex, _ = envelope(x, 0.005)
+    n = max(len(er), len(ex))
+    er = np.pad(er, (0, n - len(er)))
+    ex = np.pad(ex, (0, n - len(ex)))
+    m = int(max_s * SR / k)
+    best, lag = -1.0, 0
+    for L in range(-m, m + 1):
+        c = np.dot(er[max(0, L):n + min(0, L)], ex[max(0, -L):n - max(0, L)])
+        if c > best:
+            best, lag = c, L
+    s = lag * k
+    y = np.zeros(len(ref))
+    if s >= 0:
+        seg = x[:max(0, len(ref) - s)]
+        y[s:s + len(seg)] = seg
+    else:
+        seg = x[-s:-s + len(ref)]
+        y[:len(seg)] = seg
+    return y
+
+
+def dropouts(x, seed, count):
+    """Редкие провалы плёнки: на 40-90 мс громкость падает на 6-10 дБ (только внутри речи)."""
+    rng = np.random.default_rng(seed)
+    segs = segments(x)
+    if not segs or count <= 0:
+        return x
+    y = x.copy()
+    for _ in range(count):
+        a, b = segs[rng.integers(len(segs))]
+        if b - a < 0.3:
+            continue
+        t0 = rng.uniform(a + 0.1, b - 0.15)
+        ln = rng.uniform(0.04, 0.09)
+        depth = db(-rng.uniform(6.0, 10.0))
+        i0, i1 = int(t0 * SR), int((t0 + ln) * SR)
+        ramp = int(0.008 * SR)
+        g = np.ones(i1 - i0) * depth
+        g[:ramp] = np.linspace(1.0, depth, ramp)
+        g[-ramp:] = np.linspace(depth, 1.0, ramp)
+        y[i0:i1] *= g
+    return y
+
+
+def process(main, low, wh, style, seed):
     m = MIX[style]
-    x = trim(dry)
-    x = x / (np.max(np.abs(x)) + 1e-9) * 0.7
-    tempo = 0.94
-    main = shift(x, pitch, tempo)
-    dark = shift(x, pitch * 0.9, tempo, "shifted")
-    up = shift(x, pitch * 1.012, tempo)
-    wh = whisper(main, seed)
-    voice = mix(main,
-                delay(up, 27.0) * db(m["up"]),
-                fft_filter(dark, hi=2400.0) * db(m["dark"]),
-                delay(fft_filter(wh, lo=1100.0), 9.0) * db(m["whisper"]))
     near = style == "near"
-    voice = fft_filter(voice, lo=110.0, hi=7600.0 if near else 7000.0)
-    peak = np.max(np.abs(voice)) + 1e-9
-    voice = np.tanh(1.6 * voice / peak) / np.tanh(1.6) * peak
-    voice = wow(voice, seed + 1)
+    peak = np.max(np.abs(main)) + 1e-9
+    main = main / peak * 0.7
+    low = align(main, low)
+    low = low / (np.max(np.abs(low)) + 1e-9) * 0.7
+    wh = align(main, wh)
+    wh = wh / (np.max(np.abs(wh)) + 1e-9) * 0.7
+    voice = mix(main,
+                fft_filter(low, hi=1800.0) * db(m["low"]),
+                fft_filter(wh, lo=900.0) * db(m["whisper"]))
+    lo, hi = m["band"]
+    voice = fft_filter(voice, lo=lo, hi=hi)
+    pk = np.max(np.abs(voice)) + 1e-9
+    voice = np.tanh(m["drive"] * voice / pk) / np.tanh(m["drive"]) * pk
+    voice = wow(voice, seed + 1, depth_ms=1.0 * m["wow"], flutter_ms=0.18 * m["wow"])
+    voice = dropouts(voice, seed + 5, m["drops"])
     segs = segments(main)
 
-    pre_roll = m["pre"]
-    swell = conv(voice[::-1], impulse(2.2, seed + 2, 3200.0))[::-1]
+    swell = conv(voice[::-1], impulse(2.0, seed + 2, 3000.0))[::-1]
     pre = len(swell) - len(voice)
-    room = conv(voice, impulse(m["rt60"], seed + 3, 5200.0))
+    room = conv(voice, impulse(m["rt60"], seed + 3, 4800.0))
     out = np.zeros(pre + len(room))
     out[:len(swell)] += swell * db(m["swell"])
     out[pre:pre + len(room)] += room * db(m["room"])
     out[pre:pre + len(voice)] += voice
-    cut = max(0, pre - int(pre_roll * SR))
+    cut = max(0, pre - int(m["pre"] * SR))
     out = out[cut:]
     offset = (pre - cut) / SR
 
-    # Хвост: до -60 дБ, затухание в конце; плавный вход «вдоха»
+    # Хвост до -60 дБ, мягкие вход и выход
     e, k = envelope(out, 0.01)
     alive = np.nonzero(e > np.max(e) * db(-60.0))[0]
     if len(alive):
         out = out[:min(len(out), (alive[-1] + 1) * k)]
-    fin = min(len(out), int(0.2 * SR))
+    fin = min(len(out), int(0.15 * SR))
     out[:fin] *= np.linspace(0.0, 1.0, fin)
     fout = min(len(out), int(0.15 * SR))
     out[-fout:] *= np.linspace(1.0, 0.0, fout)
 
-    # Громкость по речи: -20 дБ (в голове -22), пик не выше -2 дБ
+    # Громкость по речи, пик не выше -2 дБ
     sp = np.concatenate([out[int((a + offset) * SR):int((b + offset) * SR)] for a, b in segs]) if segs else out
     rms = np.sqrt(np.mean(sp * sp)) + 1e-9
-    out *= db(-22.0 if near else -20.0) / rms
-    pk = np.max(np.abs(out))
-    if pk > db(-2.0):
-        lim = db(-2.0)
+    out *= db(m["level"]) / rms
+    lim = db(-2.0)
+    if np.max(np.abs(out)) > lim * 0.8:
         out = np.where(np.abs(out) > lim * 0.8,
                        np.sign(out) * (lim * 0.8 + lim * 0.2 * np.tanh((np.abs(out) - lim * 0.8) / (lim * 0.2))), out)
 
-    # Шипение плёнки (розоватое), очень тихо
+    # Шипение плёнки и тихий фон сети 50 Гц (с гармониками)
     rng = np.random.default_rng(seed + 4)
     hiss = fft_filter(rng.standard_normal(len(out)), lo=900.0, hi=9000.0, order=1)
-    hiss *= db(-56.0) / (np.sqrt(np.mean(hiss * hiss)) + 1e-9)
+    hiss *= db(m["hiss"]) / (np.sqrt(np.mean(hiss * hiss)) + 1e-9)
+    tt = np.arange(len(out)) / SR
+    hum = (np.sin(2 * np.pi * 50 * tt) + 0.5 * np.sin(2 * np.pi * 100 * tt) + 0.25 * np.sin(2 * np.pi * 150 * tt))
+    hum *= db(m["hiss"] - 8.0) / (np.sqrt(np.mean(hum * hum)) + 1e-9)
+    bed = hiss + hum
     ramp = min(len(out), int(0.08 * SR))
-    hiss[:ramp] *= np.linspace(0, 1, ramp)
-    hiss[-ramp:] *= np.linspace(1, 0, ramp)
-    out += hiss
+    bed[:ramp] *= np.linspace(0, 1, ramp)
+    bed[-ramp:] *= np.linspace(1, 0, ramp)
+    out += bed
     t = {
         "on": int(round((segs[0][0] + offset) * TPS)) if segs else 0,
         "end": int(round((segs[-1][1] + offset) * TPS)) if segs else int(len(out) / SR * TPS),
         "len": int(np.ceil(len(out) / SR * TPS)),
-        "seg": [[int(round((a + offset) * TPS)), int(round((b + offset) * TPS))] for a, b in segs],
     }
     return out, t
-
-
-VOICE_CACHE = {}
-
-
-def synth(lang, text, models):
-    try:
-        from piper import PiperVoice, SynthesisConfig
-    except ImportError:
-        sys.exit("Нет исходника и нет Piper: pip install piper-tts (или положи свою запись в " + SRC + ")")
-    if lang not in VOICE_CACHE:
-        path = os.path.join(models, VOICES[lang] + ".onnx")
-        if not os.path.exists(path):
-            sys.exit("Нет модели " + path + " (скачай с https://huggingface.co/rhasspy/piper-voices)")
-        VOICE_CACHE[lang] = PiperVoice.load(path)
-    v = VOICE_CACHE[lang]
-    cfg = SynthesisConfig(length_scale=1.0, noise_scale=0.62, noise_w_scale=0.75)
-    parts = []
-    sr = 22050
-    for i, ch in enumerate(v.synthesize(text, syn_config=cfg)):
-        sr = ch.sample_rate
-        if i:
-            parts.append(np.zeros(int(sr * SENTENCE_GAP)))
-        parts.append(trim(np.asarray(ch.audio_float_array, dtype=np.float64), sr, margin=0.02))
-    return np.concatenate(parts), sr
-
-
-def save_flac(x, sr, path):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    subprocess.run([ffmpeg(), "-v", "error", "-y", "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "-",
-                    "-c:a", "flac", "-sample_fmt", "s16", path], input=x.astype(np.float32).tobytes(), check=True)
 
 
 def save_ogg(x, path):
@@ -352,55 +405,44 @@ def save_ogg(x, path):
                     "-flags:a", "+bitexact", path], input=x.astype(np.float32).tobytes(), check=True)
 
 
-def find_src(lang, lid):
-    for ext in (".flac", ".wav", ".ogg", ".mp3"):
-        p = os.path.join(SRC, lang, lid + ext)
-        if os.path.exists(p):
-            return p
-    return None
-
-
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tts", action="store_true", help="пересинтезировать исходники Piper")
+    ap.add_argument("--fetch", action="store_true", help="заново взять слои с сайта SAPI 4")
     ap.add_argument("--only", default="", help="id через запятую")
-    ap.add_argument("--models", default=MODELS)
     a = ap.parse_args()
     only = {s.strip() for s in a.only.split(",") if s.strip()}
-    langs = ["en"]
     timing = {}
     if os.path.exists(TIMING):
         with open(TIMING, encoding="utf-8") as f:
-            timing = json.load(f)
-    for lang in langs:
-        timing.setdefault(lang, {})
-        for lid, style, en in LINES:
-            if only and lid not in only:
-                continue
-            src = find_src(lang, lid)
-            if a.tts or src is None:
-                x, sr = synth(lang, en, a.models)
-                src = os.path.join(SRC, lang, lid + ".flac")
-                save_flac(x, sr, src)
-            dry = load(src)
-            seed = zlib.crc32((lang + ":" + lid).encode("utf-8")) & 0xFFFF
-            out, t = process(dry, style, seed, PITCH[lang])
-            save_ogg(out, os.path.join(SOUNDS, lang, lid + ".ogg"))
-            timing[lang][lid] = t
-            print("%s/%-13s %.2f c, речь %d-%d тиков, кусков %d" % (lang, lid, len(out) / SR, t["on"], t["end"],
-                                                                   len(t["seg"])))
+            timing = json.load(f).get("en", {})
+    for lid, style, text in LINES:
+        if only and lid not in only:
+            continue
+        # Нет основного слоя (или --fetch) - все три слоя с сайта; иначе недостающие слои делаются из основного
+        refetch = a.fetch or find_src(lid, "") is None
+        layers = {}
+        for layer, (voice, pitch) in LAYERS.items():
+            src = find_src(lid, layer)
+            if refetch:
+                src = os.path.join(SRC, lid + layer + ".flac")
+                fetch(text, voice, pitch, SPEED, src)
+            layers[layer] = load(src) if src else None
+        seed = zlib.crc32(("en:" + lid).encode("utf-8")) & 0xFFFF
+        main_v = trim(layers[""])
+        low = layers["_low"] if layers["_low"] is not None else shift(main_v, 0.75, 1.0, "shifted")
+        wh = layers["_whisper"] if layers["_whisper"] is not None else whisper(main_v, seed)
+        out, t = process(main_v, trim(low), trim(wh), style, seed)
+        save_ogg(out, os.path.join(SOUNDS, lid + ".ogg"))
+        timing[lid] = t
+        print("%-13s %.2f c, речь %d-%d тиков" % (lid, len(out) / SR, t["on"], t["end"]))
     os.makedirs(os.path.dirname(TIMING), exist_ok=True)
-    ordered = {lang: {lid: timing[lang][lid] for lid, _, _ in LINES if lid in timing[lang]}
-               for lang in langs if lang in timing}
+    d = {lid: timing[lid] for lid, _, _ in LINES if lid in timing}
     with open(TIMING, "w", encoding="utf-8", newline="\n") as f:
-        f.write("{\n")
-        for li, (lang, d) in enumerate(ordered.items()):
-            f.write('  "%s": {\n' % lang)
-            items = list(d.items())
-            for i, (lid, t) in enumerate(items):
-                f.write('    "%s": %s%s\n' % (lid, json.dumps(t, ensure_ascii=False), "," if i < len(items) - 1 else ""))
-            f.write("  }%s\n" % ("," if li < len(ordered) - 1 else ""))
-        f.write("}\n")
+        f.write('{\n  "en": {\n')
+        items = list(d.items())
+        for i, (lid, t) in enumerate(items):
+            f.write('    "%s": %s%s\n' % (lid, json.dumps(t, ensure_ascii=False), "," if i < len(items) - 1 else ""))
+        f.write("  }\n}\n")
     print("Готово:", TIMING)
 
 

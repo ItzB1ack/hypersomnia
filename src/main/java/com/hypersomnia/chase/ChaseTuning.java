@@ -61,6 +61,12 @@ public final class ChaseTuning {
     public static final int REPATH_MIN_TICKS = 4;
     public static final int REPATH_FAIL_TICKS = 20;
     public static final double REPATH_MOVE = 2.0;
+    /** Срез углов на пути: сколько точек вперёд смотреть и на сколько отнести боковые лучи тела (блоки). */
+    public static final int CORNER_LOOKAHEAD = 4;
+    public static final double CORNER_SIDE = 0.3;
+    /** Клиентское сглаживание позиции фигуры: доля до цели за тик по горизонтали и по высоте (ступени). */
+    public static final double SHOWN_XZ = 0.55;
+    public static final double SHOWN_Y = 0.25;
     /** Работа одного поиска: клеток не больше PATH_MAX_NODES и не дальше PATH_RANGE блоков от него по горизонтали. */
     public static final int PATH_MAX_NODES = 1500;
     public static final int PATH_RANGE = 48;
@@ -79,6 +85,11 @@ public final class ChaseTuning {
     public static final double PATH_DOOR_COST = 20.0;
     /** Спрыгивает не больше чем с такой высоты (блоки). */
     public static final int PATH_DROP_MAX = 4;
+    /** Лезет по стене вверх до стольких блоков (игрок на столбе или уступе). 0-1: не лазает, стоит внизу. */
+    public static final int PATH_SCRAMBLE_MAX = 3;
+    public static final double PATH_SCRAMBLE_COST = 1.0;
+    /** Цель недостижима, но ближайшая клетка не дальше стольких блоков по горизонтали: стоит под игроком. */
+    public static final double PATH_UNDER_DIST = 3.0;
     /** Вес эвристики A*: больше 1 — ищет быстрее, путь чуть длиннее кратчайшего. */
     public static final double PATH_HEURISTIC = 1.2;
     /** Перед закрытой дверью встаёт на таком расстоянии от центра её клетки. */
@@ -196,28 +207,30 @@ public final class ChaseTuning {
     // Глаза по углам экрана (client/ChaseEyes)
     // ------------------------------------------------------------------
     /** В каждом углу MIN..MAX глаз в четверти эллипса SPREAD_X x SPREAD_Y от угла (доли высоты экрана), не ближе EDGE к краю. */
-    public static final int EYES_PER_CORNER_MIN = 4;
-    public static final int EYES_PER_CORNER_MAX = 7;
-    public static final float EYES_SPREAD_X = 0.38f;
-    public static final float EYES_SPREAD_Y = 0.29f;
+    public static final int EYES_PER_CORNER_MIN = 18;
+    public static final int EYES_PER_CORNER_MAX = 24;
+    public static final float EYES_SPREAD_X = 0.53f;
+    public static final float EYES_SPREAD_Y = 0.40f;
     public static final float EYES_EDGE = 0.03f;
-    /** Ширина глаза (доля высоты экрана): у самого угла SIZE_MAX, дальше от него до SIZE_MIN; разброс ±20%. */
-    public static final float EYES_SIZE_MIN = 0.045f;
-    public static final float EYES_SIZE_MAX = 0.12f;
-    /** Пока он стоит на следе, открыто EYES_WARN; дальше число растёт с паникой до всех. */
-    public static final int EYES_WARN = 3;
+    /** Ширина глаза (доля высоты экрана): случайный размер от SIZE_MIN до SIZE_MAX, крупные чаще ближе к углу. */
+    public static final float EYES_SIZE_MIN = 0.025f;
+    public static final float EYES_SIZE_MAX = 0.22f;
+    /** Начальная цель — WARN, затем за FILL_TICKS она вырастает до всех глаз; паника немного опережает рост. */
+    public static final int EYES_WARN = 12;
+    public static final int EYES_FILL_TICKS = 480;
+    public static final float EYES_PANIC_BOOST = 0.18f;
     /** Первый глаз через FIRST_DELAY тиков, следующие раз в OPEN_EVERY_MIN..MAX; открывается за OPEN_TICKS, закрывается за CLOSE_TICKS. */
     public static final int EYES_FIRST_DELAY = 12;
-    public static final int EYES_OPEN_EVERY_MIN = 5;
-    public static final int EYES_OPEN_EVERY_MAX = 14;
+    public static final int EYES_OPEN_EVERY_MIN = 2;
+    public static final int EYES_OPEN_EVERY_MAX = 3;
     public static final int EYES_OPEN_TICKS = 14;
     public static final int EYES_CLOSE_TICKS = 9;
-    /** Паника спала: лишние сверх HYSTERESIS закрываются раз в CLOSE_EVERY тиков. */
-    public static final int EYES_HYSTERESIS = 2;
-    public static final int EYES_CLOSE_EVERY = 10;
+    /** Устаревшие параметры уменьшения глаз; сохранены для совместимости, в новой логике не используются. */
+    public static final int EYES_HYSTERESIS = 3;
+    public static final int EYES_CLOSE_EVERY = 6;
     /** Погоня кончилась: закрываются по одному раз в END_EVERY_MIN..MAX тиков. */
-    public static final int EYES_END_EVERY_MIN = 3;
-    public static final int EYES_END_EVERY_MAX = 9;
+    public static final int EYES_END_EVERY_MIN = 1;
+    public static final int EYES_END_EVERY_MAX = 3;
     /** Моргание раз в BLINK_MIN..MAX тиков, длится BLINK_TICKS; взгляд чуть сдвигается раз в LOOK_MIN..MAX. */
     public static final int EYES_BLINK_MIN = 50;
     public static final int EYES_BLINK_MAX = 160;
@@ -227,4 +240,7 @@ public final class ChaseTuning {
     /** Радужка вздрагивает с ударом сердца (доля размера); наклон глаз до TILT градусов. */
     public static final float EYES_PULSE = 0.07f;
     public static final float EYES_TILT = 16f;
+    /** Взгляд глаз в углах догоняет цель мягче (было 0.35) и рисуется с интерполяцией; паника расширяет радужки. */
+    public static final float EYES_GAZE_FOLLOW = 0.22f;
+    public static final float EYES_PANIC_IRIS = 0.12f;
 }

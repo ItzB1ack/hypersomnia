@@ -3,6 +3,7 @@ package com.hypersomnia.client;
 import com.hypersomnia.ForestReplyTuning;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.forest.ForestReplyContext;
+import com.hypersomnia.forest.ForestReplyRhythm;
 import com.hypersomnia.network.ForestReplyAckPayload;
 import com.hypersomnia.network.ForestReplyPayload;
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-/** Два локальных звука из одной скрытой точки. Ничего не принимает/завершает в ObserverDirector. */
+/** Две последовательности ударов и разрушения из одной скрытой точки. */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class ForestReplyClient {
     private ForestReplyClient() {}
@@ -37,7 +38,8 @@ public final class ForestReplyClient {
     private static LocalPlayer listener;
     private static Vec3 source;
     private static SimpleSoundInstance first;
-    private static SimpleSoundInstance second;
+    private static final List<SimpleSoundInstance> sounds = new ArrayList<>();
+    private static int nextCue;
     private static boolean started;
     private static int age;
 
@@ -72,7 +74,9 @@ public final class ForestReplyClient {
                 stop(mc, ForestReplyAckPayload.NO_SOURCE);
                 return;
             }
-            first = sound(origin, source);
+            first = sound(origin, source, false);
+            sounds.add(first);
+            nextCue = 1;
             mc.getSoundManager().play(first);
             confirmStarted(mc);
             return;
@@ -87,15 +91,20 @@ public final class ForestReplyClient {
             stop(mc, ForestReplyAckPayload.INTERRUPTED);
             return;
         }
-        if (second == null && started && age >= offer.gapTicks()) {
+        if (started && nextCue < ForestReplyRhythm.CUE_COUNT
+                && age >= ForestReplyRhythm.tick(nextCue, offer.gapTicks())) {
             if (!hidden(origin, listener, source)) {
                 stop(mc, ForestReplyAckPayload.INTERRUPTED);
                 return;
             }
-            second = sound(origin, source);
-            mc.getSoundManager().play(second);
+            SimpleSoundInstance cue = sound(origin, source, ForestReplyRhythm.isBreak(nextCue));
+            sounds.add(cue);
+            mc.getSoundManager().play(cue);
+            nextCue++;
         }
-        if (second != null && age >= offer.gapTicks() + ForestReplyTuning.AUDIO_TAIL) {
+        if (nextCue == ForestReplyRhythm.CUE_COUNT
+                && age >= ForestReplyRhythm.tick(ForestReplyRhythm.CUE_COUNT - 1, offer.gapTicks())
+                        + ForestReplyTuning.AUDIO_TAIL) {
             stop(mc, ForestReplyAckPayload.INTERRUPTED);
         }
     }
@@ -124,8 +133,8 @@ public final class ForestReplyClient {
     }
 
     private static void stop(Minecraft mc, int reason) {
-        if (first != null) mc.getSoundManager().stop(first);
-        if (second != null) mc.getSoundManager().stop(second);
+        for (SimpleSoundInstance sound : sounds) mc.getSoundManager().stop(sound);
+        sounds.clear();
         if (offer != null && !started && mc.getConnection() != null) {
             PacketDistributor.sendToServer(new ForestReplyAckPayload(offer.ticket(), reason));
         }
@@ -134,14 +143,17 @@ public final class ForestReplyClient {
         listener = null;
         source = null;
         first = null;
-        second = null;
+        nextCue = 0;
         started = false;
         age = 0;
     }
 
-    private static SimpleSoundInstance sound(ClientLevel level, Vec3 at) {
-        return new SimpleSoundInstance(SoundEvents.WOOD_BREAK, SoundSource.BLOCKS,
-                ForestReplyTuning.VOLUME, ForestReplyTuning.PITCH, level.random, at.x, at.y, at.z);
+    private static SimpleSoundInstance sound(ClientLevel level, Vec3 at, boolean breaking) {
+        // Та же дальность, что у старого ответа: тихий ванильный HIT на расстоянии 8–12 блоков
+        // иначе мог бы вовсе не слышаться из-за затухания позиционного звука.
+        return new SimpleSoundInstance(breaking ? SoundEvents.WOOD_BREAK : SoundEvents.WOOD_HIT,
+                SoundSource.BLOCKS, ForestReplyTuning.VOLUME, ForestReplyTuning.PITCH,
+                level.random, at.x, at.y, at.z);
     }
 
     /** Сначала дешёвый ограниченный список брёвен, затем не более 32 проверок листвы/укрытия. */

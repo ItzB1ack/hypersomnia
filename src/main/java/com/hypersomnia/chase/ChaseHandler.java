@@ -6,6 +6,7 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
 import com.hypersomnia.dream.DreamDimension;
+import com.hypersomnia.dream.DreamTransition;
 import com.hypersomnia.finale.FinaleLogic;
 import com.hypersomnia.lab.LabOutage;
 import com.hypersomnia.lab.LabProtection;
@@ -186,8 +187,11 @@ public final class ChaseHandler {
             return;
         }
         if (run.phase == ChasePayload.PH_CAUGHT) {
-            if (run.phaseTicks >= ChaseTuning.CAUGHT_TICKS) end(player, run, ChasePayload.O_CAUGHT);
-            else send(player, run, ChasePayload.PH_CAUGHT, ChasePayload.O_NONE);
+            if (run.phaseTicks >= ChaseTuning.CAUGHT_TICKS) {
+                end(player, run, ChasePayload.O_CAUGHT);
+                // поимка = сон: run уже снят, поэтому смена измерения его не прервёт
+                DreamTransition.enterNightmare(player, com.hypersomnia.nightmare.NightmareDefs.WARD_CORRIDOR);
+            } else send(player, run, ChasePayload.PH_CAUGHT, ChasePayload.O_NONE);
             return;
         }
         // Взгляд в погоне не прогоняет. Пока он стоит на следе: заметил его (WARN_SEEN_TICKS взгляда) — сразу бежит
@@ -269,36 +273,65 @@ public final class ChaseHandler {
                 : stale ? ChaseTuning.REPATH_MIN_TICKS : ChaseTuning.REPATH_TICKS;
         if (run.sinceRepath >= wait) repath(run, nav, target);
         if (run.route != null) {
-            left = followRoute(run, nav, left);
+            left = followRoute(player, run, nav, left);
             if (run.route != null || run.phase != ChasePayload.PH_RUN) return;
         }
         if (run.onTrail) followTrail(player, run, left);
     }
 
-    /** Новый путь к игроку; нет — к точке следа (с конца следа, TRAIL_JOIN_TRIES попыток); нет и его — по следу. */
+    /**
+     * Новый путь к игроку. Недостижим (за водой, на высоком столбе) — путь к ближайшей достижимой клетке; если она
+     * не под игроком, сначала пробует точку следа (TRAIL_JOIN_TRIES попыток). Совсем нет пути — по следу.
+     */
     private static void repath(Run run, ChasePath nav, Vec3 target) {
         run.sinceRepath = 0;
         run.routeGoal = target;
         run.ri = 0;
-        ChasePath.Route r = nav.find(run.pos, target, ChaseTuning.PATH_MAX_NODES);
-        if (r == null) {
+        ChasePath.Route r = nav.find(run.pos, target, ChaseTuning.PATH_MAX_NODES, true);
+        if (r != null && r.partial && !under(r, target)) {
             for (int t = 0, i = run.path.size() - 1; t < ChaseTuning.TRAIL_JOIN_TRIES && i >= run.next;
                  t++, i -= ChaseTuning.TRAIL_JOIN_STEP) {
-                r = nav.find(run.pos, run.path.get(i), ChaseTuning.TRAIL_JOIN_NODES);
-                if (r != null) {
-                    r.trailIndex = i;
+                ChasePath.Route j = nav.find(run.pos, run.path.get(i), ChaseTuning.TRAIL_JOIN_NODES);
+                if (j != null) {
+                    j.trailIndex = i;
+                    r = j;
                     break;
                 }
             }
         }
         run.route = r;
-        run.routeFailed = r == null;
+        run.routeFailed = r == null || r.partial;
         run.onTrail = r == null;
     }
 
-    /** Идёт по пути A*; возвращает непройденный остаток шага. */
-    private static double followRoute(Run run, ChasePath nav, double left) {
+    /** Ближайшая достижимая клетка пути почти под целью (по горизонтали): игрок выше, чем он может залезть. */
+    private static boolean under(ChasePath.Route r, Vec3 target) {
+        Vec3 e = r.points.get(r.size() - 1);
+        return Math.hypot(e.x - target.x, e.z - target.z) <= ChaseTuning.PATH_UNDER_DIST;
+    }
+
+    /** Ход по прямой без стен: два луча по бокам тела, чтобы не цеплять угол блока. */
+    private static boolean wide(ServerPlayer player, Vec3 a, Vec3 b) {
+        double dx = b.x - a.x;
+        double dz = b.z - a.z;
+        double len = Math.hypot(dx, dz);
+        if (len < 1.0E-4) return true;
+        Vec3 n = new Vec3(-dz / len * ChaseTuning.CORNER_SIDE, 0.0, dx / len * ChaseTuning.CORNER_SIDE);
+        return clear(player, a.add(n), b.add(n)) && clear(player, a.subtract(n), b.subtract(n));
+    }
+
+    /** Идёт по пути A*, срезая углы; возвращает непройденный остаток шага. */
+    private static double followRoute(ServerPlayer player, Run run, ChasePath nav, double left) {
         ChasePath.Route r = run.route;
+        // Срез углов: точка впереди на том же уровне, пол по прямой есть, тело проходит — идём сразу к ней
+        int far = run.ri;
+        for (int k = run.ri + 1; k < Math.min(r.size(), run.ri + 1 + ChaseTuning.CORNER_LOOKAHEAD); k++) {
+            Vec3 q = r.points.get(k);
+            if (Math.abs(q.y - run.pos.y) > 0.05 || nav.closedDoor(r.cells.get(k))
+                    || !nav.floorAlong(run.pos, q) || !wide(player, run.pos, q)) break;
+            far = k;
+        }
+        run.ri = far;
         while (left > 1.0E-4 && run.ri < r.size()) {
             BlockPos cell = r.cells.get(run.ri);
             Vec3 p = r.points.get(run.ri);

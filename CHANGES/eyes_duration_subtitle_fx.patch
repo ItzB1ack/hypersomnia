@@ -1,0 +1,213 @@
+--- a/src/main/java/com/hypersomnia/client/ChaseEyes.java
++++ b/src/main/java/com/hypersomnia/client/ChaseEyes.java
+@@ -18,8 +18,8 @@
+ 
+ /**
+  * Глаза по углам экрана в погоне: плотные скопления разных размеров; крупные чаще ближе к углу.
+- * Открываются по одному с начала погони: пока он стоит на следе — несколько, дальше чем сильнее паника
+- * (чем он ближе), тем больше; отстал — лишние закрываются. Моргают, смотрят на игрока (в центр кадра),
++ * Открываются по одному с начала погони: со временем их становится больше, близость немного ускоряет рост.
++ * Открытые глаза не закрываются при отдалении до конца погони. Моргают, смотрят на игрока (в центр кадра),
+  * радужки вздрагивают с ударами сердца. Погоня кончилась — закрываются по одному.
+  * Слой chase_eyes (ChaseOverlay): над виньеткой, под чёрным кадром поимки. Числа — ChaseTuning.EYES_*.
+  */
+@@ -55,11 +55,15 @@
+     private static boolean active;
+     private static int openIn;
+     private static int closeIn;
+-
+-    /** Погоня началась: раскладка новая (если прошлые глаза уже закрылись), первый откроется через FIRST_DELAY. */
++    private static int chaseTicks;
++    private static int peakWanted;
++
++    /** Новая погоня всегда начинает новую раскладку и отсчёт с нуля. */
+     public static void begin() {
+-        if (EYES.isEmpty()) layout();
++        layout();
+         active = true;
++        chaseTicks = 0;
++        peakWanted = 0;
+         openIn = ChaseTuning.EYES_FIRST_DELAY;
+     }
+ 
+@@ -72,6 +76,8 @@
+     public static void reset() {
+         EYES.clear();
+         active = false;
++        chaseTicks = 0;
++        peakWanted = 0;
+     }
+ 
+     private static void layout() {
+@@ -117,10 +123,13 @@
+         }
+     }
+ 
+-    /** Сколько глаз открыто при панике p: на следе EYES_WARN, дальше растёт до всех. */
++    /** Цель растёт по времени; паника добавляет небольшой опережающий прирост, не заменяя течение времени. */
+     private static int wanted(float p) {
+-        float k = Mth.clamp((p - ChaseTuning.PANIC_WARN) / (1f - ChaseTuning.PANIC_WARN), 0f, 1f);
+-        return Math.min(EYES.size(), ChaseTuning.EYES_WARN + Math.round(k * (EYES.size() - ChaseTuning.EYES_WARN)));
++        float time = Mth.clamp(chaseTicks / (float) ChaseTuning.EYES_FILL_TICKS, 0f, 1f);
++        float panic = Mth.clamp((p - ChaseTuning.PANIC_WARN) / (1f - ChaseTuning.PANIC_WARN), 0f, 1f);
++        float progress = time + ChaseTuning.EYES_PANIC_BOOST * panic * (1f - time);
++        int initial = Math.min(ChaseTuning.EYES_WARN, EYES.size());
++        return Math.min(EYES.size(), initial + Math.round(progress * (EYES.size() - initial)));
+     }
+ 
+     @SubscribeEvent
+@@ -132,11 +141,13 @@
+             return;
+         }
+         if (mc.isPaused()) return;
++        if (active && !ChaseClient.active()) end();
+         int opened = 0;
+         for (Eye e : EYES) if (e.state == 1) opened++;
+         if (active) {
+-            int want = wanted(ChaseClient.panicNow());
+-            if (opened < want && --openIn <= 0) {
++            if (chaseTicks < ChaseTuning.EYES_FILL_TICKS) chaseTicks++;
++            peakWanted = Math.max(peakWanted, wanted(ChaseClient.panicNow()));
++            if (opened < peakWanted && --openIn <= 0) {
+                 for (Eye e : EYES) {
+                     if (e.state == 0) {
+                         e.state = 1;
+@@ -144,14 +155,6 @@
+                     }
+                 }
+                 openIn = Mth.randomBetweenInclusive(RANDOM, ChaseTuning.EYES_OPEN_EVERY_MIN, ChaseTuning.EYES_OPEN_EVERY_MAX);
+-            } else if (opened > want + ChaseTuning.EYES_HYSTERESIS && --closeIn <= 0) {
+-                for (int i = EYES.size() - 1; i >= 0; i--) {
+-                    if (EYES.get(i).state == 1) {
+-                        EYES.get(i).state = 2;
+-                        break;
+-                    }
+-                }
+-                closeIn = ChaseTuning.EYES_CLOSE_EVERY;
+             }
+         } else if (opened > 0 && --closeIn <= 0) {
+             int k = RANDOM.nextInt(opened);
+--- a/src/main/java/com/hypersomnia/chase/ChaseTuning.java
++++ b/src/main/java/com/hypersomnia/chase/ChaseTuning.java
+@@ -204,15 +204,17 @@
+     /** Ширина глаза (доля высоты экрана): случайный размер от SIZE_MIN до SIZE_MAX, крупные чаще ближе к углу. */
+     public static final float EYES_SIZE_MIN = 0.025f;
+     public static final float EYES_SIZE_MAX = 0.15f;
+-    /** Пока он стоит на следе, открыто EYES_WARN; дальше число растёт с паникой до всех. */
++    /** Начальная цель — WARN, затем за FILL_TICKS она вырастает до всех глаз; паника немного опережает рост. */
+     public static final int EYES_WARN = 6;
++    public static final int EYES_FILL_TICKS = 480;
++    public static final float EYES_PANIC_BOOST = 0.18f;
+     /** Первый глаз через FIRST_DELAY тиков, следующие раз в OPEN_EVERY_MIN..MAX; открывается за OPEN_TICKS, закрывается за CLOSE_TICKS. */
+     public static final int EYES_FIRST_DELAY = 12;
+     public static final int EYES_OPEN_EVERY_MIN = 3;
+     public static final int EYES_OPEN_EVERY_MAX = 6;
+     public static final int EYES_OPEN_TICKS = 14;
+     public static final int EYES_CLOSE_TICKS = 9;
+-    /** Паника спала: лишние сверх HYSTERESIS закрываются раз в CLOSE_EVERY тиков. */
++    /** Устаревшие параметры уменьшения глаз; сохранены для совместимости, в новой логике не используются. */
+     public static final int EYES_HYSTERESIS = 3;
+     public static final int EYES_CLOSE_EVERY = 6;
+     /** Погоня кончилась: закрываются по одному раз в END_EVERY_MIN..MAX тиков. */
+--- a/src/main/resources/assets/hypersomnia/lang/en_us.json
++++ b/src/main/resources/assets/hypersomnia/lang/en_us.json
+@@ -187,26 +187,26 @@
+   "hypersomnia.lab.outage.reset": "FLOOR BOARD %s ON",
+   "hypersomnia.lab.board.fed": "FLOOR BOARD %s · ON MAIN FEED",
+   "hypersomnia.lab.board.nofeed": "FLOOR BOARD %s · NO FEED",
+-  "hypersomnia.subtitle.voice.start_early": "\u00a7d\u00a7oWho are you?",
+-  "hypersomnia.subtitle.voice.start_loop": "\u00a7d\u00a7oThere you are.",
+-  "hypersomnia.subtitle.voice.start_accuse": "\u00a7d\u00a7oIt's you. It's always you.",
+-  "hypersomnia.subtitle.voice.start_rage": "\u00a7d\u00a7oHow can you sleep?",
+-  "hypersomnia.subtitle.voice.run_early_0": "\u00a7d\u00a7oWait. Please.",
+-  "hypersomnia.subtitle.voice.run_early_1": "\u00a7d\u00a7oWhere am I?",
+-  "hypersomnia.subtitle.voice.run_loop_0": "\u00a7d\u00a7oDon't go. Not again.",
+-  "hypersomnia.subtitle.voice.run_loop_1": "\u00a7d\u00a7oI was too late. Too late.",
+-  "hypersomnia.subtitle.voice.run_accuse_0": "\u00a7d\u00a7oYou were asleep.",
+-  "hypersomnia.subtitle.voice.run_accuse_1": "\u00a7d\u00a7oYou forgot her.",
+-  "hypersomnia.subtitle.voice.run_rage_0": "\u00a7d\u00a7oWake up.",
+-  "hypersomnia.subtitle.voice.run_rage_1": "\u00a7d\u00a7oThis isn't a dream.",
+-  "hypersomnia.subtitle.voice.escape_0": "\u00a7d\u00a7oDon't leave me here.",
+-  "hypersomnia.subtitle.voice.escape_1": "\u00a7d\u00a7oYou always leave.",
+-  "hypersomnia.subtitle.voice.blocked_0": "\u00a7d\u00a7oLet me in.",
+-  "hypersomnia.subtitle.voice.blocked_1": "\u00a7d\u00a7oOpen the door.",
+-  "hypersomnia.subtitle.voice.caught_0": "\u00a7d\u00a7oI've got you.",
+-  "hypersomnia.subtitle.voice.caught_1": "\u00a7d\u00a7oNow you're awake.",
+-  "hypersomnia.subtitle.voice.stared": "\u00a7d\u00a7oYou see me.",
+-  "hypersomnia.subtitle.voice.pause_0": "\u00a7d\u00a7oThere's no pause here.",
+-  "hypersomnia.subtitle.voice.pause_1": "\u00a7d\u00a7oYou may not end a session early.",
+-  "hypersomnia.subtitle.voice.pause_2": "\u00a7d\u00a7oWhy won't you listen? Stay. With me."
++  "hypersomnia.subtitle.voice.start_early": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oWho are you? \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.start_loop": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oThere you are. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.start_accuse": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oIt's you. It's always you. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.start_rage": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oHow can you sleep? \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_early_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oWait. Please. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_early_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oWhere am I? \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_loop_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oDon't go. Not again. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_loop_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oI was too late. Too late. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_accuse_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oYou were asleep. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_accuse_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oYou forgot her. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_rage_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oWake up. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_rage_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oThis isn't a dream. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.escape_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oDon't leave me here. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.escape_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oYou always leave. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.blocked_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oLet me in. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.blocked_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oOpen the door. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.caught_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oI've got you. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.caught_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oNow you're awake. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.stared": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oYou see me. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.pause_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oThere's no pause here. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.pause_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oYou may not end a session early. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.pause_2": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oWhy won't you listen? Stay. With me. \u00a7r\u00a7d\u00a7kXX\u00a7r"
+ }
+--- a/src/main/resources/assets/hypersomnia/lang/ru_ru.json
++++ b/src/main/resources/assets/hypersomnia/lang/ru_ru.json
+@@ -802,26 +802,26 @@
+   "hypersomnia.lab.outage.reset": "ЩИТ ЭТАЖА %s ВКЛЮЧЁН",
+   "hypersomnia.lab.board.fed": "ЩИТ ЭТАЖА %s · ОТ ГЛАВНОГО ВВОДА",
+   "hypersomnia.lab.board.nofeed": "ЩИТ ЭТАЖА %s · НЕТ ПИТАНИЯ",
+-  "hypersomnia.subtitle.voice.start_early": "\u00a7d\u00a7oКто ты?",
+-  "hypersomnia.subtitle.voice.start_loop": "\u00a7d\u00a7oВот ты где.",
+-  "hypersomnia.subtitle.voice.start_accuse": "\u00a7d\u00a7oЭто ты. Всегда ты.",
+-  "hypersomnia.subtitle.voice.start_rage": "\u00a7d\u00a7oКак ты можешь спать?",
+-  "hypersomnia.subtitle.voice.run_early_0": "\u00a7d\u00a7oПодожди. Пожалуйста.",
+-  "hypersomnia.subtitle.voice.run_early_1": "\u00a7d\u00a7oГде я?",
+-  "hypersomnia.subtitle.voice.run_loop_0": "\u00a7d\u00a7oНе уходи. Не снова.",
+-  "hypersomnia.subtitle.voice.run_loop_1": "\u00a7d\u00a7oЯ не успел. Не успел.",
+-  "hypersomnia.subtitle.voice.run_accuse_0": "\u00a7d\u00a7oТы спал.",
+-  "hypersomnia.subtitle.voice.run_accuse_1": "\u00a7d\u00a7oТы её забыл.",
+-  "hypersomnia.subtitle.voice.run_rage_0": "\u00a7d\u00a7oПроснись.",
+-  "hypersomnia.subtitle.voice.run_rage_1": "\u00a7d\u00a7oЭто не сон.",
+-  "hypersomnia.subtitle.voice.escape_0": "\u00a7d\u00a7oНе оставляй меня здесь.",
+-  "hypersomnia.subtitle.voice.escape_1": "\u00a7d\u00a7oТы всегда уходишь.",
+-  "hypersomnia.subtitle.voice.blocked_0": "\u00a7d\u00a7oВпусти меня.",
+-  "hypersomnia.subtitle.voice.blocked_1": "\u00a7d\u00a7oОткрой дверь.",
+-  "hypersomnia.subtitle.voice.caught_0": "\u00a7d\u00a7oЯ держу тебя.",
+-  "hypersomnia.subtitle.voice.caught_1": "\u00a7d\u00a7oТеперь ты не спишь.",
+-  "hypersomnia.subtitle.voice.stared": "\u00a7d\u00a7oТы меня видишь.",
+-  "hypersomnia.subtitle.voice.pause_0": "\u00a7d\u00a7oЗдесь нет паузы.",
+-  "hypersomnia.subtitle.voice.pause_1": "\u00a7d\u00a7oТы не вправе досрочно прекратить сеанс.",
+-  "hypersomnia.subtitle.voice.pause_2": "\u00a7d\u00a7oПочему ты не слушаешь? Останься. Со мной."
++  "hypersomnia.subtitle.voice.start_early": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oКто ты? \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.start_loop": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oВот ты где. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.start_accuse": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oЭто ты. Всегда ты. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.start_rage": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oКак ты можешь спать? \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_early_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oПодожди. Пожалуйста. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_early_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oГде я? \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_loop_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oНе уходи. Не снова. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_loop_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oЯ не успел. Не успел. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_accuse_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oТы спал. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_accuse_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oТы её забыл. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_rage_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oПроснись. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.run_rage_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oЭто не сон. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.escape_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oНе оставляй меня здесь. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.escape_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oТы всегда уходишь. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.blocked_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oВпусти меня. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.blocked_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oОткрой дверь. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.caught_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oЯ держу тебя. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.caught_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oТеперь ты не спишь. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.stared": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oТы меня видишь. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.pause_0": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oЗдесь нет паузы. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.pause_1": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oТы не вправе досрочно прекратить сеанс. \u00a7r\u00a7d\u00a7kXX\u00a7r",
++  "hypersomnia.subtitle.voice.pause_2": "\u00a7d\u00a7kXX\u00a7r \u00a7d\u00a7oПочему ты не слушаешь? Останься. Со мной. \u00a7r\u00a7d\u00a7kXX\u00a7r"
+ }
