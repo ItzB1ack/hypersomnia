@@ -29,4 +29,10 @@ public final class ModAttachments {
             "chase",
             () -> AttachmentType.serializable(com.hypersomnia.chase.ChaseData::new).copyOnDeath().build()
     );
+
+    /** Собственные лимиты «Лес отвечает», без связи с прогрессией. Переживают выход и смерть. */
+    public static final Supplier<AttachmentType<ForestReplyData>> FOREST_REPLY = ATTACHMENTS.register(
+            "forest_reply",
+            () -> AttachmentType.serializable(ForestReplyData::new).copyOnDeath().build()
+    );
 }
