@@ -22,6 +22,9 @@ public final class ShaftBuilder {
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
     private ShaftBuilder() {}
     public static boolean validStop(int stop) { return stop == 0 || (stop >= 6 && stop <= 8); }
+    /** [новое] Лифт только спускается: этаж = B6 + число поездок. Физических кабин четыре, глубже B8 кабина B8 повторяется. */
+    public static final int FIRST_FLOOR = 6;
+    public static int slotOf(int floor) { return Math.max(FIRST_FLOOR, Math.min(8, floor)); }
     public static int index(int stop) { return stop == 0 ? 0 : stop - 5; }
     public static int x(int stop) { return NightmareDefs.SHAFT.origin().getX() + index(stop) * NightmareTuning.SHAFT_STOP_STRIDE; }
     public static int z(int lane) { return NightmareDefs.SHAFT.origin().getZ() + lane * NightmareTuning.SHAFT_LANE_STRIDE; }

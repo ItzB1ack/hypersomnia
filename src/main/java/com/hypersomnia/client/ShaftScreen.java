@@ -4,34 +4,68 @@ import com.hypersomnia.network.ShaftOpenPayload;
 import com.hypersomnia.network.ShaftSelectPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-/** Выбор остановки: сервер отдельно проверяет положение игрока и допустимость этажа. */
+/**
+ * Панель лифта кошмара [новое]: собственная отрисовка в стиле LabLiftScreen, без ванильных кнопок.
+ * Табло показывает текущий этаж, ниже только этажи глубже; сервер сам решает, куда ехать (всегда вниз).
+ */
 public final class ShaftScreen extends Screen {
+    private static final int PW = 116, ROW = 22, ROW_GAP = 4, BW = 92, LIST = 4;
+    private static final int VEIL = 0xD003050A, FRAME = 0xFF1E2A34, BODY = 0xFF0A0E12, GLASS = 0xFF05080B;
+    private static final int TEXT = 0xFFDDE6EC, COLD = 0xFF4A5E70, LED = 0xFF8A2030;
+
     private final int current;
     private ShaftScreen(int current) { super(Component.translatable("hypersomnia.nightmare.shaft.title")); this.current = current; }
     public static void receive(ShaftOpenPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> Minecraft.getInstance().setScreen(new ShaftScreen(payload.current())));
     }
-    @Override protected void init() {
-        int[] stops = {0, 6, 7, 8};
-        for (int i = 0; i < stops.length; i++) {
-            int stop = stops[i];
-            String label = stop == 0 ? "0" : "B" + stop;
-            Button button = addRenderableWidget(Button.builder(Component.literal(label), b -> {
-                PacketDistributor.sendToServer(new ShaftSelectPayload(stop)); onClose();
-            }).bounds(width / 2 - 60, height / 2 - 46 + i * 24, 120, 20).build());
-            button.active = stop != current;
+    @Override public boolean isPauseScreen() { return false; }
+
+    private static String label(int floor) { return "B" + floor; }
+    private int ph() { return 66 + LIST * (ROW + ROW_GAP) + 6; }
+    private int px() { return (width - PW) / 2; }
+    private int py() { return (height - ph()) / 2; }
+    private int rowX() { return px() + (PW - BW) / 2; }
+    private int rowY(int i) { return py() + 62 + i * (ROW + ROW_GAP); }
+
+    @Override public void render(GuiGraphics g, int mx, int my, float pt) {
+        g.fill(0, 0, width, height, VEIL);
+        int x = px(), y = py();
+        g.fill(x - 1, y - 1, x + PW + 1, y + ph() + 1, FRAME);
+        g.fill(x, y, x + PW, y + ph(), BODY);
+        g.drawCenteredString(font, title, x + PW / 2, y + 8, COLD);
+        // Табло: текущий этаж крупно.
+        g.fill(x + 16, y + 22, x + PW - 16, y + 52, FRAME);
+        g.fill(x + 17, y + 23, x + PW - 17, y + 51, GLASS);
+        g.pose().pushPose();
+        g.pose().translate(x + PW / 2f, y + 29, 0);
+        g.pose().scale(2f, 2f, 1f);
+        g.drawCenteredString(font, label(current), 0, 0, LED);
+        g.pose().popPose();
+        for (int i = 0; i < LIST; i++) {
+            int bx = rowX(), by = rowY(i);
+            boolean hot = mx >= bx && mx < bx + BW && my >= by && my < by + ROW;
+            g.fill(bx - 1, by - 1, bx + BW + 1, by + ROW + 1, FRAME);
+            g.fill(bx, by, bx + BW, by + ROW, hot ? 0xFF1E2A34 : GLASS);
+            g.drawString(font, label(current + 1 + i), bx + 8, by + 7, hot ? TEXT : COLD, false);
         }
     }
-    @Override public boolean isPauseScreen() { return false; }
-    @Override public void render(GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, width, height, 0xC0000000);
-        g.drawCenteredString(font, title, width / 2, height / 2 - 64, 0xFFDDE6EC);
-        super.render(g, mx, my, pt);
+
+    @Override public boolean mouseClicked(double mx, double my, int button) {
+        if (button == 0) {
+            for (int i = 0; i < LIST; i++) {
+                int bx = rowX(), by = rowY(i);
+                if (mx >= bx && mx < bx + BW && my >= by && my < by + ROW) {
+                    PacketDistributor.sendToServer(new ShaftSelectPayload(current + 1 + i));
+                    onClose();
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mx, my, button);
     }
 }

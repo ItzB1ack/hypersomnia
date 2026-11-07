@@ -4,7 +4,6 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.dream.DreamAttachments;
 import com.hypersomnia.dream.DreamData;
 import com.hypersomnia.dream.DreamDimension;
-import com.hypersomnia.dream.DreamTransition;
 import com.hypersomnia.network.ShaftOpenPayload;
 import com.hypersomnia.network.ShaftSelectPayload;
 import net.minecraft.core.BlockPos;
@@ -35,9 +34,9 @@ import java.util.UUID;
 public final class ShaftHandler {
     private ShaftHandler() {}
     private static final class Trip {
-        final int lane, from, target;
+        final int lane, from, target, floor;
         int ticks;
-        Trip(int lane, int from, int target, int ticks) { this.lane = lane; this.from = from; this.target = target; this.ticks = ticks; }
+        Trip(int lane, int from, int target, int floor, int ticks) { this.lane = lane; this.from = from; this.target = target; this.floor = floor; this.ticks = ticks; }
     }
     private static final Map<UUID, Trip> TRIPS = new HashMap<>();
     private static boolean active(ServerPlayer p) {
@@ -52,27 +51,25 @@ public final class ShaftHandler {
         int stop = ShaftBuilder.stopOf(lane, p.position());
         if (stop < 0 || !ShaftBuilder.panel(lane, stop).equals(event.getPos())) return;
         event.setCanceled(true); event.setCancellationResult(InteractionResult.SUCCESS);
-        if (!TRIPS.containsKey(p.getUUID())) PacketDistributor.sendToPlayer(p, new ShaftOpenPayload(stop));
+        if (!TRIPS.containsKey(p.getUUID())) PacketDistributor.sendToPlayer(p, new ShaftOpenPayload(ShaftBuilder.FIRST_FLOOR + ShaftStorage.get(p.serverLevel()).trips(p.getUUID())));
     }
     public static void handleSelect(ShaftSelectPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> { if (context.player() instanceof ServerPlayer p) request(p, payload.target()); });
     }
+    /** [новое] Любая кнопка отправляет кабину на следующий этаж вниз; выход из кошмара только по таймеру сна. */
     public static boolean request(ServerPlayer p, int target) {
-        if (!active(p) || !ShaftBuilder.validStop(target) || TRIPS.containsKey(p.getUUID())) return false;
+        if (!active(p) || TRIPS.containsKey(p.getUUID())) return false;
         int lane = ShaftStorage.get(p.serverLevel()).lane(p.getUUID());
         if (lane < 0) return false;
         int from = ShaftBuilder.stopOf(lane, p.position());
-        if (from < 0 || from == target) return false;
+        if (from < 0) return false;
         int done = ShaftStorage.get(p.serverLevel()).trips(p.getUUID());
-        if (target == 0 && done < NightmareTuning.SHAFT_TRIPS_TO_ZERO) {
-            // [новое] Панель принимает запрос, но кабина идёт глубже: 6 -> 7 -> 8 -> 6.
-            target = from == 6 ? 7 : from == 7 ? 8 : 6;
-            p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.mismatch"), true);
-        }
+        int floor = ShaftBuilder.FIRST_FLOOR + done + 1;
+        if (target != floor) p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.mismatch"), true);
         if (!ShaftBuilder.setDoor(p.serverLevel(), lane, from, true)) return false;
         int ticks = NightmareTuning.SHAFT_TRIP_TICKS + Math.min(NightmareTuning.SHAFT_TRIP_EXTRA_MAX,
                 done * NightmareTuning.SHAFT_TRIP_EXTRA_TICKS);
-        TRIPS.put(p.getUUID(), new Trip(lane, from, target, ticks));
+        TRIPS.put(p.getUUID(), new Trip(lane, from, ShaftBuilder.slotOf(floor), floor, ticks));
         p.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, ticks + 20, 0, false, false, false));
         return true;
     }
@@ -96,10 +93,9 @@ public final class ShaftHandler {
             p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
             p.resetFallDistance(); p.removeEffect(MobEffects.BLINDNESS);
             ShaftStorage.get(world).addTrip(p.getUUID());
-            if (t.target != 0) p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.arrive", "B" + t.target), true);
+            p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.arrive", "B" + t.floor), true);
             ShaftBuilder.setDoor(world, t.lane, t.from, false);
             ShaftBuilder.setDoor(world, t.lane, t.target, false);
-            if (t.target == 0) DreamTransition.exit(p);
         }
     }
     /** Удаляется только после успешного выхода или смерти, не при временном отключении. */
