@@ -136,8 +136,13 @@ public final class LabLift {
         for (ServerPlayer p : t.level.players()) if (cabin(d, t.from).contains(p.position())) inside.add(p);
         int y = d.stopY[t.from];
         t.riders = inside;
+        // [новое] Оболочка теперь включает настоящий потолок кабины (y+5), а не обрывается на y+3:
+        // иначе при подъёме камера проходила потолок сквозь открытый верх копии.
+        // Пока между G и B1 нет вырытой шахты, объёмный режим там не включаем — он вырыл бы весь грунт.
+        boolean volume = t.from != 0 && t.to != 0;
         t.ride = com.hypersomnia.server.LiftRide.start(t.level, new BlockPos(d.originX - 2, y - 1, d.originZ - 2),
-                new BlockPos(d.originX + 2, y + 3, d.originZ + 2), inside, d.stopY[t.to] - y, Math.max(10, t.total - 16));
+                new BlockPos(d.originX + 2, y + 5, d.originZ + 2), inside, 0, d.stopY[t.to] - y, 0, 0,
+                Math.max(10, t.total - 10 - com.hypersomnia.server.LiftRide.PAD_TICKS), volume);
     }
 
     private static void finish(Trip t) {
@@ -147,8 +152,15 @@ public final class LabLift {
         if (t.ride != null) t.ride.end();
         for (ServerPlayer p : t.riders) {
             if (!p.isAlive() || p.serverLevel() != level) continue;
-            double[] end = t.ride != null ? t.ride.finalPos(p) : new double[]{p.getX(), p.getY() + dy, p.getZ()};
-            p.teleportTo(level, end[0], end[1], end[2], p.getYRot(), p.getXRot());
+            if (t.ride != null) {
+                // После settle клиент уже в конечной точке: телепорт только при заметном расхождении,
+                // иначе в конце поездки камера дёргается отдельным пакетом позиции.
+                double[] end = t.ride.finalPos(p);
+                if (p.position().distanceToSqr(end[0], end[1], end[2]) > 0.25)
+                    p.teleportTo(level, end[0], end[1], end[2], p.getYRot(), p.getXRot());
+            } else {
+                p.teleportTo(level, p.getX(), p.getY() + dy, p.getZ(), p.getYRot(), p.getXRot());
+            }
             p.resetFallDistance();
         }
         d.closedDoor = -1;

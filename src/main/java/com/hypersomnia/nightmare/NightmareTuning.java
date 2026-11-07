@@ -14,12 +14,14 @@ public final class NightmareTuning {
     public static final int SHAFT_LANES = 8;
     public static final int SHAFT_Y = 240;
     public static final int SHAFT_LANE_STRIDE = 16;
+    /** [новое] Кабины стоят друг под другом: шаг по вертикали, а не по X. */
     public static final int SHAFT_STOP_STRIDE = 16;
     public static final int SHAFT_TRIP_TICKS = 80;
     /** [новое] Этаж 0 отвечает только после стольких поездок; раньше панель уводит глубже. */
     /** [новое] Реальный спуск кабины: глубина шахты в блоках, тиков на блок, пауза до старта. */
     public static final int SHAFT_DROP = 24;
-    public static final int SHAFT_STEP_TICKS = 2;
+    /** [новое] Медленнее спуск/подъём: меньше скорость — меньше ощущение рывка. */
+    public static final int SHAFT_STEP_TICKS = 3;
     public static final int SHAFT_START_DELAY = 20;
     public static final int SHAFT_TRIPS_TO_ZERO = 4;
     /** [новое] С какого этажа возможны личные события глубины. */
@@ -37,7 +39,7 @@ public final class NightmareTuning {
     /** Версии постройки: при смене старая зона (только наша) очищается и строится заново. */
     public static final int ROUNDS_LAYOUT = 2;
     public static final int SESSION_LAYOUT = 2;
-    public static final int SHAFT_LAYOUT = 3;
+    public static final int SHAFT_LAYOUT = 4;
     /** [новое] Сеанс 47: пауза между попытками растёт, затем канал закрывается. */
     public static final int[] SESSION_RETRY_BY_ATTEMPT = {40, 80, 140, 220};
     public static final int SESSION_BLACKOUT_TICKS = 40;
