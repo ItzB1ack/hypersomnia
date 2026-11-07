@@ -36,7 +36,7 @@ public final class ShaftHandler {
     private ShaftHandler() {}
     private static final class Trip {
         final int lane, from, target, floor;
-        int ticks;
+        int ticks, elapsed, dropped;
         Trip(int lane, int from, int target, int floor, int ticks) { this.lane = lane; this.from = from; this.target = target; this.floor = floor; this.ticks = ticks; }
     }
     private static final Map<UUID, Trip> TRIPS = new HashMap<>();
@@ -73,7 +73,6 @@ public final class ShaftHandler {
         int ticks = NightmareTuning.SHAFT_TRIP_TICKS + Math.min(NightmareTuning.SHAFT_TRIP_EXTRA_MAX,
                 done * NightmareTuning.SHAFT_TRIP_EXTRA_TICKS);
         TRIPS.put(p.getUUID(), new Trip(lane, from, leave ? 0 : ShaftBuilder.slotOf(floor), floor, ticks));
-        p.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, ticks + 20, 0, false, false, false));
         return true;
     }
     @SubscribeEvent public static void tick(ServerTickEvent.Post event) {
@@ -81,23 +80,35 @@ public final class ShaftHandler {
         while (iterator.hasNext()) {
             Map.Entry<UUID, Trip> entry = iterator.next(); Trip t = entry.getValue();
             ServerPlayer p = event.getServer().getPlayerList().getPlayer(entry.getKey());
-            if (p == null || !active(p) || ShaftStorage.get(p.serverLevel()).lane(p.getUUID()) != t.lane
-                    || ShaftBuilder.stopOf(t.lane, p.position()) != t.from) {
+            boolean ok = p != null && active(p) && ShaftStorage.get(p.serverLevel()).lane(p.getUUID()) == t.lane
+                    && (t.dropped == 0 ? ShaftBuilder.stopOf(t.lane, p.position()) == t.from
+                                       : ShaftBuilder.inShaft(t.lane, t.from, p.position()));
+            if (!ok) {
                 iterator.remove();
                 ServerLevel world = event.getServer().getLevel(DreamDimension.LEVEL);
-                if (world != null) ShaftBuilder.setDoor(world, t.lane, t.from, false);
+                if (world != null) ShaftBuilder.restoreCabin(world, t.lane, t.from, t.dropped);
                 if (p != null) p.removeEffect(MobEffects.BLINDNESS);
                 continue;
             }
+            ServerLevel world = p.serverLevel();
+            t.elapsed++;
+            // [новое] Кабина реально едет: оболочка сдвигается на блок вниз, игрок остаётся внутри.
+            if (t.elapsed > NightmareTuning.SHAFT_START_DELAY && t.dropped < NightmareTuning.SHAFT_DROP
+                    && t.elapsed % NightmareTuning.SHAFT_STEP_TICKS == 0) {
+                ShaftBuilder.shift(world, t.lane, t.from, ShaftBuilder.y() - t.dropped);
+                t.dropped++;
+                p.teleportTo(world, p.getX(), p.getY() - 1, p.getZ(), p.getYRot(), p.getXRot());
+            }
+            if (t.dropped > 0) p.resetFallDistance();
+            if (t.elapsed % 8 == 0) p.playNotifySound(net.minecraft.sounds.SoundEvents.MINECART_RIDING, net.minecraft.sounds.SoundSource.AMBIENT, 0.3f, 0.4f);
             if (--t.ticks > 0) continue;
             iterator.remove();
-            ServerLevel world = p.serverLevel();
+            ShaftBuilder.restoreCabin(world, t.lane, t.from, t.dropped);
             BlockPos destination = ShaftBuilder.spawn(t.lane, t.target);
             p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
             p.resetFallDistance(); p.removeEffect(MobEffects.BLINDNESS);
             ShaftStorage.get(world).addTrip(p.getUUID());
             if (t.floor != 0) p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.arrive", "B" + t.floor), true);
-            ShaftBuilder.setDoor(world, t.lane, t.from, false);
             ShaftBuilder.setDoor(world, t.lane, t.target, false);
             if (t.floor == 0) DreamTransition.exit(p);
             else depthEvent(p, world, t);
@@ -121,7 +132,7 @@ public final class ShaftHandler {
         Trip t = TRIPS.remove(p.getUUID());
         ServerLevel level = p.server.getLevel(DreamDimension.LEVEL);
         if (level != null) {
-            if (t != null) ShaftBuilder.setDoor(level, t.lane, t.from, false);
+            if (t != null) ShaftBuilder.restoreCabin(level, t.lane, t.from, t.dropped);
             int lane = ShaftStorage.get(level).lane(p.getUUID());
             if (lane >= 0) relight(level, lane);
             ShaftStorage.get(level).release(p.getUUID());
@@ -131,7 +142,7 @@ public final class ShaftHandler {
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
         Trip t = TRIPS.remove(p.getUUID());
         ServerLevel level = p.server.getLevel(DreamDimension.LEVEL);
-        if (t != null && level != null) { ShaftBuilder.setDoor(level, t.lane, t.from, false); p.removeEffect(MobEffects.BLINDNESS); }
+        if (t != null && level != null) { ShaftBuilder.restoreCabin(level, t.lane, t.from, t.dropped); p.removeEffect(MobEffects.BLINDNESS); }
     }
     @SubscribeEvent public static void login(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
@@ -161,5 +172,9 @@ public final class ShaftHandler {
         if (event.getLevel() instanceof ServerLevel level && level.dimension().equals(DreamDimension.LEVEL))
             event.getAffectedBlocks().removeIf(pos -> ShaftBuilder.containsBuilt(level, pos));
     }
-    @SubscribeEvent public static void stop(ServerStoppingEvent event) { TRIPS.clear(); }
+    @SubscribeEvent public static void stop(ServerStoppingEvent event) {
+        ServerLevel level = event.getServer().getLevel(DreamDimension.LEVEL);
+        if (level != null) TRIPS.values().forEach(t -> ShaftBuilder.restoreCabin(level, t.lane, t.from, t.dropped));
+        TRIPS.clear();
+    }
 }

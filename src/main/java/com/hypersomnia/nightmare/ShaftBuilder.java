@@ -38,11 +38,11 @@ public final class ShaftBuilder {
     }
     public static boolean containsBuilt(ServerLevel level, BlockPos pos) {
         ShaftStorage data = ShaftStorage.get(level);
-        if (pos.getY() < y() || pos.getY() > y() + 4) return false;
+        if (pos.getY() < y() - NightmareTuning.SHAFT_DROP - 1 || pos.getY() > y() + 4) return false;
         for (int lane = 0; lane < NightmareTuning.SHAFT_LANES; lane++) {
-            if (!data.built(lane) || pos.getZ() < z(lane) - 1 || pos.getZ() > z(lane) + 3) continue;
+            if (!data.built(lane) || pos.getZ() < z(lane) - 2 || pos.getZ() > z(lane) + 4) continue;
             for (int stop : new int[]{0, 6, 7, 8})
-                if (pos.getX() >= x(stop) - 1 && pos.getX() <= x(stop) + 8) return true;
+                if (pos.getX() >= x(stop) - 2 && pos.getX() <= x(stop) + 8) return true;
         }
         return false;
     }
@@ -55,18 +55,18 @@ public final class ShaftBuilder {
             for (int l = 0; l < NightmareTuning.SHAFT_LANES; l++) {
                 if (!data.built(l)) continue;
                 for (int stop : new int[]{0, 6, 7, 8})
-                    NightmareLayout.clear(level, x(stop) - 1, y(), z(l) - 1, x(stop) + 8, y() + 4, z(l) + 3);
+                    NightmareLayout.clear(level, x(stop) - 2, y() - NightmareTuning.SHAFT_DROP - 1, z(l) - 2, x(stop) + 8, y() + 4, z(l) + 4);
             }
             data.resetBuilds();
         }
         if (data.built(lane)) return true;
         if (data.failed(lane)) return false;
         int y = y(), z = z(lane);
-        if (y < level.getMinBuildHeight() || y + 4 >= level.getMaxBuildHeight()) return false;
+        if (y - NightmareTuning.SHAFT_DROP - 1 < level.getMinBuildHeight() || y + 4 >= level.getMaxBuildHeight()) return false;
         // Полный preflight: существующие постройки и инвентари не перезаписываем.
         for (int stop : new int[]{0, 6, 7, 8}) {
             int x = x(stop);
-            for (int dx = -1; dx <= 8; dx++) for (int dz = -1; dz <= 3; dz++) for (int dy = 0; dy <= 4; dy++) {
+            for (int dx = -2; dx <= 8; dx++) for (int dz = -2; dz <= 4; dz++) for (int dy = -NightmareTuning.SHAFT_DROP - 1; dy <= 4; dy++) {
                 BlockPos p = new BlockPos(x + dx, y + dy, z + dz);
                 if (!level.getWorldBorder().isWithinBounds(p) || !level.getBlockState(p).isAir()) {
                     data.setFailed(lane);
@@ -76,7 +76,7 @@ public final class ShaftBuilder {
             }
         }
         try {
-            for (int stop : new int[]{0, 6, 7, 8}) buildStop(level, lane, stop);
+            for (int stop : new int[]{0, 6, 7, 8}) { buildStop(level, lane, stop); buildShaft(level, lane, stop); }
             data.setBuilt(lane);
             return true;
         } catch (RuntimeException error) {
@@ -127,6 +127,38 @@ public final class ShaftBuilder {
         if (stop == 0) put(level, x + 7, y + 1, z, Blocks.POTTED_FERN.defaultBlockState());
         // Табличка у торца: на B8 её нет.
         if (stop != 8) LabSigns.wall(level, new BlockPos(x + 7, y + 2, z + 1), Direction.WEST, stop == 0 ? "0" : "B" + stop);
+    }
+    /** [новое] Шахта под кабиной: стены, дно и лампы за кабиной; сама кабина едет по ней блок за блоком. */
+    private static void buildShaft(ServerLevel level, int lane, int stop) {
+        int x = x(stop), y = y(), z = z(lane), bottom = -NightmareTuning.SHAFT_DROP - 1;
+        BlockState wall = Blocks.DEEPSLATE_TILES.defaultBlockState();
+        for (int dx = -2; dx <= 5; dx++) for (int dz = -2; dz <= 4; dz++) for (int dy = bottom; dy <= -1; dy++) {
+            if (dy == bottom || dx == -2 || dx == 5 || dz == -2 || dz == 4) put(level, x + dx, y + dy, z + dz, wall);
+        }
+        for (int dy = -3; dy > bottom; dy -= 4)
+            put(level, x + 4, y + dy, z + 1, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 5));
+    }
+    /** Сдвигает оболочку кабины (dx -1..3, dz -1..3, 5 слоёв) на блок вниз; yb — её текущий нижний слой. */
+    public static void shift(ServerLevel level, int lane, int stop, int yb) {
+        int x = x(stop), z = z(lane);
+        for (int dx = -1; dx <= 3; dx++) for (int dz = -1; dz <= 3; dz++) {
+            for (int dy = 0; dy <= 4; dy++)
+                level.setBlock(new BlockPos(x + dx, yb + dy - 1, z + dz), level.getBlockState(new BlockPos(x + dx, yb + dy, z + dz)), FLAGS);
+            level.setBlock(new BlockPos(x + dx, yb + 4, z + dz), Blocks.AIR.defaultBlockState(), FLAGS);
+        }
+    }
+    /** Возвращает кабину на этаж: убирает опущенную оболочку и достраивает секцию. dropped = число опущенных блоков. */
+    public static void restoreCabin(ServerLevel level, int lane, int stop, int dropped) {
+        if (!validStop(stop)) return;
+        if (dropped <= 0) { setDoor(level, lane, stop, false); return; }
+        int x = x(stop), z = z(lane), yb = y() - dropped;
+        for (int dx = -1; dx <= 3; dx++) for (int dz = -1; dz <= 3; dz++) for (int dy = 0; dy <= 4; dy++)
+            level.setBlock(new BlockPos(x + dx, yb + dy, z + dz), Blocks.AIR.defaultBlockState(), FLAGS);
+        try { buildStop(level, lane, stop); } catch (RuntimeException error) { LOGGER.error("Shaft cabin restore failed", error); }
+    }
+    public static boolean inShaft(int lane, int stop, net.minecraft.world.phys.Vec3 p) {
+        return p.x >= x(stop) - 1 && p.x < x(stop) + 4 && p.z >= z(lane) - 1 && p.z < z(lane) + 4
+                && p.y >= y() - NightmareTuning.SHAFT_DROP && p.y <= y() + 5;
     }
     public static int baseLight(int stop) { return stop == 0 ? 12 : stop == 6 ? 8 : stop == 7 ? 4 : 2; }
     /** [новое] Лампа коридора: on = штатный уровень, off = полная темнота. Меняет только наш блок света. */
