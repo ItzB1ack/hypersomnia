@@ -22,6 +22,10 @@ import org.slf4j.Logger;
  * <p>[новое] Все кабины одной полосы стоят в одном вертикальном столбе: B6 сверху, под ней B7 и B8.
  * Лифт едет строго вниз, поэтому горизонтального участка, где кабина проходила сквозь стены соседних
  * шахт, больше нет. Выход на 0 — такой же вертикальный подъём.
+ *
+ * <p>[новое] Вокруг всего столба построена закрытая тёмная шахта: кабина едет в готовом проёме и через
+ * дверь видит облицовку, а не небо. На уровнях остановок в стенке шахты прорезан проём под коридор.
+ * Дверь кабины — полноценная решётка 3×3 из соединённых прутьев, а не одиночный столбик.
  */
 public final class ShaftBuilder {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -48,29 +52,35 @@ public final class ShaftBuilder {
     }
     public static boolean containsBuilt(ServerLevel level, BlockPos pos) {
         ShaftStorage data = ShaftStorage.get(level);
-        if (pos.getY() < y(8) || pos.getY() > y(0) + 4) return false;
+        if (pos.getY() < shaftBottom() || pos.getY() > shaftTop()) return false;
         for (int lane = 0; lane < NightmareTuning.SHAFT_LANES; lane++) {
             if (!data.built(lane) || pos.getZ() < z(lane) - 2 || pos.getZ() > z(lane) + 4) continue;
             if (pos.getX() >= x(0) - 2 && pos.getX() <= x(0) + 8) return true;
         }
         return false;
     }
+    /** [новое] Нижняя граница облицовки шахты: на SHAFT_DROP ниже B8 (запас на повторный спуск в пустоту). */
+    public static int shaftBottom() { return y(8) - NightmareTuning.SHAFT_DROP - 1; }
+    /** [новое] Верхняя граница облицовки шахты: на блок выше потолка остановки 0. */
+    public static int shaftTop() { return y(0) + 5; }
     public static boolean ensureBuilt(ServerLevel level, int lane) {
         if (lane < 0 || lane >= NightmareTuning.SHAFT_LANES) return false;
         ShaftStorage data = ShaftStorage.get(level);
         if (data.layout() != NightmareTuning.SHAFT_LAYOUT) {
             // [новое] Новая версия вида шахты: старые секции (только наши) очищаются, пока в шахте никого нет.
-            // Старый вид был горизонтальным, поэтому чистим именно его след, а не новый вертикальный столб.
+            // Чистим и след старой горизонтальной шахты, и текущий вертикальный столб: иначе старые
+            // кабины останутся висеть внутри новой облицовки.
             if (NightmareLayout.anyoneInside(level.getServer(), NightmareDefs.SHAFT.id())) return data.built(lane);
             for (int l = 0; l < NightmareTuning.SHAFT_LANES; l++) {
                 if (!data.built(l)) continue;
                 clearLegacy(level, l);
+                clearVertical(level, l);
             }
             data.resetBuilds();
         }
         if (data.built(lane)) return true;
         if (data.failed(lane)) return false;
-        int top = y(0) + 4, bottom = y(8);
+        int top = shaftTop(), bottom = shaftBottom();
         if (bottom < level.getMinBuildHeight() || top >= level.getMaxBuildHeight()) return false;
         // Полный preflight: существующие постройки и инвентари не перезаписываем.
         for (int dx = -2; dx <= 8; dx++) for (int dz = -2; dz <= 4; dz++) for (int yy = bottom; yy <= top; yy++) {
@@ -83,6 +93,7 @@ public final class ShaftBuilder {
         }
         try {
             for (int stop : new int[]{0, 6, 7, 8}) buildStop(level, lane, stop);
+            buildShaft(level, lane);
             data.setBuilt(lane);
             return true;
         } catch (RuntimeException error) {
@@ -100,6 +111,11 @@ public final class ShaftBuilder {
                     lx + 8, y + 4, z(lane) + 4);
         }
     }
+    /** [новое] Текущий вертикальный столб вместе с новой облицовкой шахты (layout 4 и ниже). */
+    private static void clearVertical(ServerLevel level, int lane) {
+        NightmareLayout.clear(level, x(0) - 2, shaftBottom(), z(lane) - 2,
+                x(0) + 8, shaftTop(), z(lane) + 4);
+    }
     private static void put(ServerLevel level, int x, int y, int z, BlockState state) {
         BlockPos pos = new BlockPos(x, y, z);
         // setBlock возвращает false и когда блок уже такой же: это не ошибка.
@@ -114,7 +130,6 @@ public final class ShaftBuilder {
     private static void buildStop(ServerLevel level, int lane, int stop) {
         int x = x(stop), y = y(stop), z = z(lane);
         BlockState cabin = Blocks.POLISHED_DEEPSLATE.defaultBlockState();
-        BlockState frame = Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState();
         BlockState wall = (stop == 0 ? Blocks.WHITE_CONCRETE : stop == 6 ? Blocks.LIGHT_GRAY_CONCRETE
                 : stop == 7 ? Blocks.GRAY_CONCRETE : Blocks.DEEPSLATE_BRICKS).defaultBlockState();
         BlockState floor = (stop == 0 ? Blocks.BIRCH_PLANKS : stop == 6 ? Blocks.POLISHED_ANDESITE
@@ -126,7 +141,7 @@ public final class ShaftBuilder {
             if (dy == 0) state = inCabin ? cabin : floor;
             else if (dy == 4) state = inCabin ? cabin : ceil;
             else if (dx == -1 || dx == 8 || dz == -1 || dz == 3) state = inCabin ? cabin : wall;
-            else if (dx == 3 && (dz != 1 || dy == 3)) state = frame;
+            // Остальные клетки передней стены (dx == 3) — проём во всю ширину под решётку 3x3.
             else continue;
             put(level, x + dx, y + dy, z + dz, state);
         }
@@ -145,12 +160,45 @@ public final class ShaftBuilder {
         // Табличка у торца: на B8 её нет.
         if (stop != 8) LabSigns.wall(level, new BlockPos(x + 7, y + 2, z + 1), Direction.WEST, stop == 0 ? "0" : "B" + stop);
     }
-    /** Оболочка кабины для плавной поездки (включительно): стены, пол, потолок, рамка двери. */
+    /** Оболочка кабины для плавной поездки (включительно): стены, пол, потолок, решётка двери. */
     public static BlockPos shellMin(int lane, int stop) { return new BlockPos(x(stop) - 1, y(stop), z(lane) - 1); }
     public static BlockPos shellMax(int lane, int stop) { return new BlockPos(x(stop) + 3, y(stop) + 4, z(lane) + 3); }
+    /**
+     * [новое] Закрытая шахта вокруг вертикального столба: облицовка 7x7 с проёмом 5x5 внутри,
+     * пол и потолок. На уровнях остановок в +X-стенке вырезан проём 3x3 под коридор, поэтому
+     * коридоры остаются доступными, а во время поездки за дверью видна облицовка, не небо.
+     */
+    private static void buildShaft(ServerLevel level, int lane) {
+        int x = x(0), z = z(lane);
+        int bottom = shaftBottom(), top = shaftTop();
+        BlockState casing = Blocks.DEEPSLATE_TILES.defaultBlockState();
+        BlockState band = Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState();
+        for (int yy = bottom; yy <= top; yy++) {
+            BlockState state = (yy - bottom) % 12 == 0 ? band : casing;
+            for (int dx = -2; dx <= 4; dx++) for (int dz = -2; dz <= 4; dz++) {
+                boolean edge = dx == -2 || dx == 4 || dz == -2 || dz == 4;
+                boolean cap = yy == bottom || yy == top;
+                if (!edge && !cap) continue;
+                if (edge && shaftOpening(yy, dx, dz)) continue;
+                BlockPos p = new BlockPos(x + dx, yy, z + dz);
+                // Полы, потолки и стены готовых коридоров на остановках не перезаписываем.
+                if (!level.getBlockState(p).isAir()) continue;
+                put(level, p.getX(), p.getY(), p.getZ(), state);
+            }
+        }
+    }
+    /** Проём в +X-стенке шахты напротив двери кабины на уровне остановки. */
+    private static boolean shaftOpening(int yy, int dx, int dz) {
+        if (dx != 4 || dz < 0 || dz > 2) return false;
+        for (int stop : new int[]{0, 6, 7, 8}) {
+            int y = y(stop);
+            if (yy >= y + 1 && yy <= y + 3) return true;
+        }
+        return false;
+    }
     public static boolean inShaft(int lane, int stop, net.minecraft.world.phys.Vec3 p) {
         return p.x >= x(stop) - 1 && p.x < x(stop) + 4 && p.z >= z(lane) - 1 && p.z < z(lane) + 4
-                && p.y >= y(8) - NightmareTuning.SHAFT_DROP && p.y <= y(0) + 5;
+                && p.y >= shaftBottom() && p.y <= shaftTop();
     }
     public static int baseLight(int stop) { return stop == 0 ? 12 : stop == 6 ? 8 : stop == 7 ? 4 : 2; }
     /** [новое] Лампа коридора: on = штатный уровень, off = полная темнота. Меняет только наш блок света. */
@@ -160,14 +208,25 @@ public final class ShaftBuilder {
         if (!level.getBlockState(p).is(Blocks.LIGHT)) return;
         level.setBlock(p, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, on ? baseLight(stop) : 0), FLAGS);
     }
+    /**
+     * [новое] Дверь кабины — решётка 3x3 во весь проём. Прутья ставятся двумя проходами:
+     * сначала все блоки, потом соединения с соседями, иначе каждый остаётся одиночным столбиком.
+     */
     public static boolean setDoor(ServerLevel level, int lane, int stop, boolean closed) {
         if (!validStop(stop)) return false;
-        BlockPos p = new BlockPos(x(stop) + 3, y(stop) + 1, z(lane) + 1);
-        for (int i = 0; i < 2; i++) {
-            BlockState state = level.getBlockState(p.above(i));
+        int x = x(stop) + 3, y = y(stop) + 1, z = z(lane) + 1;
+        for (int dy = 0; dy < 3; dy++) for (int dz = -1; dz <= 1; dz++) {
+            BlockState state = level.getBlockState(new BlockPos(x, y + dy, z + dz));
             if (!state.isAir() && !state.is(Blocks.IRON_BARS)) return false;
         }
-        for (int i = 0; i < 2; i++) level.setBlock(p.above(i), closed ? Blocks.IRON_BARS.defaultBlockState() : Blocks.AIR.defaultBlockState(), FLAGS);
+        for (int dy = 0; dy < 3; dy++) for (int dz = -1; dz <= 1; dz++) {
+            BlockPos q = new BlockPos(x, y + dy, z + dz);
+            level.setBlock(q, closed ? Blocks.IRON_BARS.defaultBlockState() : Blocks.AIR.defaultBlockState(), FLAGS);
+        }
+        if (closed) for (int dy = 0; dy < 3; dy++) for (int dz = -1; dz <= 1; dz++) {
+            BlockPos q = new BlockPos(x, y + dy, z + dz);
+            level.setBlock(q, Block.updateFromNeighbourShapes(Blocks.IRON_BARS.defaultBlockState(), level, q), FLAGS);
+        }
         return true;
     }
 }

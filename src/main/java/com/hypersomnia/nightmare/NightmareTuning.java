@@ -39,7 +39,7 @@ public final class NightmareTuning {
     /** Версии постройки: при смене старая зона (только наша) очищается и строится заново. */
     public static final int ROUNDS_LAYOUT = 2;
     public static final int SESSION_LAYOUT = 2;
-    public static final int SHAFT_LAYOUT = 4;
+    public static final int SHAFT_LAYOUT = 5;
     /** [новое] Сеанс 47: пауза между попытками растёт, затем канал закрывается. */
     public static final int[] SESSION_RETRY_BY_ATTEMPT = {40, 80, 140, 220};
     public static final int SESSION_BLACKOUT_TICKS = 40;
