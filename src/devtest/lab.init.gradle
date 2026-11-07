@@ -8,14 +8,14 @@ gradle.projectsEvaluated {
     def output = p.layout.buildDirectory.dir('lab-selftests')
     def compile = p.tasks.register('compileLabSelfTests', JavaCompile) {
         dependsOn p.tasks.named('classes')
-        source p.fileTree('src/devtest/java') { include '**/LabSavedDataSelfTest.java', '**/LabBlueprintSelfTest.java', '**/LabVariantsSelfTest.java' }
+        source p.fileTree('src/devtest/java') { include '**/LabSavedDataSelfTest.java', '**/LabBlueprintSelfTest.java', '**/LabVariantsSelfTest.java', '**/LabShaftSelfTest.java' }
         classpath = p.files(p.sourceSets.main.output, p.configurations.compileClasspath)
         destinationDirectory = output
         javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
         options.encoding = 'UTF-8'
         options.release = 21
     }
-    def runners = ['LabSavedDataSelfTest', 'LabBlueprintSelfTest', 'LabVariantsSelfTest'].collect { name ->
+    def runners = ['LabSavedDataSelfTest', 'LabBlueprintSelfTest', 'LabVariantsSelfTest', 'LabShaftSelfTest'].collect { name ->
         p.tasks.register('run' + name, JavaExec) {
             dependsOn compile
             classpath = p.files(output, p.sourceSets.main.runtimeClasspath)

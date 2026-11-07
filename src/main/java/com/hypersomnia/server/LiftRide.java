@@ -9,6 +9,7 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Block;
@@ -39,12 +40,19 @@ import java.util.UUID;
  *       возвращаются, когда кабина ушла. Так камера никогда не проходит сквозь стены, полы и потолки
  *       промежуточных этажей; подходит для шахты и для лаборатории с настоящей шахтой.</li>
  *   <li>{@code volume = false} — старый режим: прячутся только внутренние плиты пола/потолка у входа и
- *       выхода. Оставлен для лабораторного рейса G↔B1, пока там нет вырытой шахты.</li>
+ *       выхода. Оставлен для совместимости; лаборатория теперь всегда едет через готовую шахту.</li>
  * </ul>
  *
  * <p>Профиль движения — quintic smootherstep: скорость и ускорение равны нулю в начале и в конце, поэтому нет
  * рывка на старте и «щелчка» при остановке. После прибытия оболочка держится ещё несколько тиков, чтобы клиент
  * догнал последнюю позицию, и только потом убирается.
+ *
+ * <p>У display-сущностей выставлен {@code teleport_duration}: без него {@link Display#lerpTo} телепортирует
+ * сущность каждый клиентский тик и кабина с камерой игрока двигаются рывками 20 Гц.
+ *
+ * <p>Игрок всегда стоит на полу копии кабины (верх нижнего блока коробки), поэтому камера во время рейса
+ * находится на обычной высоте относительно кабины. Носитель изначально ставится на высоту крепления
+ * пассажира, чтобы {@code positionRider} не опускал игрока в пол на время калибровки.
  *
  * <p>Все скрытые блоки пишутся в {@link LiftRideStorage}: если сервер упадёт посреди рейса, они вернутся при
  * следующем запуске.
@@ -60,17 +68,18 @@ public final class LiftRide {
     /** Тиков на выравнивание посадки; также запас, который надо вычесть из общего времени поездки. */
     public static final int CALIB_TICKS = 4;
     public static final int PAD_TICKS = CALIB_TICKS + SETTLE_TICKS;
-    /** [новое] На сколько поднять игрока над полом копии во время рейса; к концу плавно возвращается к 0. */
-    public static final double RIDER_LIFT = 1.0;
-    /** Доля пути, за которую подъём/спуск посадки плавно входит и выходит. */
-    private static final double LIFT_EDGE = 0.15;
+    /** [новое] Сколько клиентских тиков display-сущности плавно догоняют серверную позицию. */
+    private static final int DISPLAY_INTERP_TICKS = 3;
     /** Насколько блок должен отойти от кабины, прежде чем его вернут на место. */
     private static final double RESTORE_MARGIN = 1.5;
 
     private static final class Rider {
         final ServerPlayer player; final Entity seat; final double x, y, z;
         double ox, oy, oz;
-        Rider(ServerPlayer player, Entity seat) { this.player = player; this.seat = seat; x = player.getX(); y = player.getY(); z = player.getZ(); }
+        Rider(ServerPlayer player, Entity seat, double feetY) {
+            this.player = player; this.seat = seat;
+            x = player.getX(); y = feetY; z = player.getZ();
+        }
     }
     private static final class Part {
         final Entity entity; final double x, y, z;
@@ -131,11 +140,18 @@ public final class LiftRide {
                 Entity e = display(level, state, x, y, z, 10);
                 if (e != null) ride.shell.add(new Part(e));
             }
+        // [важно] Камера едет на обычной высоте стоящего игрока относительно пола копии.
+        // Пол копии — нижний блок коробки, его верх = min.y + 1; игрок всегда ставится туда,
+        // даже если в момент старта он прыгал или стоял не на полу.
+        double floorTop = min.getY() + 1.0;
         for (ServerPlayer p : players) {
             Entity seat = display(level, Blocks.AIR.defaultBlockState(), p.getX(), p.getY(), p.getZ(), 0);
             if (seat == null) continue;
+            // Носитель ставим сразу на высоту крепления игрока (0.6): иначе positionRider опускает
+            // игрока на эту величину внутрь пола на время калибровки, и камера стартует ниже обычного.
+            seat.setPos(seat.getX(), floorTop + p.getVehicleAttachmentPoint(seat).y, seat.getZ());
             p.startRiding(seat, true);
-            ride.riders.add(new Rider(p, seat));
+            ride.riders.add(new Rider(p, seat, floorTop));
             RIDING.add(p.getUUID());
         }
         if (volume) ride.prepareVolume(); else ride.prepareCovers();
@@ -269,6 +285,9 @@ public final class LiftRide {
         CompoundTag brightness = new CompoundTag();
         brightness.putInt("block", light); brightness.putInt("sky", 0);
         tag.put("brightness", brightness);
+        // [важно] Без teleport_duration Display.lerpTo() не интерполирует позицию, а телепортирует
+        // сущность каждый клиентский тик — кабина и камера игрока двигались рывками 20 Гц.
+        tag.putInt(Display.TAG_POS_ROT_INTERPOLATION_DURATION, DISPLAY_INTERP_TICKS);
         ListTag tags = new ListTag(); tags.add(StringTag.valueOf(TAG)); tag.put("Tags", tags);
         Entity e = EntityType.create(tag, level).orElse(null);
         if (e == null) return null;
@@ -300,12 +319,10 @@ public final class LiftRide {
             if (srcHidden && s > 0.5) restoreSourceCover();
             if (!tgtHidden && s > 0.55) hideTargetCover();
         }
-        double edge = Math.min(1.0, Math.min(s, 1.0 - s) / LIFT_EDGE);
-        double lift = RIDER_LIFT * edge * edge * (3.0 - 2.0 * edge);
         for (Rider r : riders) {
             if (!r.player.isPassenger()) r.player.startRiding(r.seat, true);
             r.player.resetFallDistance();
-            r.seat.setPos(r.x + dx * s - r.ox, r.y + dy * s + arc + lift - r.oy, r.z + dz * s - r.oz);
+            r.seat.setPos(r.x + dx * s - r.ox, r.y + dy * s + arc - r.oy, r.z + dz * s - r.oz);
         }
         for (Part p : shell) p.entity.setPos(p.x + dx * s, p.y + dy * s + arc, p.z + dz * s);
     }

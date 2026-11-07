@@ -52,9 +52,9 @@ public final class LabLift {
 
     private static final List<Trip> TRIPS = new ArrayList<>();
 
-    /** Кабина остановки n: клетки x-1..x+1, z-1..z+1, три блока вверх. */
+    /** Кабина остановки n: клетки x-1..x+1, z-1..z+1, три блока вверх (низ включает плиту пола — для восстановления). */
     public static AABB cabin(LabSavedData d, int n) {
-        return new AABB(d.originX - 1, d.stopY[n], d.originZ - 1, d.originX + 2, d.stopY[n] + 3, d.originZ + 2);
+        return new AABB(d.originX - 1, d.stopY[n] - 1, d.originZ - 1, d.originX + 2, d.stopY[n] + 3, d.originZ + 2);
     }
 
     /** Остановка, в чьей кабине стоит игрок, или -1. */
@@ -120,7 +120,8 @@ public final class LabLift {
             msg(player, "hypersomnia.lab.lift.locked");
             return;
         }
-        int ticks = LabTuning.LIFT_BASE_TICKS + Math.abs(from - target) * LabTuning.LIFT_PER_FLOOR;
+        // [новое] Время поездки — по реальной высоте: G↔B1 выше одного этажа, иначе кабина летела бы слишком быстро.
+        int ticks = LabTuning.LIFT_BASE_TICKS + Math.abs(d.stopY[target] - d.stopY[from]) * LabTuning.LIFT_PER_BLOCK;
         TRIPS.add(new Trip(level, from, target, ticks));
         setDoor(level, d, from, true);
         d.closedDoor = from;
@@ -132,14 +133,20 @@ public final class LabLift {
     /** [новое] Плавный рейс: на старте копия оболочки кабины и сиденья игроков едут к целевой кабине; блоки лаборатории не трогаются. */
     private static void startRide(Trip t) {
         LabSavedData d = LabSavedData.get(t.level);
-        List<ServerPlayer> inside = new ArrayList<>();
-        for (ServerPlayer p : t.level.players()) if (cabin(d, t.from).contains(p.position())) inside.add(p);
         int y = d.stopY[t.from];
+        List<ServerPlayer> inside = new ArrayList<>();
+        for (ServerPlayer p : t.level.players()) {
+            if (!cabin(d, t.from).contains(p.position())) continue;
+            // [важно] Если игрок уже провалился в пол (старый баг), поднимаем его на пол кабины до старта.
+            if (p.getY() < y - 0.01) p.teleportTo(t.level, p.getX(), y, p.getZ(), p.getYRot(), p.getXRot());
+            inside.add(p);
+        }
         t.riders = inside;
-        // [новое] Оболочка теперь включает настоящий потолок кабины (y+5), а не обрывается на y+3:
+        // [новое] Оболочка включает настоящий потолок кабины (y+5), а не обрывается на y+3:
         // иначе при подъёме камера проходила потолок сквозь открытый верх копии.
-        // Пока между G и B1 нет вырытой шахты, объёмный режим там не включаем — он вырыл бы весь грунт.
-        boolean volume = t.from != 0 && t.to != 0;
+        // Шахта G↔B1 вырыта (LabShaft), поэтому объёмный режим теперь безопасен на всех маршрутах:
+        // он прячет только плиты пола/потолка на концах, а между этажами кабина едет в готовом проёме.
+        boolean volume = true;
         t.ride = com.hypersomnia.server.LiftRide.start(t.level, new BlockPos(d.originX - 2, y - 1, d.originZ - 2),
                 new BlockPos(d.originX + 2, y + 5, d.originZ + 2), inside, 0, d.stopY[t.to] - y, 0, 0,
                 Math.max(10, t.total - 10 - com.hypersomnia.server.LiftRide.PAD_TICKS), volume);
@@ -156,8 +163,13 @@ public final class LabLift {
                 // После settle клиент уже в конечной точке: телепорт только при заметном расхождении,
                 // иначе в конце поездки камера дёргается отдельным пакетом позиции.
                 double[] end = t.ride.finalPos(p);
-                if (p.position().distanceToSqr(end[0], end[1], end[2]) > 0.25)
-                    p.teleportTo(level, end[0], end[1], end[2], p.getYRot(), p.getXRot());
+                // [важно] Никогда не оставляем игрока ниже пола целевой кабины: иначе он «проваливается»
+                // в пол на блок и следующая поездка начинается из-под пола.
+                double endY = Math.max(end[1], d.stopY[t.to]);
+                // Любое утопание в пол исправляем, даже меньше порога 0.5: иначе игрок остаётся в плите.
+                boolean sunk = p.getY() < endY - 0.01;
+                if (sunk || p.position().distanceToSqr(end[0], endY, end[2]) > 0.25)
+                    p.teleportTo(level, end[0], endY, end[2], p.getYRot(), p.getXRot());
             } else {
                 p.teleportTo(level, p.getX(), p.getY() + dy, p.getZ(), p.getYRot(), p.getXRot());
             }

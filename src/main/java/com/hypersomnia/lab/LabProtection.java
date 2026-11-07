@@ -72,9 +72,9 @@ public final class LabProtection {
         return d.built && inside(d, pos);
     }
 
-    /** Точка в объёме какого-нибудь построенного этажа этого мира. */
+    /** Точка в объёме какого-нибудь построенного этажа этого мира или в шахте лифта G↔B1. */
     public static boolean inside(LabSavedData d, BlockPos pos) {
-        return stopAt(d, pos) >= 0;
+        return stopAt(d, pos) >= 0 || LabShaft.inside(d, pos);
     }
 
     /** Этаж (остановка лифта), в чьём объёме точка, или -1. */

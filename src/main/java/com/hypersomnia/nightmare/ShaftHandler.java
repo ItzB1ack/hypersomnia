@@ -123,8 +123,12 @@ public final class ShaftHandler {
             // Лишний телепорт в конце — это отдельный «щелчок» камеры. После settle клиент уже стоит
             // в конечной точке, поэтому поправляем позицию только при заметном расхождении.
             if (end != null) {
-                if (p.position().distanceToSqr(end[0], end[1], end[2]) > 0.25)
-                    p.teleportTo(world, end[0], end[1], end[2], p.getYRot(), p.getXRot());
+                // [важно] Не оставляем игрока ниже пола целевой кабины: иначе он проваливается на блок.
+                double endY = Math.max(end[1], destination.getY());
+                // Любое утопание в пол исправляем, даже меньше порога 0.5: иначе игрок остаётся в плите.
+                boolean sunk = p.getY() < endY - 0.01;
+                if (sunk || p.position().distanceToSqr(end[0], endY, end[2]) > 0.25)
+                    p.teleportTo(world, end[0], endY, end[2], p.getYRot(), p.getXRot());
             } else p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
             p.resetFallDistance();
             ShaftStorage.get(world).addTrip(p.getUUID());

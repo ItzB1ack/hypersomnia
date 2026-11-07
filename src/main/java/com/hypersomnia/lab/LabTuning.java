@@ -350,6 +350,8 @@ public final class LabTuning {
     // ---- Лифт ----
     public static final int LIFT_BASE_TICKS = 50;
     public static final int LIFT_PER_FLOOR = 16;
+    /** [новое] Тиков на блок пути; для подземных этажей совпадает с LIFT_PER_FLOOR / PITCH. */
+    public static final int LIFT_PER_BLOCK = 2;
 
     // ---- «Обесточено» (LabOutage): погоня в реальной лаборатории после MAIN FEED ----
     /** Этажи, где бывает (B5 — финал, не трогаем). Щит этажа — у лифта, клетка '&' чертежа (id LabBreakers.BOARD + этаж). */

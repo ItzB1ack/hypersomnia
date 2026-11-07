@@ -33,7 +33,16 @@ public final class LabPlacement {
             boolean dream = level.dimension() == DreamDimension.LEVEL;
             if (!dream && level.dimension() != Level.OVERWORLD) continue;
             LabSavedData d = LabSavedData.get(level);
-            if (d.built || d.buildFailed) continue;
+            if (d.built) {
+                // [новое] Старый мир: шахты G↔B1 ещё нет — вырыть её, когда игрок рядом и чанки загружены.
+                if (!d.shaftBuilt) {
+                    BlockPos site = site(server);
+                    double dx = p.getX() - site.getX(), dz = p.getZ() - site.getZ();
+                    if (dx * dx + dz * dz <= (double) LabTuning.BUILD_RADIUS * LabTuning.BUILD_RADIUS) LabShaft.ensure(level, d);
+                }
+                continue;
+            }
+            if (d.buildFailed) continue;
             BlockPos site = site(server);
             double dx = p.getX() - site.getX(), dz = p.getZ() - site.getZ();
             if (dx * dx + dz * dz > (double) LabTuning.BUILD_RADIUS * LabTuning.BUILD_RADIUS) continue;
@@ -92,6 +101,8 @@ public final class LabPlacement {
 
     private static void buildFloors(ServerLevel level, BlockPos site, boolean dream) {
         LabSavedData d = LabSavedData.get(level);
+        // Старую шахту закладываем до resetBuild: нужны прежние origin/stopY/stopH.
+        LabShaft.clear(level, d);
         d.resetBuild();
         // Уровень двора не пересчитываем при пересборке на том же месте: иначе площадка «ползёт» вверх.
         boolean sameSite = d.groundY != 0 && d.originX == site.getX() && d.originZ == site.getZ();
@@ -116,6 +127,8 @@ public final class LabPlacement {
             LabLocks.refreshKeypads(level, d);
             LabBreakers.refresh(level, d);
             LabFixtures.refresh(level, d);
+            // [новое] Шахта между G и B1: кабина едет в готовом проёме, а не сквозь породу.
+            LabShaft.ensure(level, d);
             d.built = true;
             d.setDirty();
         } catch (RuntimeException e) {

@@ -42,8 +42,9 @@ public final class LabSavedData extends SavedData {
      * при загрузке старого мира, где MAIN FEED открывал всё до B5, reached срезается до LabLocks.accessTop.
      * 3 — шифр 8 через антенну ANT-1: у реального мира со старой статичной тарелкой ставится roofPending, и LabAntenna
      * перестраивает крышу (LabBuilder.roofUpgrade), когда её чанки загружены.
+     * 4 — шахта лифта G↔B1: у старых миров shaftBuilt=false, LabPlacement выроет её при первой загрузке.
      */
-    public static final int DATA_VERSION = 3;
+    public static final int DATA_VERSION = 4;
 
     // ---- Точка входа (Верхний мир) ----
     public boolean sited;
@@ -68,6 +69,8 @@ public final class LabSavedData extends SavedData {
     public int groundY;
     /** Бит n = остановка n построена. */
     public int builtMask;
+    /** [новое] Шахта лифта между G и B1 вырыта и облицована (LabShaft). */
+    public boolean shaftBuilt;
     /** Старший открытый этаж (0 = только поверхность). */
     public int reached;
     /** Бит id = замок id открыт. */
@@ -156,6 +159,7 @@ public final class LabSavedData extends SavedData {
         built = false;
         buildFailed = false;
         builtMask = 0;
+        shaftBuilt = false;
         closedDoor = -1;
         roofPending = false;
         outageStop = -1;
@@ -187,6 +191,7 @@ public final class LabSavedData extends SavedData {
         tag.putInt("originZ", originZ);
         tag.putInt("groundY", groundY);
         tag.putInt("builtMask", builtMask);
+        tag.putBoolean("shaftBuilt", shaftBuilt);
         tag.putInt("version", DATA_VERSION);
         tag.putInt("reached", reached);
         tag.putInt("locksOpen", locksOpen);
@@ -229,6 +234,7 @@ public final class LabSavedData extends SavedData {
         d.originZ = tag.getInt("originZ");
         d.groundY = tag.getInt("groundY");
         d.builtMask = tag.getInt("builtMask");
+        d.shaftBuilt = tag.getBoolean("shaftBuilt");
         d.reached = tag.getInt("reached");
         d.locksOpen = tag.getInt("locksOpen");
         d.flags = tag.getInt("flags");
