@@ -7,6 +7,8 @@ public final class DiaryTuning {
     private DiaryTuning() {}
 
     public static final int PAGES = 11;
+    /** Длительность анимации раскрытия книги (тики) до открытия GUI. */
+    public static final int OPEN_TICKS = 12;
     /** Одна страница книги (разворот = две). */
     public static final int PAPER_W = 170;
     public static final int PAPER_H = 230;

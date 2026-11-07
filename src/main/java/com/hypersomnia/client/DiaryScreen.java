@@ -91,6 +91,13 @@ public final class DiaryScreen extends Screen {
         Minecraft.getInstance().setScreen(new DiaryScreen());
     }
 
+    /** Открыть дневник, если он ещё не открыт (onUseTick зовётся несколько тиков). */
+    public static void openIfClosed() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof DiaryScreen) return;
+        mc.setScreen(new DiaryScreen());
+    }
+
     private DiaryScreen() {
         super(Component.empty());
         spread = Math.max(0, Math.min(LAST_SPREAD, lastSpread));
