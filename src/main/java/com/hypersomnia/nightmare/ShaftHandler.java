@@ -69,6 +69,7 @@ public final class ShaftHandler {
         int floor = leave ? 0 : ShaftBuilder.FIRST_FLOOR + done + 1;
         if (!leave && target != floor) p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.mismatch"), true);
         if (!ShaftBuilder.setDoor(p.serverLevel(), lane, from, true)) return false;
+        ShaftBuilder.lamp(p.serverLevel(), lane, from, true);
         int ticks = NightmareTuning.SHAFT_TRIP_TICKS + Math.min(NightmareTuning.SHAFT_TRIP_EXTRA_MAX,
                 done * NightmareTuning.SHAFT_TRIP_EXTRA_TICKS);
         TRIPS.put(p.getUUID(), new Trip(lane, from, leave ? 0 : ShaftBuilder.slotOf(floor), floor, ticks));
@@ -99,7 +100,21 @@ public final class ShaftHandler {
             ShaftBuilder.setDoor(world, t.lane, t.from, false);
             ShaftBuilder.setDoor(world, t.lane, t.target, false);
             if (t.floor == 0) DreamTransition.exit(p);
+            else depthEvent(p, world, t);
         }
+    }
+    /** [новое] Глубже B8: по хешу игрока и этажа редкое личное событие. Баланс рабочий, не авторский. */
+    private static void depthEvent(ServerPlayer p, ServerLevel world, Trip t) {
+        if (t.floor < NightmareTuning.SHAFT_EVENTS_FROM_FLOOR) return;
+        switch (Math.floorMod(java.util.Objects.hash(p.getUUID(), t.floor), 4)) {
+            case 0 -> ShaftBuilder.lamp(world, t.lane, t.target, false);
+            case 1 -> p.playNotifySound(net.minecraft.sounds.SoundEvents.IRON_DOOR_CLOSE, net.minecraft.sounds.SoundSource.AMBIENT, 0.5f, 0.5f);
+            case 2 -> p.playNotifySound(net.minecraft.sounds.SoundEvents.DEEPSLATE_STEP, net.minecraft.sounds.SoundSource.AMBIENT, 0.6f, 0.6f);
+            default -> { }
+        }
+    }
+    private static void relight(ServerLevel level, int lane) {
+        for (int stop : new int[]{0, 6, 7, 8}) ShaftBuilder.lamp(level, lane, stop, true);
     }
     /** Удаляется только после успешного выхода или смерти, не при временном отключении. */
     public static void release(ServerPlayer p) {
@@ -107,6 +122,8 @@ public final class ShaftHandler {
         ServerLevel level = p.server.getLevel(DreamDimension.LEVEL);
         if (level != null) {
             if (t != null) ShaftBuilder.setDoor(level, t.lane, t.from, false);
+            int lane = ShaftStorage.get(level).lane(p.getUUID());
+            if (lane >= 0) relight(level, lane);
             ShaftStorage.get(level).release(p.getUUID());
         }
     }
@@ -124,6 +141,7 @@ public final class ShaftHandler {
             p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.restore_failed"), false); return;
         }
         for (int stop : new int[]{0, 6, 7, 8}) ShaftBuilder.setDoor(p.serverLevel(), lane, stop, false);
+        relight(p.serverLevel(), lane);
         p.removeEffect(MobEffects.BLINDNESS);
     }
     @SubscribeEvent public static void respawn(PlayerEvent.PlayerRespawnEvent event) {

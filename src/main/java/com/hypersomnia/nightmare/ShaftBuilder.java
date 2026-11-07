@@ -116,7 +116,7 @@ public final class ShaftBuilder {
         // Свет: кабина ровная, коридор слабеет с глубиной (B8 почти тёмный).
         put(level, x + 1, y + 4, z + 1, Blocks.WHITE_STAINED_GLASS.defaultBlockState());
         put(level, x + 1, y + 3, z + 1, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 7));
-        int lvl = stop == 0 ? 12 : stop == 6 ? 8 : stop == 7 ? 4 : 2;
+        int lvl = baseLight(stop);
         if (stop != 8) put(level, x + 5, y + 4, z + 1, Blocks.WHITE_STAINED_GLASS.defaultBlockState());
         put(level, x + 5, y + 3, z + 1, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, lvl));
         put(level, panel(lane, stop).getX(), panel(lane, stop).getY(), panel(lane, stop).getZ(),
@@ -127,6 +127,14 @@ public final class ShaftBuilder {
         if (stop == 0) put(level, x + 7, y + 1, z, Blocks.POTTED_FERN.defaultBlockState());
         // Табличка у торца: на B8 её нет.
         if (stop != 8) LabSigns.wall(level, new BlockPos(x + 7, y + 2, z + 1), Direction.WEST, stop == 0 ? "0" : "B" + stop);
+    }
+    public static int baseLight(int stop) { return stop == 0 ? 12 : stop == 6 ? 8 : stop == 7 ? 4 : 2; }
+    /** [новое] Лампа коридора: on = штатный уровень, off = полная темнота. Меняет только наш блок света. */
+    public static void lamp(ServerLevel level, int lane, int stop, boolean on) {
+        if (!validStop(stop)) return;
+        BlockPos p = new BlockPos(x(stop) + 5, y() + 3, z(lane) + 1);
+        if (!level.getBlockState(p).is(Blocks.LIGHT)) return;
+        level.setBlock(p, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, on ? baseLight(stop) : 0), FLAGS);
     }
     public static boolean setDoor(ServerLevel level, int lane, int stop, boolean closed) {
         if (!validStop(stop)) return false;

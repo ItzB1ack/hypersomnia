@@ -18,6 +18,8 @@ public final class NightmareTuning {
     public static final int SHAFT_TRIP_TICKS = 80;
     /** [новое] Этаж 0 отвечает только после стольких поездок; раньше панель уводит глубже. */
     public static final int SHAFT_TRIPS_TO_ZERO = 4;
+    /** [новое] С какого этажа возможны личные события глубины. */
+    public static final int SHAFT_EVENTS_FROM_FLOOR = 8;
     public static final int SHAFT_TRIP_EXTRA_TICKS = 20;
     public static final int SHAFT_TRIP_EXTRA_MAX = 160;
     /** [новое] Обход: штраф за прикосновение к шприцу, без урона. */
