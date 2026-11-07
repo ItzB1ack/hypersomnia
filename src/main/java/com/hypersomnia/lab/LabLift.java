@@ -37,13 +37,16 @@ public final class LabLift {
         final ServerLevel level;
         final int from;
         final int to;
-        int ticks;
+        int ticks, total, elapsed;
+        com.hypersomnia.server.LiftRide ride;
+        List<ServerPlayer> riders = new ArrayList<>();
 
         Trip(ServerLevel level, int from, int to, int ticks) {
             this.level = level;
             this.from = from;
             this.to = to;
             this.ticks = ticks;
+            this.total = ticks;
         }
     }
 
@@ -124,20 +127,29 @@ public final class LabLift {
         d.setDirty();
         BlockPos c = new BlockPos(d.originX, d.stopY[from], d.originZ);
         level.playSound(null, c, SoundEvents.IRON_DOOR_CLOSE, SoundSource.BLOCKS, 1.0f, 0.6f);
-        for (ServerPlayer p : level.players())
-            if (cabin(d, from).contains(p.position()))
-                p.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, ticks + 20, 0, false, false, false));
+    }
+
+    /** [новое] Плавный рейс: на старте копия оболочки кабины и сиденья игроков едут к целевой кабине; блоки лаборатории не трогаются. */
+    private static void startRide(Trip t) {
+        LabSavedData d = LabSavedData.get(t.level);
+        List<ServerPlayer> inside = new ArrayList<>();
+        for (ServerPlayer p : t.level.players()) if (cabin(d, t.from).contains(p.position())) inside.add(p);
+        int y = d.stopY[t.from];
+        t.riders = inside;
+        t.ride = com.hypersomnia.server.LiftRide.start(t.level, new BlockPos(d.originX - 2, y - 1, d.originZ - 2),
+                new BlockPos(d.originX + 2, y + 3, d.originZ + 2), inside, d.stopY[t.to] - y, Math.max(10, t.total - 16));
     }
 
     private static void finish(Trip t) {
         ServerLevel level = t.level;
         LabSavedData d = LabSavedData.get(level);
         double dy = d.stopY[t.to] - d.stopY[t.from];
-        for (ServerPlayer p : level.players()) {
-            if (!cabin(d, t.from).contains(p.position())) continue;
-            p.teleportTo(p.getX(), p.getY() + dy, p.getZ());
+        if (t.ride != null) t.ride.end();
+        for (ServerPlayer p : t.riders) {
+            if (!p.isAlive() || p.serverLevel() != level) continue;
+            double[] end = t.ride != null ? t.ride.finalPos(p) : new double[]{p.getX(), p.getY() + dy, p.getZ()};
+            p.teleportTo(level, end[0], end[1], end[2], p.getYRot(), p.getXRot());
             p.resetFallDistance();
-            p.removeEffect(MobEffects.BLINDNESS);
         }
         d.closedDoor = -1;
         refreshDoors(level, d);
@@ -175,7 +187,10 @@ public final class LabLift {
         Iterator<Trip> it = TRIPS.iterator();
         while (it.hasNext()) {
             Trip t = it.next();
-            if (--t.ticks > 0) continue;
+            t.elapsed++;
+            if (t.ride == null && t.elapsed >= 10) startRide(t);
+            if (t.ride != null) t.ride.tick();
+            if (--t.ticks > 0 || (t.ride != null && !t.ride.motionDone())) continue;
             it.remove();
             finish(t);
         }
@@ -197,6 +212,13 @@ public final class LabLift {
                 d.setDirty();
             }
         }
+    }
+
+    /** Остановка сервера посреди рейса: доводим игроков до целевой кабины, чтобы они не сохранились в шахте. */
+    @SubscribeEvent
+    public static void onStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
+        for (Trip t : new ArrayList<>(TRIPS)) finish(t);
+        TRIPS.clear();
     }
 
     @SubscribeEvent

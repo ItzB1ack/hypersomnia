@@ -86,7 +86,9 @@ public final class ShaftBuilder {
         }
     }
     private static void put(ServerLevel level, int x, int y, int z, BlockState state) {
-        if (!level.setBlock(new BlockPos(x, y, z), state, FLAGS)) throw new IllegalStateException("Could not place shaft block");
+        BlockPos pos = new BlockPos(x, y, z);
+        // setBlock возвращает false и когда блок уже такой же: это не ошибка.
+        if (!level.setBlock(pos, state, FLAGS) && !level.getBlockState(pos).equals(state)) throw new IllegalStateException("Could not place shaft block");
     }
     private static void sealedDoor(ServerLevel level, int x, int y, int z, Direction facing) {
         BlockState door = Blocks.IRON_DOOR.defaultBlockState().setValue(DoorBlock.FACING, facing);
@@ -138,24 +140,9 @@ public final class ShaftBuilder {
         for (int dy = -3; dy > bottom; dy -= 4)
             put(level, x + 4, y + dy, z + 1, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 5));
     }
-    /** Сдвигает оболочку кабины (dx -1..3, dz -1..3, 5 слоёв) на блок вниз; yb — её текущий нижний слой. */
-    public static void shift(ServerLevel level, int lane, int stop, int yb) {
-        int x = x(stop), z = z(lane);
-        for (int dx = -1; dx <= 3; dx++) for (int dz = -1; dz <= 3; dz++) {
-            for (int dy = 0; dy <= 4; dy++)
-                level.setBlock(new BlockPos(x + dx, yb + dy - 1, z + dz), level.getBlockState(new BlockPos(x + dx, yb + dy, z + dz)), FLAGS);
-            level.setBlock(new BlockPos(x + dx, yb + 4, z + dz), Blocks.AIR.defaultBlockState(), FLAGS);
-        }
-    }
-    /** Возвращает кабину на этаж: убирает опущенную оболочку и достраивает секцию. dropped = число опущенных блоков. */
-    public static void restoreCabin(ServerLevel level, int lane, int stop, int dropped) {
-        if (!validStop(stop)) return;
-        if (dropped <= 0) { setDoor(level, lane, stop, false); return; }
-        int x = x(stop), z = z(lane), yb = y() - dropped;
-        for (int dx = -1; dx <= 3; dx++) for (int dz = -1; dz <= 3; dz++) for (int dy = 0; dy <= 4; dy++)
-            level.setBlock(new BlockPos(x + dx, yb + dy, z + dz), Blocks.AIR.defaultBlockState(), FLAGS);
-        try { buildStop(level, lane, stop); } catch (RuntimeException error) { LOGGER.error("Shaft cabin restore failed", error); }
-    }
+    /** Оболочка кабины для плавной поездки (включительно): стены, пол, потолок, рамка двери. */
+    public static BlockPos shellMin(int lane, int stop) { return new BlockPos(x(stop) - 1, y(), z(lane) - 1); }
+    public static BlockPos shellMax(int lane, int stop) { return new BlockPos(x(stop) + 3, y() + 4, z(lane) + 3); }
     public static boolean inShaft(int lane, int stop, net.minecraft.world.phys.Vec3 p) {
         return p.x >= x(stop) - 1 && p.x < x(stop) + 4 && p.z >= z(lane) - 1 && p.z < z(lane) + 4
                 && p.y >= y() - NightmareTuning.SHAFT_DROP && p.y <= y() + 5;
