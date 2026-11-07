@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down": { "model": "hypersomnia:block/light_tube", "x": 180 },
+    "facing=east": { "model": "hypersomnia:block/light_tube", "x": 90, "y": 90 },
+    "facing=north": { "model": "hypersomnia:block/light_tube", "x": 90 },
+    "facing=south": { "model": "hypersomnia:block/light_tube", "x": 90, "y": 180 },
+    "facing=up": { "model": "hypersomnia:block/light_tube" },
+    "facing=west": { "model": "hypersomnia:block/light_tube", "x": 90, "y": 270 }
+  }
+}

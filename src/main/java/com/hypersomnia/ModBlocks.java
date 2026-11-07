@@ -10,6 +10,7 @@ import com.hypersomnia.lab.LabEquipmentBlock;
 import com.hypersomnia.lab.LabSignBlock;
 import com.hypersomnia.lab.LabTuning;
 import com.hypersomnia.lab.LiftPanelBlock;
+import com.hypersomnia.lab.LightTubeBlock;
 import com.hypersomnia.lab.MonitorBlock;
 import com.hypersomnia.lab.ServerRackBlock;
 import com.hypersomnia.lab.UnlitTubeBlock;
@@ -101,7 +102,14 @@ public final class ModBlocks {
             lab(MapColor.COLOR_GRAY, SoundType.METAL)
                     .noOcclusion()));
 
-    /** Погасшая трубка (LabOutage, «обесточено»): модель торцевого стержня без света; предмета нет. */
+    /** [новое] Потолочный светильник: металлическая планка и матовая трубка (LightTubeBlock), свет LabTuning.TUBE_LIGHT. */
+    public static final DeferredBlock<LightTubeBlock> LIGHT_TUBE = BLOCKS.register("light_tube", () -> new LightTubeBlock(
+            lab(MapColor.QUARTZ, SoundType.GLASS)
+                    .noOcclusion()
+                    .forceSolidOff()
+                    .lightLevel(state -> LabTuning.TUBE_LIGHT)));
+
+    /** Погасшая трубка (LabOutage, «обесточено»): та же модель светильника без света; предмета нет. */
     public static final DeferredBlock<UnlitTubeBlock> UNLIT_TUBE = BLOCKS.register("unlit_tube", () -> new UnlitTubeBlock(
             lab(MapColor.QUARTZ, SoundType.GLASS)
                     .noOcclusion()

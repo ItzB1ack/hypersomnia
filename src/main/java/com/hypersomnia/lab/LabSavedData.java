@@ -43,8 +43,10 @@ public final class LabSavedData extends SavedData {
      * 3 — шифр 8 через антенну ANT-1: у реального мира со старой статичной тарелкой ставится roofPending, и LabAntenna
      * перестраивает крышу (LabBuilder.roofUpgrade), когда её чанки загружены.
      * 4 — шахта лифта G↔B1: у старых миров shaftBuilt=false, LabPlacement выроет её при первой загрузке.
+     * 5 — светильники вместо стержней энда и герметизация кабин: у старых миров lampsPending/sealPending,
+     *     LabPlacement заменяет END_ROD на light_tube и заделывает природные бока кабин (LabShaft.seal).
      */
-    public static final int DATA_VERSION = 4;
+    public static final int DATA_VERSION = 5;
 
     // ---- Точка входа (Верхний мир) ----
     public boolean sited;
@@ -71,6 +73,10 @@ public final class LabSavedData extends SavedData {
     public int builtMask;
     /** [новое] Шахта лифта между G и B1 вырыта и облицована (LabShaft). */
     public boolean shaftBuilt;
+    /** [новое] Старый мир: заменить END_ROD на light_tube, когда чанки лаборатории загружены (LabBuilder.upgradeLamps). */
+    public boolean lampsPending;
+    /** [новое] Старый мир: заделать природные бока кабин от воды (LabShaft.seal), когда чанки загружены. */
+    public boolean sealPending;
     /** Старший открытый этаж (0 = только поверхность). */
     public int reached;
     /** Бит id = замок id открыт. */
@@ -160,6 +166,8 @@ public final class LabSavedData extends SavedData {
         buildFailed = false;
         builtMask = 0;
         shaftBuilt = false;
+        lampsPending = false;
+        sealPending = false;
         closedDoor = -1;
         roofPending = false;
         outageStop = -1;
@@ -192,6 +200,8 @@ public final class LabSavedData extends SavedData {
         tag.putInt("groundY", groundY);
         tag.putInt("builtMask", builtMask);
         tag.putBoolean("shaftBuilt", shaftBuilt);
+        tag.putBoolean("lampsPending", lampsPending);
+        tag.putBoolean("sealPending", sealPending);
         tag.putInt("version", DATA_VERSION);
         tag.putInt("reached", reached);
         tag.putInt("locksOpen", locksOpen);
@@ -235,6 +245,8 @@ public final class LabSavedData extends SavedData {
         d.groundY = tag.getInt("groundY");
         d.builtMask = tag.getInt("builtMask");
         d.shaftBuilt = tag.getBoolean("shaftBuilt");
+        d.lampsPending = tag.getBoolean("lampsPending");
+        d.sealPending = tag.getBoolean("sealPending");
         d.reached = tag.getInt("reached");
         d.locksOpen = tag.getInt("locksOpen");
         d.flags = tag.getInt("flags");
@@ -259,6 +271,11 @@ public final class LabSavedData extends SavedData {
         int version = tag.getInt("version");
         if (version < 2 && d.hasFlag(FLAG_FEED)) d.reached = Math.min(d.reached, LabLocks.accessTop(d));
         if (version < 3 && d.built && !d.dream && d.isBuilt(0)) d.roofPending = true;
+        // [новое] Старый мир до светильников и герметизации: обе миграции — при первой загрузке рядом с лабораторией.
+        if (version < 5 && d.built) {
+            d.lampsPending = true;
+            d.sealPending = true;
+        }
         return d;
     }
 }

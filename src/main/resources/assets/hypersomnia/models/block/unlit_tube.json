@@ -1,4 +1,8 @@
 {
-  "parent": "minecraft:block/end_rod",
+  "parent": "hypersomnia:block/light_tube_base",
+  "textures": {
+    "particle": "hypersomnia:block/light_tube_off",
+    "tube": "hypersomnia:block/light_tube_off"
+  },
   "render_type": "minecraft:cutout"
 }

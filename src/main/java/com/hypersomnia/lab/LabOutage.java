@@ -26,8 +26,8 @@ import java.util.UUID;
 
 /**
  * «Обесточено»: погоня в реальной лаборатории (после MAIN FEED, этажи OUTAGE_MIN_STOP..OUTAGE_MAX_STOP). Её просит обычный
- * режиссёр погони; ChaseHandler.start, видя игрока в лаборатории, зовёт begin. Потолочные трубки этажа мигают и гаснут
- * (END_ROD -> UnlitTubeBlock), щит этажа у лифта выбит (лампа TRIPPED чуть светится), лифт стоит («NO POWER»).
+ * режиссёр погони; ChaseHandler.start, видя игрока в лаборатории, зовёт begin. Потолочные светильники этажа мигают и гаснут
+ * (LightTubeBlock -> UnlitTubeBlock), щит этажа у лифта выбит (лампа TRIPPED чуть светится), лифт стоит («NO POWER»).
  * Свет возвращается (мигнув), когда игрок включит щит этажа (ПКМ), через OUTAGE_AFTER_CHASE после конца погони
  * или через OUTAGE_MAX_TICKS от начала — тупика нет. Вернулся свет — погоня кончается, фигура исчезает.
  * Одно «обесточено» на сервер, только верхний мир. Этаж в темноте сохраняется (LabSavedData.outageStop): сервер
@@ -210,7 +210,7 @@ public final class LabOutage {
         return s;
     }
 
-    /** Потолочные трубки этажа: стержни и погасшие трубки в слое под потолком (y = пол + высота - 1). */
+    /** Потолочные светильники этажа: горящие, погасшие и старые стержни в слое под потолком (y = пол + высота - 1). */
     static List<BlockPos> tubes(ServerLevel level, LabSavedData d, int stop) {
         List<BlockPos> out = new ArrayList<>();
         if (!d.isBuilt(stop)) return out;
@@ -219,18 +219,23 @@ public final class LabOutage {
             for (int z = d.bbox[stop * 4 + 1]; z <= d.bbox[stop * 4 + 3]; z++) {
                 BlockPos p = new BlockPos(x, y, z);
                 BlockState s = level.getBlockState(p);
-                if (s.is(Blocks.END_ROD) || s.is(ModBlocks.UNLIT_TUBE.get())) out.add(p);
+                if (s.is(ModBlocks.LIGHT_TUBE.get()) || s.is(ModBlocks.UNLIT_TUBE.get()) || s.is(Blocks.END_ROD)) out.add(p);
             }
         return out;
     }
 
-    /** Трубки -> стержни (on) или погасшие трубки; направление сохраняется, чужие блоки на их месте не трогаются. */
+    /**
+     * Светильники: включить (LightTubeBlock) или погасить (UnlitTubeBlock). Старый мир со стержнями END_ROD
+     * попутно переводится на новые лампы. Направление сохраняется, чужие блоки на их месте не трогаются.
+     */
     private static void lights(ServerLevel level, List<BlockPos> tubes, boolean on) {
         for (BlockPos p : tubes) {
             BlockState s = level.getBlockState(p);
-            if (on && s.is(ModBlocks.UNLIT_TUBE.get()))
-                level.setBlock(p, Blocks.END_ROD.defaultBlockState().setValue(DirectionalBlock.FACING, s.getValue(DirectionalBlock.FACING)), 2);
-            else if (!on && s.is(Blocks.END_ROD))
+            boolean tube = s.is(ModBlocks.LIGHT_TUBE.get()) || s.is(ModBlocks.UNLIT_TUBE.get()) || s.is(Blocks.END_ROD);
+            if (!tube) continue;
+            if (on && !s.is(ModBlocks.LIGHT_TUBE.get()))
+                level.setBlock(p, ModBlocks.LIGHT_TUBE.get().defaultBlockState().setValue(DirectionalBlock.FACING, s.getValue(DirectionalBlock.FACING)), 2);
+            else if (!on && !s.is(ModBlocks.UNLIT_TUBE.get()))
                 level.setBlock(p, ModBlocks.UNLIT_TUBE.get().defaultBlockState().setValue(DirectionalBlock.FACING, s.getValue(DirectionalBlock.FACING)), 2);
         }
     }

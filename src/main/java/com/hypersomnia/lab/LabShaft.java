@@ -65,6 +65,7 @@ public final class LabShaft {
         if (!needed(d)) {
             // Оба этажа есть, но просвета нет: шахта не нужна, помечаем как готовую.
             if (d.isBuilt(0) && d.isBuilt(1)) {
+                seal(level, d);
                 d.shaftBuilt = true;
                 d.setDirty();
             }
@@ -72,9 +73,60 @@ public final class LabShaft {
         }
         if (!level.getEntitiesOfClass(ServerPlayer.class, box(d)).isEmpty()) return false;
         carve(level, d, false);
+        seal(level, d);
         d.shaftBuilt = true;
         d.setDirty();
         return true;
+    }
+
+    /**
+     * [новое] Герметизация кабин подземных этажей: природные бока 5x5-оболочки (север, восток, запад и юг ниже пола)
+     * и слой под полом заполняются облицовкой, а вода внутри кабины осушается. Иначе во время рейса LiftRide прячет
+     * настоящие пол/стены кабины, и вода из соседнего водоносного кармана заливает низ кабины (замечено на B1).
+     * Юг выше пола не трогаем: там проход к лифтовой двери.
+     */
+    public static void seal(ServerLevel level, LabSavedData d) {
+        int cx = d.originX, cz = d.originZ;
+        for (int stop = 1; stop < LabTuning.STOPS; stop++) {
+            if (!d.isBuilt(stop)) continue;
+            int fy = d.stopY[stop], h = d.stopH[stop], roof = fy + h;
+            int low = fy - 2;
+            // До крыши следующего построенного этажа: кабина проходит и этот промежуток.
+            for (int n = stop + 1; n < LabTuning.STOPS; n++)
+                if (d.isBuilt(n)) {
+                    low = d.stopY[n] + d.stopH[n];
+                    break;
+                }
+            for (int y = low; y <= roof; y++) {
+                boolean under = y < fy - 1; // ниже плиты пола юг тоже открыт породе (выше — стена здания и проход)
+                int zMax = under ? cz + HALF : cz + HALF - 1;
+                for (int z = cz - HALF; z <= zMax; z++) {
+                    fill(level, cx - HALF - CASING, y, z);
+                    fill(level, cx + HALF + CASING, y, z);
+                }
+                for (int x = cx - HALF; x <= cx + HALF; x++) {
+                    fill(level, x, y, cz - HALF - CASING);
+                    if (under) fill(level, x, y, cz + HALF + CASING);
+                }
+            }
+            // Слой прямо под полом: при скрытом полу вода не поднимется внутрь.
+            for (int x = cx - HALF; x <= cx + HALF; x++)
+                for (int z = cz - HALF; z <= cz + HALF; z++)
+                    fill(level, x, fy - 2, z);
+            // Осушить кабину, если вода уже успела затечь.
+            for (int x = cx - HALF; x <= cx + HALF; x++)
+                for (int z = cz - HALF; z <= cz + HALF; z++)
+                    for (int y = fy - 1; y <= roof; y++) {
+                        BlockPos p = new BlockPos(x, y, z);
+                        if (!level.getFluidState(p).isEmpty())
+                            level.setBlock(p, Blocks.AIR.defaultBlockState(), FLAGS);
+                    }
+        }
+    }
+
+    /** Заполнить клетку облицовкой: и породу, и воду, и пустоты — чтобы вода не нашла путь к скрытой оболочке. */
+    private static void fill(ServerLevel level, int x, int y, int z) {
+        level.setBlock(new BlockPos(x, y, z), casing(), FLAGS);
     }
 
     /** Стирает старую шахту при rebuild/resite: заполняет объём породой, чтобы не оставить пустоту. */

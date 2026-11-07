@@ -183,6 +183,7 @@
   "hypersomnia.lab.antenna.nopower": "NO POWER",
   "hypersomnia.lab.lock.uplink": "WAITING FOR UPLINK · ANT-1 NO CARRIER",
   "block.hypersomnia.unlit_tube": "Unlit Tube",
+  "block.hypersomnia.light_tube": "Ceiling Light",
   "hypersomnia.lab.outage.tripped": "FLOOR BOARD %s TRIPPED · RESET BY THE LIFT",
   "hypersomnia.lab.outage.reset": "FLOOR BOARD %s ON",
   "hypersomnia.lab.board.fed": "FLOOR BOARD %s · ON MAIN FEED",

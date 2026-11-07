@@ -58,4 +58,7 @@ public final class ModItems {
             ITEMS.registerSimpleBlockItem("lift_panel", ModBlocks.LIFT_PANEL);
     public static final DeferredItem<net.minecraft.world.item.BlockItem> ANTENNA_DRIVE =
             ITEMS.registerSimpleBlockItem("antenna_drive", ModBlocks.ANTENNA_DRIVE);
+    /** [новое] Потолочный светильник: в лаборатории его ставит LabBuilder, предмет — для творческого режима. */
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> LIGHT_TUBE =
+            ITEMS.registerSimpleBlockItem("light_tube", ModBlocks.LIGHT_TUBE);
 }

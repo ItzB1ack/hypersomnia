@@ -799,6 +799,7 @@
   "hypersomnia.lab.lock.uplink": "ЖДЁТ СВЯЗИ · ANT-1 НЕТ НЕСУЩЕЙ",
   "hypersomnia.lab.sign.roof_ant_1_authorised_staff_only": "КРЫША|ANT-1|ТОЛЬКО ДЛЯ|ПЕРСОНАЛА",
   "block.hypersomnia.unlit_tube": "Погасшая трубка",
+  "block.hypersomnia.light_tube": "Потолочный светильник",
   "hypersomnia.lab.outage.tripped": "ЩИТ ЭТАЖА %s: СРАБОТАЛА ЗАЩИТА · ВКЛЮЧИТЬ У ЛИФТА",
   "hypersomnia.lab.outage.reset": "ЩИТ ЭТАЖА %s ВКЛЮЧЁН",
   "hypersomnia.lab.board.fed": "ЩИТ ЭТАЖА %s · ОТ ГЛАВНОГО ВВОДА",

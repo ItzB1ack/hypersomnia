@@ -278,6 +278,53 @@ def text(px, x, y, s, color, shadow=None, spacing=1):
 
 
 # ---------------------------------------------------------------------------
+# потолочный светильник
+# ---------------------------------------------------------------------------
+def light_tube_fixture():
+    """Корпус: спокойная стальная планка с рёбрами и винтами."""
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, BRK_T, BRK_B)
+    bevel(im, 0, 0, 15, 15, BRK_T, BRK_B)
+    px = im.load()
+    for y in (3, 7, 11, 15):
+        hline(px, 1, 14, y, sh(BRK_B, -20))
+        hline(px, 1, 14, y - 1, sh(BRK_T, 14))
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], BRK_T)
+    return im
+
+
+def light_tube_shade(core, edge, lit):
+    """Трубка: горизонтальный градиент читается как круглая колба, без грязи и шума."""
+    im = new16()
+    px = im.load()
+    for x in range(16):
+        t = abs(x - 7.5) / 7.5
+        c = mix(core, edge, min(1.0, t * 0.95))
+        for y in range(16):
+            put(px, x, y, c)
+    vline(px, 6, 0, 15, sh(core, 12 if lit else 4))
+    vline(px, 7, 0, 15, sh(core, 26 if lit else 8))
+    vline(px, 8, 0, 15, sh(core, 12 if lit else 4))
+    vline(px, 0, 0, 15, sh(edge, -22))
+    vline(px, 15, 0, 15, sh(edge, -22))
+    hline(px, 0, 15, 0, sh(core, 10 if lit else 2))
+    hline(px, 0, 15, 15, sh(edge, -26))
+    if lit:
+        hline(px, 1, 14, 1, sh(core, 34))
+        hline(px, 1, 14, 14, sh(core, 16))
+    return im
+
+
+def light_tube_on():
+    return light_tube_shade((233, 239, 241), (176, 190, 197), True)
+
+
+def light_tube_off():
+    return light_tube_shade((124, 134, 141), (82, 92, 100), False)
+
+
+# ---------------------------------------------------------------------------
 # батарейный шкаф
 # ---------------------------------------------------------------------------
 def battery_front_upper():
@@ -1049,6 +1096,9 @@ def save(img, name):
 
 
 def main():
+    save(light_tube_fixture(), 'light_tube_fixture.png')
+    save(light_tube_on(), 'light_tube_on.png')
+    save(light_tube_off(), 'light_tube_off.png')
     save(cabinet_side(), 'cabinet_side.png')
     save(cabinet_top(), 'cabinet_top.png')
     save(cabinet_front(), 'cabinet_front.png')

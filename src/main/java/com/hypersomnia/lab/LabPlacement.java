@@ -34,11 +34,21 @@ public final class LabPlacement {
             if (!dream && level.dimension() != Level.OVERWORLD) continue;
             LabSavedData d = LabSavedData.get(level);
             if (d.built) {
+                BlockPos site = site(server);
+                double dx = p.getX() - site.getX(), dz = p.getZ() - site.getZ();
+                if (dx * dx + dz * dz > (double) LabTuning.BUILD_RADIUS * LabTuning.BUILD_RADIUS) continue;
                 // [новое] Старый мир: шахты G↔B1 ещё нет — вырыть её, когда игрок рядом и чанки загружены.
-                if (!d.shaftBuilt) {
-                    BlockPos site = site(server);
-                    double dx = p.getX() - site.getX(), dz = p.getZ() - site.getZ();
-                    if (dx * dx + dz * dz <= (double) LabTuning.BUILD_RADIUS * LabTuning.BUILD_RADIUS) LabShaft.ensure(level, d);
+                if (!d.shaftBuilt) LabShaft.ensure(level, d);
+                // [новое] Миграции версии 5: стержни энда -> светильники, природные бока кабин -> облицовка.
+                if (d.lampsPending) {
+                    LabBuilder.upgradeLamps(level, d);
+                    d.lampsPending = false;
+                    d.setDirty();
+                }
+                if (d.sealPending) {
+                    LabShaft.seal(level, d);
+                    d.sealPending = false;
+                    d.setDirty();
                 }
                 continue;
             }

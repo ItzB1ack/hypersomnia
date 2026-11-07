@@ -114,9 +114,32 @@ public final class LabBuilder {
     }
 
 
-    /** Холодная «трубка дневного света»: торцевой стержень, белый свет без зелёного оттенка моря. */
-    private static BlockState rod(Direction pointing) {
-        return Blocks.END_ROD.defaultBlockState().setValue(net.minecraft.world.level.block.EndRodBlock.FACING, pointing); // [проверить: EndRodBlock.FACING]
+    /** [новое] Светильник лаборатории: металлическая планка и матовая трубка вместо торцевого стержня (END_ROD). */
+    private static BlockState lamp(Direction pointing) {
+        return ModBlocks.LIGHT_TUBE.get().defaultBlockState().setValue(LightTubeBlock.FACING, pointing);
+    }
+
+    /**
+     * [новое] Миграция старого мира: торцевые стержни в объёме лаборатории (потолки, фонари у входа, мачта тарелки)
+     * заменяются светильниками light_tube с тем же направлением. Зовёт LabPlacement по флагу lampsPending.
+     */
+    public static void upgradeLamps(ServerLevel lv, LabSavedData d) {
+        for (int stop = 0; stop < LabTuning.STOPS; stop++) {
+            if (!d.isBuilt(stop)) continue;
+            int fy = d.stopY[stop], h = d.stopH[stop];
+            int x1 = d.bbox[stop * 4], z1 = d.bbox[stop * 4 + 1];
+            int x2 = d.bbox[stop * 4 + 2], z2 = d.bbox[stop * 4 + 3];
+            int pad = stop == 0 ? 2 : 0;              // фонари у входа стоят за границей чертежа
+            int top = stop == 0 ? fy + h + 11 : fy + h; // на крыше — мачта тарелки
+            for (int x = x1 - pad; x <= x2 + pad; x++)
+                for (int z = z1 - pad; z <= z2 + pad; z++)
+                    for (int y = fy; y <= top; y++) {
+                        BlockPos p = new BlockPos(x, y, z);
+                        BlockState s = lv.getBlockState(p);
+                        if (!s.is(Blocks.END_ROD)) continue;
+                        lv.setBlock(p, lamp(s.getValue(LightTubeBlock.FACING)), 2);
+                    }
+        }
     }
 
     /** Фасад павильона (только поверхность): тёмные пилястры по углам и на сторонах (мимо входа). */
@@ -211,7 +234,7 @@ public final class LabBuilder {
         set(lv, x0 - 1, p, z0 + 1, wallW);
         set(lv, x0 - 1, p + 1, z0, wallW);
         for (int k = 0; k < 6; k++) set(lv, x0 + 1, p + k, z0 + 1, Blocks.IRON_BARS.defaultBlockState()); // мачта из тарелки
-        set(lv, x0 + 1, p + 6, z0 + 1, rod(Direction.UP));  // холодный огонёк на конце
+        set(lv, x0 + 1, p + 6, z0 + 1, lamp(Direction.UP));  // огонёк-светильник на конце мачты
         d.dishPos = new BlockPos(bestX + 1, y + 1, bestZ + 1).asLong();
         d.dishAngle = 0;
     }
@@ -931,7 +954,7 @@ public final class LabBuilder {
         int open = door ? 3 : h;
         for (int y = 0; y < h; y++) set(lv, x, fy + y, z, y >= open ? s.wall : AIR);
         set(lv, x, fy + h, z, s.roof);
-        if (c == '*' || c == 'Y') set(lv, x, fy + h - 1, z, rod(Direction.DOWN));
+        if (c == '*' || c == 'Y') set(lv, x, fy + h - 1, z, lamp(Direction.DOWN));
     }
 
     /** Мировые границы (minX, minZ, maxX, maxZ) непустых клеток чертежа. */
@@ -1080,7 +1103,7 @@ public final class LabBuilder {
                 int pz = wz + out.getStepZ() * 2 + side.getStepZ() * k;
                 set(lv, px, fy, pz, s.trim); // серое основание фонаря
                 for (int y = 1; y < 3; y++) set(lv, px, fy + y, pz, s.wall);
-                set(lv, px, fy + 3, pz, rod(Direction.UP));
+                set(lv, px, fy + 3, pz, lamp(Direction.UP));
             }
             return;
         }
