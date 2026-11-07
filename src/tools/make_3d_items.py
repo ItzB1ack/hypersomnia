@@ -122,6 +122,9 @@ SYRINGE_DISPLAY = {
 }
 
 
+SYRINGE_STEPS = 8
+
+
 def syringe_elements(push=0.0):
     shift = push * 3.0
     barrel_faces = {
@@ -162,19 +165,16 @@ def syringe():
     save_tex("syringe_rubber", bevel(RUBBER, 10))
     save_tex("syringe_red", bevel(RED, 18))
 
-    frames = [
-        ("adrenaline_syringe", 0.00),
-        ("adrenaline_syringe_use_0", 0.10),
-        ("adrenaline_syringe_use_1", 0.55),
-        ("adrenaline_syringe_use_2", 1.00),
+    # hypersomnia:using для шприца — положение поршня 0..1 (кривую и субтики
+    # считает SyringeViewModel), поэтому кадры идут равномерно.
+    frames = [("adrenaline_syringe", 0.0)] + [
+        ("adrenaline_syringe_use_%d" % k, (k + 1) / SYRINGE_STEPS)
+        for k in range(SYRINGE_STEPS)
     ]
     overrides = [
-        {"predicate": {"hypersomnia:using": 0.001},
-         "model": "hypersomnia:item/adrenaline_syringe_use_0"},
-        {"predicate": {"hypersomnia:using": 0.45},
-         "model": "hypersomnia:item/adrenaline_syringe_use_1"},
-        {"predicate": {"hypersomnia:using": 0.80},
-         "model": "hypersomnia:item/adrenaline_syringe_use_2"},
+        {"predicate": {"hypersomnia:using": round((k + 0.5) / SYRINGE_STEPS, 4)},
+         "model": "hypersomnia:item/adrenaline_syringe_use_%d" % k}
+        for k in range(SYRINGE_STEPS)
     ]
     for name, push in frames:
         data = {
@@ -312,7 +312,7 @@ def diary():
 def main():
     syringe()
     diary()
-    print("3d items: syringe 4 frames, diary 9 frames")
+    print("3d items: syringe %d frames, diary 9 frames" % (SYRINGE_STEPS + 1))
 
 
 if __name__ == "__main__":

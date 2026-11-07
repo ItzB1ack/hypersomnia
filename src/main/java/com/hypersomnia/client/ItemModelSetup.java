@@ -2,10 +2,10 @@ package com.hypersomnia.client;
 
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModItems;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -13,8 +13,8 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 
 /**
  * Предметное свойство hypersomnia:using (0..1 — прогресс).
- * Шприц: прогресс удержания ПКМ (поршень). Дневник: клиентская анимация
- * раскрытия после обычного ПКМ (обложка).
+ * Шприц: положение поршня по удержанию ПКМ. Дневник: клиентская анимация
+ * раскрытия после обычного ПКМ (обложка), закрытия после выхода из GUI.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ItemModelSetup {
@@ -31,20 +31,15 @@ public final class ItemModelSetup {
         });
     }
 
-    /** Прогресс удержания ПКМ: шприц. */
+    /** Положение поршня (0..1) по удержанию ПКМ: шприц. Кривую и субтики считает SyringeViewModel. */
     private static void registerHeldProgress(Item item) {
-        ItemProperties.register(item, USING, (stack, level, entity, seed) -> {
-            if (entity == null || !entity.isUsingItem()) return 0.0F;
-            ItemStack used = entity.getUseItem();
-            if (!ItemStack.isSameItemSameComponents(used, stack)) return 0.0F;
-            int duration = stack.getUseDuration(entity);
-            if (duration <= 0) return 1.0F;
-            return 1.0F - (float) entity.getUseItemRemainingTicks() / (float) duration;
-        });
+        ItemProperties.register(item, USING,
+                (stack, level, entity, seed) -> SyringeViewModel.modelProgress(entity, stack));
     }
 
-    /** Клиентская анимация раскрытия без удержания: дневник. */
+    /** Клиентская анимация раскрытия без удержания: дневник. Только в руках самого игрока. */
     private static void registerDiary(Item item) {
-        ItemProperties.register(item, USING, (stack, level, entity, seed) -> DiaryOpenAnim.progress());
+        ItemProperties.register(item, USING, (stack, level, entity, seed) ->
+                entity != null && entity == Minecraft.getInstance().player ? DiaryOpenAnim.progress() : 0.0F);
     }
 }

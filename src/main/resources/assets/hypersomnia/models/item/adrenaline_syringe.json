@@ -377,21 +377,51 @@
   "overrides": [
     {
       "predicate": {
-        "hypersomnia:using": 0.001
+        "hypersomnia:using": 0.0625
       },
       "model": "hypersomnia:item/adrenaline_syringe_use_0"
     },
     {
       "predicate": {
-        "hypersomnia:using": 0.45
+        "hypersomnia:using": 0.1875
       },
       "model": "hypersomnia:item/adrenaline_syringe_use_1"
     },
     {
       "predicate": {
-        "hypersomnia:using": 0.8
+        "hypersomnia:using": 0.3125
       },
       "model": "hypersomnia:item/adrenaline_syringe_use_2"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.4375
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_3"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.5625
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_4"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.6875
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_5"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.8125
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_6"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.9375
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_7"
     }
   ]
 }

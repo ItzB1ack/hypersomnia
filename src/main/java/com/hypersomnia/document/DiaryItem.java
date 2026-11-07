@@ -22,7 +22,7 @@ public class DiaryItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (level.isClientSide) {
-            DiaryOpenAnim.start();
+            DiaryOpenAnim.start(hand);
         }
         return InteractionResultHolder.consume(stack);
     }

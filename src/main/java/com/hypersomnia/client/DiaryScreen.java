@@ -47,6 +47,9 @@ public final class DiaryScreen extends Screen {
     private static final int TRAY_BOX_W = 28;
     private static final int TRAY_BOX_H = 30;
     private static final float TURN_SPEED = 1f / DiaryTuning.TURN_SECONDS;
+    /** Скорость, с которой показанный лист догоняет мышь при перетаскивании (1/с): больше — резче. */
+    private static final float DRAG_FOLLOW = 28f;
+    private static final long INTRO_NS = DiaryTuning.INTRO_MS * 1_000_000L;
     private static final int INK = 0xFF1E2A34;
     private static final int FADED = 0xFF8A949A;
     /** Номера страниц: темнее FADED, читаются на светлой бумаге. */
@@ -62,6 +65,11 @@ public final class DiaryScreen extends Screen {
     private int turnTarget = 1;
     private boolean turnDragging;
     private long lastNanos;
+    /** Момент создания экрана: от него идёт появление (фон и лёгкий рост разворота). */
+    private final long openedNanos = System.nanoTime();
+    /** Показанное положение листа: при перетаскивании догоняет turnT, чтобы дрожь мыши не рвала движение. */
+    private float turnShown = 0f;
+    private boolean prevTurnDragging;
 
     private boolean flipping;
     private float flipDx;
@@ -421,7 +429,7 @@ public final class DiaryScreen extends Screen {
 
     /** Переворачиваемый лист: ширина сжимается к корешку (cos), на середине меняется сторона; лист приподнимается, изгибается тенью и бликом. */
     private void drawLeaf(GuiGraphics g) {
-        float e = turnT * turnT * (3f - 2f * turnT);
+        float e = turnShown * turnShown * (3f - 2f * turnShown);
         boolean front = e < 0.5f;
         float f = Math.max(0.02f, (float) Math.abs(Math.cos(e * Math.PI)));
         float lift = (float) Math.sin(e * Math.PI);
@@ -470,6 +478,9 @@ public final class DiaryScreen extends Screen {
         long now = System.nanoTime();
         float dt = lastNanos == 0 ? 0f : Math.min(0.1f, (now - lastNanos) / 1_000_000_000f);
         lastNanos = now;
+        // Мышь отпущена: дальше лист идёт от того положения, которое видно, а не от «сырого» turnT.
+        if (turnDir != 0 && !turnDragging && prevTurnDragging) turnT = turnShown;
+        prevTurnDragging = turnDir != 0 && turnDragging;
         if (turnDir != 0 && !turnDragging) {
             turnT += (turnTarget == 1 ? 1f : -1f) * TURN_SPEED * dt;
             if (turnT >= 1f) {
@@ -484,13 +495,27 @@ public final class DiaryScreen extends Screen {
             }
         }
 
-        g.fill(0, 0, width, height, 0xE0030508);
+        if (turnDir != 0 && turnDragging) {
+            turnShown += (turnT - turnShown) * (1f - (float) Math.exp(-dt * DRAG_FOLLOW));
+        } else {
+            turnShown = turnT;
+        }
+
+        // Появление: фон проявляется, разворот вырастает с 94% до полного размера (ease-out).
+        float introT = Math.min(1f, (now - openedNanos) / (float) INTRO_NS);
+        float intro = 1f - (1f - introT) * (1f - introT) * (1f - introT);
+        int backAlpha = Math.round(0xE0 * intro);
+        g.fill(0, 0, width, height, (backAlpha << 24) | 0x030508);
         float s = scale();
         double lx = localX(mouseX), ly = localY(mouseY);
 
         g.pose().pushPose();
         g.pose().translate(originX(), originY(), 0f);
         g.pose().scale(s, s, 1f);
+        float introScale = 0.94f + 0.06f * intro;
+        g.pose().translate(PW, PH / 2f, 0f);
+        g.pose().scale(introScale, introScale, 1f);
+        g.pose().translate(-PW, -PH / 2f, 0f);
 
         // обложка и срез страниц
         g.fill(-6, -6, PW * 2 + 6, PH + 6, 0xFF1C1412);
@@ -630,6 +655,7 @@ public final class DiaryScreen extends Screen {
         keyView.edit = -1;
         turnDir = dir;
         turnT = 0f;
+        turnShown = 0f;
         turnTarget = 1;
         turnDragging = drag;
         flipVel = 0f;

@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
@@ -34,6 +35,11 @@ import org.joml.Vector3f;
  * та же база (swing = 0), после чего обе руки доворачиваются к центру экрана.
  * Все числа вынесены в константы и подбирались расчётом позы, а не в игре:
  * точную посадку нужно один раз посмотреть глазами.
+ *
+ * Плавность: фазы идут внахлёст и на кривых smoother-step (нулевая скорость и
+ * ускорение на краях), поршень двигается по прогрессу с долей тика, а после
+ * укола или раннего отпускания руки не пропадают рывком, а отводят иглу и
+ * уходят (RETRACT_MS).
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class SyringeViewModel {
@@ -57,54 +63,171 @@ public final class SyringeViewModel {
     private static final Vector3f NEUTRAL_AIM = new Vector3f(0.10F, 0.18F, -0.98F).normalize();
     private static final Vector3f NEEDLE_AXIS = new Vector3f(1.0F, 0.0F, 0.0F);
 
+    // ---- фазы укола (доля прогресса 0..1; соседние фазы перекрываются) ----
+    private static final float RAISE_END = 0.40F;
+    private static final float AIM_START = 0.22F, AIM_LEN = 0.30F;
+    private static final float INJECT_START = 0.50F, INJECT_LEN = 0.18F;
+    private static final float PLUNGE_START = 0.66F, PLUNGE_LEN = 0.30F;
+
+    // ---- уход рук (доля времени RETRACT_NS 0..1) ----
+    /** Длительность ухода после укола или раннего отпускания (нс). */
+    private static final long RETRACT_NS = 420_000_000L;
+    /** С этой доли времени решается, что делают руки: уходят вниз (шприц потрачен) или возвращаются в покой. */
+    private static final float RETRACT_DECIDE = 0.35F;
+    /** Насколько руки опускаются вниз при уходе после укола (пространство камеры). */
+    private static final float DROP_DISTANCE = 1.1F;
+    /** Прогресс, с которого отпускание считается законченным уколом, а не отменой. */
+    private static final float FINISHED_PROGRESS = 0.93F;
+    /** Если кадры рук не приходили дольше этого времени (открыт экран и т. п.), уход не показываем. */
+    private static final long STALE_NS = 150_000_000L;
+
+    // ---- состояние (только поток рендера клиента) ----
+    private static boolean wasUsing;
+    private static float lastProgress;
+    private static long lastUseNanos;
+    private static InteractionHand lastHand = InteractionHand.MAIN_HAND;
+    private static ItemStack lastStack = ItemStack.EMPTY;
+    private static long retractStart = -1L;
+    private static boolean retractDecided;
+    private static boolean retractDrops;
+
+    /** Положение поршня 0..1 для кадра модели, пока этот класс сам рисует шприц. */
+    private static float viewPlunger;
+    private static boolean inView;
+
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || !player.isUsingItem()) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null) return;
 
-        ItemStack useItem = player.getUseItem();
-        if (!useItem.is(ModItems.ADRENALINE_SYRINGE.get())) return;
+        long now = System.nanoTime();
+        ItemStack useItem = player.isUsingItem() ? player.getUseItem() : ItemStack.EMPTY;
+        boolean using = useItem.is(ModItems.ADRENALINE_SYRINGE.get());
 
-        // Событие приходит на обе руки. Рисуем всё один раз — на руке с шприцем.
-        if (event.getHand() != player.getUsedItemHand()) {
+        if (using) {
+            // Событие приходит на обе руки. Рисуем всё один раз — на руке с шприцем.
             event.setCanceled(true);
+            retractStart = -1L;
+            if (event.getHand() != player.getUsedItemHand()) return;
+
+            int duration = useItem.getUseDuration(player);
+            if (duration <= 0) return;
+
+            float remaining = (float) player.getUseItemRemainingTicks() - event.getPartialTick();
+            float progress = Mth.clamp(1.0F - remaining / (float) duration, 0.0F, 1.0F);
+
+            wasUsing = true;
+            lastProgress = progress;
+            lastUseNanos = now;
+            lastHand = player.getUsedItemHand();
+            lastStack = useItem.copy();
+
+            renderInjection(player, event, useItem, raiseOf(progress), aimOf(progress),
+                    injectOf(progress), plungerOf(progress), 0.0F);
             return;
         }
+
+        if (wasUsing) {
+            wasUsing = false;
+            boolean fresh = now - lastUseNanos <= STALE_NS;
+            if (fresh && player.isAlive() && !player.isSpectator()) {
+                retractStart = now;
+                retractDecided = false;
+                retractDrops = false;
+            }
+        }
+
+        if (retractStart < 0L) return;
+        // Игрок начал другое действие (еда, лук): дальше ведёт ваниль.
+        if (player.isUsingItem()) {
+            retractStart = -1L;
+            return;
+        }
+        float t = (float) (now - retractStart) / (float) RETRACT_NS;
+        if (t >= 1.0F) {
+            retractStart = -1L;
+            return;
+        }
+
         event.setCanceled(true);
+        if (event.getHand() != lastHand) return;
 
-        int duration = useItem.getUseDuration(player);
-        if (duration <= 0) return;
+        float p0 = lastProgress;
+        boolean finished = p0 >= FINISHED_PROGRESS;
+        if (!retractDecided && t >= RETRACT_DECIDE) {
+            retractDecided = true;
+            // Шприц израсходован — руки уходят вниз вместе с ним. Остался в руке
+            // (творческий режим, отказ сервера, стопка) — руки возвращаются в покой.
+            retractDrops = finished
+                    && !player.getItemInHand(lastHand).is(ModItems.ADRENALINE_SYRINGE.get());
+        }
 
-        float partial = event.getPartialTick();
-        float remaining = (float) player.getUseItemRemainingTicks() - partial;
-        float progress = Mth.clamp(1.0F - remaining / (float) duration, 0.0F, 1.0F);
+        float inject = injectOf(p0) * (1.0F - smooth(seg(t, 0.00F, 0.35F)));
+        float aim = aimOf(p0) * (1.0F - smooth(seg(t, 0.10F, 0.60F)));
+        float tail = smooth(seg(t, RETRACT_DECIDE, 1.0F));
+        float raise = raiseOf(p0);
+        float plunger = plungerOf(p0);
+        float drop = 0.0F;
+        if (retractDrops) {
+            drop = tail;
+        } else {
+            raise *= 1.0F - tail;
+            plunger *= 1.0F - tail;
+        }
 
-        renderInjection(player, event, useItem, progress);
+        renderInjection(player, event, lastStack, raise, aim, inject, plunger, drop);
     }
 
-    private static void renderInjection(LocalPlayer player, RenderHandEvent event,
-                                        ItemStack stack, float progress) {
+    /**
+     * Значение предметного свойства hypersomnia:using шприца: положение поршня 0..1.
+     * В первом лице его задаёт сама вьюмодель (по субтикам), в остальных случаях — тики.
+     */
+    public static float modelProgress(LivingEntity entity, ItemStack stack) {
+        if (inView) return viewPlunger;
+        if (entity == null || !entity.isUsingItem()) return 0.0F;
+        ItemStack used = entity.getUseItem();
+        if (!ItemStack.isSameItemSameComponents(used, stack)) return 0.0F;
+        int duration = stack.getUseDuration(entity);
+        if (duration <= 0) return 1.0F;
+        return plungerOf(1.0F - (float) entity.getUseItemRemainingTicks() / (float) duration);
+    }
+
+    // ---- кривые фаз ----
+
+    private static float raiseOf(float p) {
+        return smoother(seg(p, 0.0F, RAISE_END));
+    }
+
+    private static float aimOf(float p) {
+        return smoother(seg(p, AIM_START, AIM_START + AIM_LEN));
+    }
+
+    private static float injectOf(float p) {
+        return smooth(seg(p, INJECT_START, INJECT_START + INJECT_LEN));
+    }
+
+    private static float plungerOf(float p) {
+        return smooth(seg(p, PLUNGE_START, PLUNGE_START + PLUNGE_LEN));
+    }
+
+    private static void renderInjection(LocalPlayer player, RenderHandEvent event, ItemStack stack,
+                                        float raise, float aim, float inject, float plunger, float drop) {
         Minecraft mc = Minecraft.getInstance();
         if (!(mc.getEntityRenderDispatcher().getRenderer(player) instanceof PlayerRenderer renderer)) return;
+        if (stack.isEmpty()) return;
 
         PoseStack pose = event.getPoseStack();
         MultiBufferSource buffer = event.getMultiBufferSource();
         int light = event.getPackedLight();
         float equip = event.getEquipProgress();
 
-        boolean injectorIsRight = player.getUsedItemHand() == InteractionHand.MAIN_HAND;
+        boolean injectorIsRight = lastHand == InteractionHand.MAIN_HAND;
         HumanoidArm injector = injectorIsRight ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
         HumanoidArm target = injectorIsRight ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
 
-        // 0..1: руки поднимаются из обычного положения в позу укола.
-        float raise = smooth(Mth.clamp(progress / 0.40F, 0.0F, 1.0F));
-        // 0..1: игла наводится на предплечье, когда руки уже почти сведены.
-        float aim = smooth(Mth.clamp((progress - 0.30F) / 0.15F, 0.0F, 1.0F));
-        // 0..1: короткий вкол после наведения.
-        float inject = smooth(Mth.clamp((progress - 0.50F) / 0.15F, 0.0F, 1.0F));
-
         float tilt = ARM_TILT * raise;
-        float lift = ARM_LIFT * raise;
+        float lift = ARM_LIFT * raise - DROP_DISTANCE * drop;
 
         // Корень PoseStack — обратная матрица проекции (ванильный приём для рук).
         // Для расчёта точек её нужно убрать: руки живут в видовом пространстве,
@@ -170,9 +293,17 @@ public final class SyringeViewModel {
         pose.translate(reach * aim + INJECT_DEPTH * inject, 0.0F, 0.0F);
         pose.scale(SYRINGE_SCALE, SYRINGE_SCALE, SYRINGE_SCALE);
 
-        mc.getItemRenderer().renderStatic(
-                player, stack, ItemDisplayContext.NONE, false, pose, buffer,
-                mc.level, light, OverlayTexture.NO_OVERLAY, 0);
+        // Кадр модели выбирается по свойству hypersomnia:using: отдаём ему
+        // положение поршня этого кадра, а не округлённое до тика.
+        viewPlunger = plunger;
+        inView = true;
+        try {
+            mc.getItemRenderer().renderStatic(
+                    player, stack, ItemDisplayContext.NONE, false, pose, buffer,
+                    mc.level, light, OverlayTexture.NO_OVERLAY, 0);
+        } finally {
+            inView = false;
+        }
 
         pose.popPose();
     }
@@ -224,7 +355,17 @@ public final class SyringeViewModel {
         return arm == HumanoidArm.RIGHT ? -1.0F : 1.0F;
     }
 
+    /** Доля отрезка [a, b], в которой сейчас t, зажатая в 0..1. */
+    private static float seg(float t, float a, float b) {
+        return Mth.clamp((t - a) / (b - a), 0.0F, 1.0F);
+    }
+
     private static float smooth(float t) {
         return t * t * (3.0F - 2.0F * t);
+    }
+
+    /** Smoother-step: нулевые скорость и ускорение на краях, движение начинается и кончается мягче. */
+    private static float smoother(float t) {
+        return t * t * t * (t * (t * 6.0F - 15.0F) + 10.0F);
     }
 }

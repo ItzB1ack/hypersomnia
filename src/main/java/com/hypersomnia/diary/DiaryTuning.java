@@ -7,8 +7,12 @@ public final class DiaryTuning {
     private DiaryTuning() {}
 
     public static final int PAGES = 11;
-    /** Длительность анимации раскрытия книги (мс) до открытия GUI. */
-    public static final long OPEN_MS = 360L;
+    /** Длительность анимации раскрытия книги (мс) до открытия GUI. Было 360, линейно. */
+    public static final long OPEN_MS = 460L;
+    /** Книга в руке закрывается после выхода из GUI (мс). */
+    public static final long CLOSE_MS = 300L;
+    /** Появление GUI: фон проявляется, разворот чуть вырастает до полного размера (мс). */
+    public static final long INTRO_MS = 220L;
     /** Одна страница книги (разворот = две). */
     public static final int PAPER_W = 170;
     public static final int PAPER_H = 230;
