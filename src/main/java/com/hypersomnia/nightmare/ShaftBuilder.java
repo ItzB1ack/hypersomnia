@@ -6,6 +6,7 @@ import com.hypersomnia.lab.LabSigns;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -26,6 +27,9 @@ import org.slf4j.Logger;
  * <p>[новое] Вокруг всего столба построена закрытая тёмная шахта: кабина едет в готовом проёме и через
  * дверь видит облицовку, а не небо. На уровнях остановок в стенке шахты прорезан проём под коридор.
  * Дверь кабины — полноценная решётка 3×3 из соединённых прутьев, а не одиночный столбик.
+ *
+ * <p>[новое] Шахта вырыта под землёй: объём в камне очищается перед постройкой. Чужие блоки
+ * (контейнеры, модовые блоки) не вырубаются — полоса помечается неудачной, игра ищет другую.
  */
 public final class ShaftBuilder {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -74,7 +78,6 @@ public final class ShaftBuilder {
             for (int l = 0; l < NightmareTuning.SHAFT_LANES; l++) {
                 if (!data.built(l)) continue;
                 clearLegacy(level, l);
-                clearVertical(level, l);
             }
             data.resetBuilds();
         }
@@ -82,16 +85,15 @@ public final class ShaftBuilder {
         if (data.failed(lane)) return false;
         int top = shaftTop(), bottom = shaftBottom();
         if (bottom < level.getMinBuildHeight() || top >= level.getMaxBuildHeight()) return false;
-        // Полный preflight: существующие постройки и инвентари не перезаписываем.
-        for (int dx = -2; dx <= 8; dx++) for (int dz = -2; dz <= 4; dz++) for (int yy = bottom; yy <= top; yy++) {
-            BlockPos p = new BlockPos(x(0) + dx, yy, z(lane) + dz);
-            if (!level.getWorldBorder().isWithinBounds(p) || !level.getBlockState(p).isAir()) {
-                data.setFailed(lane);
-                LOGGER.warn("Shaft lane {} is occupied or outside the world border; leaving it untouched", lane);
-                return false;
-            }
+        // [новое] Шахта под землёй: preflight проверяет, что весь объём можно вырыть,
+        // не задев чужие блоки с инвентарём и модовые постройки.
+        if (!canCarve(level, lane)) {
+            data.setFailed(lane);
+            LOGGER.warn("Shaft lane {} is blocked by a protected block or the world border; leaving it untouched", lane);
+            return false;
         }
         try {
+            carve(level, lane);
             for (int stop : new int[]{0, 6, 7, 8}) buildStop(level, lane, stop);
             buildShaft(level, lane);
             data.setBuilt(lane);
@@ -102,19 +104,53 @@ public final class ShaftBuilder {
             return false;
         }
     }
-    /** [новое] След старой горизонтальной шахты (layout 3): её нужно убрать при переходе на вертикальный ряд. */
+    /** Прежняя высота шахты: у старых миров секции стоят здесь и должны быть убраны при переезде под землю. */
+    private static final int LEGACY_SHAFT_Y = 240;
+    /** [новое] Убирает след старой шахты: и горизонтальный ряд (layout 3), и прежний вертикальный столб. */
     private static void clearLegacy(ServerLevel level, int lane) {
-        int y = y();
+        clearAt(level, lane, LEGACY_SHAFT_Y);
+        clearAt(level, lane, NightmareTuning.SHAFT_Y);
+    }
+    private static void clearAt(ServerLevel level, int lane, int topY) {
+        int bottom = topY - index(8) * NightmareTuning.SHAFT_STOP_STRIDE - NightmareTuning.SHAFT_DROP - 1;
+        NightmareLayout.clear(level, x(0) - 2, bottom, z(lane) - 2, x(0) + 8, topY + 5, z(lane) + 4);
         for (int stop : new int[]{0, 6, 7, 8}) {
             int lx = NightmareDefs.SHAFT.origin().getX() + index(stop) * NightmareTuning.SHAFT_STOP_STRIDE;
-            NightmareLayout.clear(level, lx - 2, y - NightmareTuning.SHAFT_DROP - 1, z(lane) - 2,
-                    lx + 8, y + 4, z(lane) + 4);
+            NightmareLayout.clear(level, lx - 2, topY - NightmareTuning.SHAFT_DROP - 1, z(lane) - 2,
+                    lx + 8, topY + 4, z(lane) + 4);
         }
     }
-    /** [новое] Текущий вертикальный столб вместе с новой облицовкой шахты (layout 4 и ниже). */
-    private static void clearVertical(ServerLevel level, int lane) {
-        NightmareLayout.clear(level, x(0) - 2, shaftBottom(), z(lane) - 2,
-                x(0) + 8, shaftTop(), z(lane) + 4);
+    /** [новое] Можно ли вырубить объём шахты: ванильные блоки и воздух — да, контейнеры и чужие моды — нет. */
+    private static boolean canCarve(ServerLevel level, int lane) {
+        for (int yy = shaftBottom(); yy <= shaftTop(); yy++)
+            for (int dx = -2; dx <= 4; dx++) for (int dz = -2; dz <= 4; dz++)
+                if (!canClear(level, new BlockPos(x(0) + dx, yy, z(lane) + dz))) return false;
+        for (int stop : new int[]{0, 6, 7, 8})
+            for (int yy = y(stop); yy <= y(stop) + 4; yy++)
+                for (int dx = -2; dx <= 8; dx++) for (int dz = -2; dz <= 4; dz++)
+                    if (!canClear(level, new BlockPos(x(0) + dx, yy, z(lane) + dz))) return false;
+        return true;
+    }
+    private static boolean canClear(ServerLevel level, BlockPos pos) {
+        if (!level.getWorldBorder().isWithinBounds(pos)) return false;
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return true;
+        if (state.hasBlockEntity()) return false;
+        return BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace().equals("minecraft");
+    }
+    /** [новое] Вырывает шахту в камне: столб на всю глубину и карманы коридоров на остановках. */
+    private static void carve(ServerLevel level, int lane) {
+        for (int yy = shaftBottom(); yy <= shaftTop(); yy++)
+            for (int dx = -2; dx <= 4; dx++) for (int dz = -2; dz <= 4; dz++)
+                clearCell(level, x(0) + dx, yy, z(lane) + dz);
+        for (int stop : new int[]{0, 6, 7, 8})
+            for (int yy = y(stop); yy <= y(stop) + 4; yy++)
+                for (int dx = -2; dx <= 8; dx++) for (int dz = -2; dz <= 4; dz++)
+                    clearCell(level, x(0) + dx, yy, z(lane) + dz);
+    }
+    private static void clearCell(ServerLevel level, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        if (!level.getBlockState(pos).isAir()) level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
     }
     private static void put(ServerLevel level, int x, int y, int z, BlockState state) {
         BlockPos pos = new BlockPos(x, y, z);
@@ -207,6 +243,14 @@ public final class ShaftBuilder {
         BlockPos p = new BlockPos(x(stop) + 5, y(stop) + 3, z(lane) + 1);
         if (!level.getBlockState(p).is(Blocks.LIGHT)) return;
         level.setBlock(p, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, on ? baseLight(stop) : 0), FLAGS);
+    }
+    /** [новое] Свет кабины: события этажа приглушают его и возвращают прежний уровень. */
+    public static void cabinLight(ServerLevel level, int lane, int stop, int light) {
+        if (!validStop(stop)) return;
+        BlockPos p = new BlockPos(x(stop) + 1, y(stop) + 3, z(lane) + 1);
+        if (!level.getBlockState(p).is(Blocks.LIGHT)) return;
+        int levelValue = Math.max(0, Math.min(15, light));
+        level.setBlock(p, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, levelValue), FLAGS);
     }
     /**
      * [новое] Дверь кабины — решётка 3x3 во весь проём. Прутья ставятся двумя проходами:

@@ -10,9 +10,10 @@ public final class NightmareTuning {
     public static final int ZONE_Z = 20000;
     public static final int SLOT_STRIDE = 512;
 
-    // Шахта: независимые секции, расположенные над обычной поверхностью.
+    // Шахта: независимые секции, вырытые под землёй вдали от поверхности.
     public static final int SHAFT_LANES = 8;
-    public static final int SHAFT_Y = 240;
+    /** [новое] Верхняя остановка (0) глубоко под рельефом; B6/B7/B8 уходят ещё ниже. */
+    public static final int SHAFT_Y = 16;
     public static final int SHAFT_LANE_STRIDE = 16;
     /** [новое] Кабины стоят друг под другом: шаг по вертикали, а не по X. */
     public static final int SHAFT_STOP_STRIDE = 16;
@@ -26,6 +27,12 @@ public final class NightmareTuning {
     public static final int SHAFT_TRIPS_TO_ZERO = 4;
     /** [новое] С какого этажа возможны личные события глубины. */
     public static final int SHAFT_EVENTS_FROM_FLOOR = 8;
+    /** [новое] Шанс события на этаже (в процентах); выбор стабилен для пары «игрок + этаж». */
+    public static final int SHAFT_EVENT_CHANCE = 65;
+    public static final int SHAFT_EVENT_SALT = 0x5A17;
+    /** [новое] Задержка перед отложенной частью события (тики). */
+    public static final int SHAFT_EVENT_DELAY_MIN = 20;
+    public static final int SHAFT_EVENT_DELAY_MAX = 60;
     public static final int SHAFT_TRIP_EXTRA_TICKS = 20;
     public static final int SHAFT_TRIP_EXTRA_MAX = 160;
     /** [новое] Обход: штраф за прикосновение к шприцу, без урона. */
@@ -39,7 +46,7 @@ public final class NightmareTuning {
     /** Версии постройки: при смене старая зона (только наша) очищается и строится заново. */
     public static final int ROUNDS_LAYOUT = 2;
     public static final int SESSION_LAYOUT = 2;
-    public static final int SHAFT_LAYOUT = 5;
+    public static final int SHAFT_LAYOUT = 6;
     /** [новое] Сеанс 47: пауза между попытками растёт, затем канал закрывается. */
     public static final int[] SESSION_RETRY_BY_ATTEMPT = {40, 80, 140, 220};
     public static final int SESSION_BLACKOUT_TICKS = 40;

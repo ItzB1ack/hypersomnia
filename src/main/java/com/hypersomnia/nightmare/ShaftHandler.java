@@ -26,9 +26,13 @@ import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
 import java.util.UUID;
 
 /** Сервер управляет поездкой; клиент может только запросить допустимый этаж. */
@@ -42,6 +46,22 @@ public final class ShaftHandler {
         Trip(int lane, int from, int target, int floor, int ticks) { this.lane = lane; this.from = from; this.target = target; this.floor = floor; this.ticks = ticks; }
     }
     private static final Map<UUID, Trip> TRIPS = new HashMap<>();
+    /** [новое] Отложенные звуки и возврат света: этажное событие не должно срабатывать всё сразу. */
+    private static final List<Pending> PENDING = new ArrayList<>();
+    private static final class Pending {
+        final UUID id;
+        int ticks;
+        final java.util.function.Consumer<ServerPlayer> action;
+        Pending(UUID id, int ticks, java.util.function.Consumer<ServerPlayer> action) {
+            this.id = id; this.ticks = ticks; this.action = action;
+        }
+    }
+    private static void later(ServerPlayer p, int ticks, java.util.function.Consumer<ServerPlayer> action) {
+        PENDING.add(new Pending(p.getUUID(), ticks, action));
+    }
+    private static void dropPending(UUID id) {
+        PENDING.removeIf(q -> q.id.equals(id));
+    }
     private static boolean active(ServerPlayer p) {
         DreamData data = p.getData(DreamAttachments.DREAM);
         return p.isAlive() && p.serverLevel().dimension().equals(DreamDimension.LEVEL)
@@ -79,6 +99,7 @@ public final class ShaftHandler {
     }
     /** Прерывание поездки: убирает дисплеи, открывает дверь и возвращает игрока в кабину отправления. */
     private static void abort(MinecraftServer server, UUID id, Trip t) {
+        dropPending(id);
         if (t.ride != null) t.ride.end();
         ServerLevel level = server.getLevel(DreamDimension.LEVEL);
         if (level == null) return;
@@ -91,6 +112,14 @@ public final class ShaftHandler {
         }
     }
     @SubscribeEvent public static void tick(ServerTickEvent.Post event) {
+        Iterator<Pending> pending = PENDING.iterator();
+        while (pending.hasNext()) {
+            Pending q = pending.next();
+            if (--q.ticks > 0) continue;
+            pending.remove();
+            ServerPlayer p = event.getServer().getPlayerList().getPlayer(q.id);
+            if (p != null && active(p)) q.action.accept(p);
+        }
         Iterator<Map.Entry<UUID, Trip>> iterator = TRIPS.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<UUID, Trip> entry = iterator.next(); Trip t = entry.getValue();
@@ -139,21 +168,55 @@ public final class ShaftHandler {
             else depthEvent(p, world, t);
         }
     }
-    /** [новое] Глубже B8: по хешу игрока и этажа редкое личное событие. Баланс рабочий, не авторский. */
+    /**
+     * [новое] Личное событие этажа: выбор стабилен для пары «игрок + этаж», поэтому у каждого
+     * свой набор, а повторный заход на тот же этаж даёт тот же ивент. Событий семь, часть с
+     * задержкой: гаснет лампа, хлопает дверь, шаги за спиной, стук в стену, мигает свет
+     * кабины, чужое дыхание. Без урона и без изменения мира за пределами шахты.
+     */
     private static void depthEvent(ServerPlayer p, ServerLevel world, Trip t) {
         if (t.floor < NightmareTuning.SHAFT_EVENTS_FROM_FLOOR) return;
-        switch (Math.floorMod(java.util.Objects.hash(p.getUUID(), t.floor), 4)) {
-            case 0 -> ShaftBuilder.lamp(world, t.lane, t.target, false);
-            case 1 -> p.playNotifySound(net.minecraft.sounds.SoundEvents.IRON_DOOR_CLOSE, net.minecraft.sounds.SoundSource.AMBIENT, 0.5f, 0.5f);
-            case 2 -> p.playNotifySound(net.minecraft.sounds.SoundEvents.DEEPSLATE_STEP, net.minecraft.sounds.SoundSource.AMBIENT, 0.6f, 0.6f);
+        Random rng = new Random(Objects.hash(p.getUUID(), t.floor, NightmareTuning.SHAFT_EVENT_SALT));
+        if (rng.nextInt(100) >= NightmareTuning.SHAFT_EVENT_CHANCE) return;
+        int lane = t.lane, stop = t.target;
+        int delay = NightmareTuning.SHAFT_EVENT_DELAY_MIN
+                + rng.nextInt(NightmareTuning.SHAFT_EVENT_DELAY_MAX - NightmareTuning.SHAFT_EVENT_DELAY_MIN + 1);
+        switch (rng.nextInt(7)) {
+            case 0 -> later(p, delay, q -> {
+                ShaftBuilder.lamp(world, lane, stop, false);
+                sound(q, net.minecraft.sounds.SoundEvents.REDSTONE_TORCH_BURNOUT, 0.6f, 0.5f);
+            });
+            case 1 -> later(p, delay, q -> sound(q, net.minecraft.sounds.SoundEvents.IRON_DOOR_CLOSE, 0.5f, 0.4f));
+            case 2 -> {
+                later(p, delay, q -> sound(q, net.minecraft.sounds.SoundEvents.DEEPSLATE_STEP, 0.5f, 0.55f));
+                later(p, delay + 10, q -> sound(q, net.minecraft.sounds.SoundEvents.DEEPSLATE_STEP, 0.45f, 0.5f));
+                later(p, delay + 22, q -> sound(q, net.minecraft.sounds.SoundEvents.DEEPSLATE_STEP, 0.4f, 0.45f));
+            }
+            case 3 -> {
+                later(p, delay, q -> sound(q, net.minecraft.sounds.SoundEvents.STONE_BUTTON_CLICK_ON, 0.7f, 0.35f));
+                later(p, delay + 25, q -> sound(q, net.minecraft.sounds.SoundEvents.STONE_BUTTON_CLICK_ON, 0.7f, 0.3f));
+            }
+            case 4 -> {
+                ShaftBuilder.cabinLight(world, lane, stop, 1);
+                sound(p, net.minecraft.sounds.SoundEvents.REDSTONE_TORCH_BURNOUT, 0.4f, 0.7f);
+                later(p, delay, q -> ShaftBuilder.cabinLight(world, lane, stop, 7));
+            }
+            case 5 -> later(p, delay, q -> sound(q, net.minecraft.sounds.SoundEvents.PLAYER_BREATH, 0.5f, 0.5f));
             default -> { }
         }
     }
+    private static void sound(ServerPlayer p, net.minecraft.sounds.SoundEvent event, float volume, float pitch) {
+        p.playNotifySound(event, net.minecraft.sounds.SoundSource.AMBIENT, volume, pitch);
+    }
     private static void relight(ServerLevel level, int lane) {
-        for (int stop : new int[]{0, 6, 7, 8}) ShaftBuilder.lamp(level, lane, stop, true);
+        for (int stop : new int[]{0, 6, 7, 8}) {
+            ShaftBuilder.lamp(level, lane, stop, true);
+            ShaftBuilder.cabinLight(level, lane, stop, 7);
+        }
     }
     /** Удаляется только после успешного выхода или смерти, не при временном отключении. */
     public static void release(ServerPlayer p) {
+        dropPending(p.getUUID());
         Trip t = TRIPS.remove(p.getUUID());
         ServerLevel level = p.server.getLevel(DreamDimension.LEVEL);
         if (level != null) {
@@ -165,6 +228,7 @@ public final class ShaftHandler {
     }
     @SubscribeEvent public static void logout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
+        dropPending(p.getUUID());
         Trip t = TRIPS.remove(p.getUUID());
         ServerLevel level = p.server.getLevel(DreamDimension.LEVEL);
         if (t != null && level != null) abort(p.server, p.getUUID(), t);
@@ -211,5 +275,6 @@ public final class ShaftHandler {
     @SubscribeEvent public static void stop(ServerStoppingEvent event) {
         TRIPS.forEach((id, t) -> abort(event.getServer(), id, t));
         TRIPS.clear();
+        PENDING.clear();
     }
 }
