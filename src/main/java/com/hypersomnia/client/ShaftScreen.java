@@ -1,5 +1,7 @@
 package com.hypersomnia.client;
 
+import com.hypersomnia.nightmare.NightmareTuning;
+import com.hypersomnia.nightmare.ShaftBuilder;
 import com.hypersomnia.network.ShaftOpenPayload;
 import com.hypersomnia.network.ShaftSelectPayload;
 import net.minecraft.client.Minecraft;
@@ -25,8 +27,12 @@ public final class ShaftScreen extends Screen {
     }
     @Override public boolean isPauseScreen() { return false; }
 
-    private static String label(int floor) { return "B" + floor; }
-    private int ph() { return 66 + LIST * (ROW + ROW_GAP) + 6; }
+    private static String label(int floor) { return floor == 0 ? "0" : "B" + floor; }
+    /** [новое] После нескольких поездок снизу появляется рабочая кнопка 0. */
+    private boolean zero() { return current - ShaftBuilder.FIRST_FLOOR >= NightmareTuning.SHAFT_TRIPS_TO_ZERO; }
+    private int rows() { return LIST + (zero() ? 1 : 0); }
+    private int target(int i) { return i < LIST ? current + 1 + i : 0; }
+    private int ph() { return 66 + rows() * (ROW + ROW_GAP) + 6; }
     private int px() { return (width - PW) / 2; }
     private int py() { return (height - ph()) / 2; }
     private int rowX() { return px() + (PW - BW) / 2; }
@@ -46,21 +52,21 @@ public final class ShaftScreen extends Screen {
         g.pose().scale(2f, 2f, 1f);
         g.drawCenteredString(font, label(current), 0, 0, LED);
         g.pose().popPose();
-        for (int i = 0; i < LIST; i++) {
+        for (int i = 0; i < rows(); i++) {
             int bx = rowX(), by = rowY(i);
             boolean hot = mx >= bx && mx < bx + BW && my >= by && my < by + ROW;
             g.fill(bx - 1, by - 1, bx + BW + 1, by + ROW + 1, FRAME);
             g.fill(bx, by, bx + BW, by + ROW, hot ? 0xFF1E2A34 : GLASS);
-            g.drawString(font, label(current + 1 + i), bx + 8, by + 7, hot ? TEXT : COLD, false);
+            g.drawString(font, label(target(i)), bx + 8, by + 7, hot ? TEXT : COLD, false);
         }
     }
 
     @Override public boolean mouseClicked(double mx, double my, int button) {
         if (button == 0) {
-            for (int i = 0; i < LIST; i++) {
+            for (int i = 0; i < rows(); i++) {
                 int bx = rowX(), by = rowY(i);
                 if (mx >= bx && mx < bx + BW && my >= by && my < by + ROW) {
-                    PacketDistributor.sendToServer(new ShaftSelectPayload(current + 1 + i));
+                    PacketDistributor.sendToServer(new ShaftSelectPayload(target(i)));
                     onClose();
                     return true;
                 }

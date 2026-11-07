@@ -71,6 +71,8 @@ public final class DreamHandler {
             fatigue.setFatigue(rest);
         }
 
+        // [новое] Из лифта выход только через этаж 0: таймер сна для него не идёт.
+        if (com.hypersomnia.nightmare.NightmareDefs.SHAFT.id().equals(dream.getKind())) return;
         dream.setTicksLeft(dream.getTicksLeft() - 1);
         if (dream.getTicksLeft() <= 0) {
             if (!DreamTransition.exit(player)) dream.setTicksLeft(DreamTuning.WAKE_RETRY_TICKS);
