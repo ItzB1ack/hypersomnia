@@ -31,7 +31,7 @@ public final class RoundsHandler {
     private static final java.util.Map<java.util.UUID, Integer> BEST = new java.util.HashMap<>();
     @SubscribeEvent public static void tick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
-        if (!active(p)) { BEST.remove(p.getUUID()); return; }
+        if (!active(p)) { BEST.remove(p.getUUID()); HOLD.remove(p.getUUID()); return; }
         if (p.isSprinting()) p.setSprinting(false);
         if (p.tickCount % 20 == 0) {
             // [новое] Шаг обхода всегда медленный; без урона.
@@ -46,6 +46,7 @@ public final class RoundsHandler {
                     p.displayClientMessage(Component.translatable("hypersomnia.nightmare.rounds.milestone", idx + 1), true);
             }
         }
+        checks(p);
         if (p.isSleeping() && p.getSleepTimer() >= NightmareTuning.ROUNDS_EXIT_LIE_TICKS
                 && p.getSleepingPos().map(RoundsBuilder::isExit).orElse(false)) {
             p.stopSleepInBed(true, true);
@@ -58,6 +59,31 @@ public final class RoundsHandler {
                 || !event.getLevel().getBlockState(event.getPos()).is(Blocks.WHITE_BED)) return;
         event.setCanceled(true); event.setCancellationResult(InteractionResult.SUCCESS);
         if (!p.isSleeping()) p.startSleeping(RoundsBuilder.exitFoot().east());
+    }
+    private static final java.util.Map<java.util.UUID, Integer> HOLD = new java.util.HashMap<>();
+    /** [новое] Контрольные площадки: стоять неподвижно; без отметки дальше за площадку не пускает. */
+    private static void checks(ServerPlayer p) {
+        DreamData data = p.getData(DreamAttachments.DREAM);
+        double moved = Math.abs(p.getX() - p.xo) + Math.abs(p.getZ() - p.zo);
+        for (int k = 0; k < NightmareTuning.ROUNDS_CHECKS.length; k++) {
+            if (data.hasRoundsCheck(k)) continue;
+            if (RoundsBuilder.inCheckZone(k, p.getX(), p.getZ())) {
+                int held = moved < 0.003 && p.onGround() && !p.isSleeping() ? HOLD.merge(p.getUUID(), 1, Integer::sum) : 0;
+                HOLD.put(p.getUUID(), held);
+                if (held >= NightmareTuning.ROUNDS_CHECK_HOLD_TICKS) {
+                    data.setRoundsCheck(k); HOLD.remove(p.getUUID());
+                    p.displayClientMessage(Component.translatable("hypersomnia.nightmare.rounds.check.done"), true);
+                } else if (p.tickCount % 20 == 0) {
+                    p.displayClientMessage(Component.translatable("hypersomnia.nightmare.rounds.check.hold"), true);
+                }
+            } else if (p.getX() > RoundsBuilder.checkGateX(k)) {
+                BlockPos back = RoundsBuilder.aisle(NightmareTuning.ROUNDS_CHECKS[k]);
+                p.teleportTo(p.serverLevel(), back.getX() + 1.5, back.getY(), back.getZ() + 0.5, p.getYRot(), p.getXRot());
+                p.resetFallDistance();
+                p.displayClientMessage(Component.translatable("hypersomnia.nightmare.rounds.check.required"), true);
+            }
+            return; // только ближайшая непройденная точка
+        }
     }
     private static void touched(ServerPlayer p, net.minecraft.world.entity.Entity target) {
         if (!active(p) || !(target instanceof net.minecraft.world.entity.item.ItemEntity)

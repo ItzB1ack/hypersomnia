@@ -25,6 +25,13 @@ public final class NightmareTuning {
     public static final int ROUNDS_TOUCH_BACK_CAPSULES = 6;
     public static final int ROUNDS_WALK_SLOW_AMPLIFIER = 0;
     public static final int ROUNDS_MILESTONE_EVERY = 10;
+    /** [новое] Контрольные точки обхода (индексы капсул с 0): без отметки дальше не пускает. */
+    public static final int[] ROUNDS_CHECKS = {11, 23, 35};
+    public static final int ROUNDS_CHECK_HOLD_TICKS = 60;
+    /** Версии постройки: при смене старая зона (только наша) очищается и строится заново. */
+    public static final int ROUNDS_LAYOUT = 2;
+    public static final int SESSION_LAYOUT = 2;
+    public static final int SHAFT_LAYOUT = 2;
     /** [новое] Сеанс 47: пауза между попытками растёт, затем канал закрывается. */
     public static final int[] SESSION_RETRY_BY_ATTEMPT = {40, 80, 140, 220};
     public static final int SESSION_BLACKOUT_TICKS = 40;

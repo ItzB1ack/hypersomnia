@@ -17,6 +17,7 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     private int sessionAttempts;
     private int sessionNextAttemptTicks;
     private int sessionNotice;
+    private int roundsChecks;
 
     public boolean isInDream() { return inDream; }
     public void setInDream(boolean inDream) {
@@ -36,12 +37,14 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     public void addWardLoop() { if (wardLoops < Integer.MAX_VALUE) wardLoops++; }
     public void resetWardLoops() { wardLoops = 0; }
     public int getSessionAttempts() { return sessionAttempts; }
-    public void addSessionAttempt() { sessionAttempts = Math.min(3, sessionAttempts + 1); }
+    public void addSessionAttempt() { sessionAttempts = Math.min(4, sessionAttempts + 1); }
+    public boolean hasRoundsCheck(int k) { return (roundsChecks & (1 << k)) != 0; }
+    public void setRoundsCheck(int k) { roundsChecks |= 1 << k; }
     public int getSessionNextAttemptTicks() { return sessionNextAttemptTicks; }
     public void setSessionNextAttemptTicks(int ticks) { sessionNextAttemptTicks = Math.max(0, ticks); }
     public int getSessionNotice() { return sessionNotice; }
     public void setSessionNotice(int notice) { sessionNotice = Math.max(0, Math.min(3, notice)); }
-    public void resetSession() { sessionAttempts = 0; sessionNextAttemptTicks = 0; sessionNotice = 0; }
+    public void resetSession() { sessionAttempts = 0; sessionNextAttemptTicks = 0; sessionNotice = 0; roundsChecks = 0; }
 
     public int getTicksLeft() { return ticksLeft; }
     public void setTicksLeft(int ticks) { this.ticksLeft = Math.max(0, ticks); }
@@ -78,6 +81,7 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         tag.putInt("sessionAttempts", sessionAttempts);
         tag.putInt("sessionNextAttemptTicks", sessionNextAttemptTicks);
         tag.putInt("sessionNotice", sessionNotice);
+        tag.putInt("roundsChecks", roundsChecks);
         return tag;
     }
 
@@ -93,8 +97,9 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         ticksLeft = Math.max(0, tag.getInt("ticksLeft"));
         kind = tag.getString("kind");
         wardLoops = inDream ? Math.max(0, tag.getInt("wardLoops")) : 0;
-        sessionAttempts = inDream ? Math.max(0, Math.min(3, tag.getInt("sessionAttempts"))) : 0;
+        sessionAttempts = inDream ? Math.max(0, Math.min(4, tag.getInt("sessionAttempts"))) : 0;
         sessionNextAttemptTicks = inDream ? Math.max(0, tag.getInt("sessionNextAttemptTicks")) : 0;
         sessionNotice = inDream ? Math.max(0, Math.min(3, tag.getInt("sessionNotice"))) : 0;
+        roundsChecks = inDream ? Math.max(0, tag.getInt("roundsChecks")) : 0;
     }
 }

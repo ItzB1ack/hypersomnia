@@ -10,6 +10,7 @@ import java.util.UUID;
 public final class NightmareSavedData extends SavedData {
     private static final String NAME = "hypersomnia_nightmare";
     private int builtMask;
+    private final int[] layouts = new int[8];
     private boolean wardBuildFailed;
     private boolean roundsBuildFailed;
     private boolean sessionBuildFailed;
@@ -31,6 +32,9 @@ public final class NightmareSavedData extends SavedData {
         setDirty();
     }
 
+    public int layout(NightmareDefs n) { return layouts[n.ordinal()]; }
+    public void setLayout(NightmareDefs n, int v) { layouts[n.ordinal()] = v; setDirty(); }
+
     public boolean wardBuildFailed() { return wardBuildFailed; }
     public void setWardBuildFailed(boolean failed) { wardBuildFailed = failed; setDirty(); }
     public boolean roundsBuildFailed() { return roundsBuildFailed; }
@@ -49,6 +53,7 @@ public final class NightmareSavedData extends SavedData {
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
         tag.putInt("built", builtMask);
+        tag.putIntArray("layouts", layouts);
         if (wardBuildFailed) tag.putBoolean("wardBuildFailed", true);
         if (roundsBuildFailed) tag.putBoolean("roundsBuildFailed", true);
         if (sessionBuildFailed) tag.putBoolean("sessionBuildFailed", true);
@@ -60,6 +65,8 @@ public final class NightmareSavedData extends SavedData {
     static NightmareSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
         NightmareSavedData d = new NightmareSavedData();
         d.builtMask = tag.getInt("built");
+        int[] l = tag.getIntArray("layouts");
+        System.arraycopy(l, 0, d.layouts, 0, Math.min(l.length, d.layouts.length));
         d.wardBuildFailed = tag.getBoolean("wardBuildFailed");
         d.roundsBuildFailed = tag.getBoolean("roundsBuildFailed");
         d.sessionBuildFailed = tag.getBoolean("sessionBuildFailed");

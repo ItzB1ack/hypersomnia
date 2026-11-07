@@ -50,26 +50,38 @@ public final class SessionHandler {
             p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.notice." + notice), false);
         }
     }
+    /** Порядок станций по номеру попытки: пульт -> переговорное -> панель двери -> пульт. */
+    private static final int[] ORDER = {0, 1, 2, 0};
+    private static final String[] NAMES = {"console", "intercom", "door"};
     @SubscribeEvent public static void use(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getHand() != InteractionHand.MAIN_HAND || !(event.getEntity() instanceof ServerPlayer p)
-                || !active(p) || !SessionBuilder.console().equals(event.getPos())
-                || !event.getLevel().getBlockState(event.getPos()).is(Blocks.IRON_BLOCK)) return;
+        if (event.getHand() != InteractionHand.MAIN_HAND || !(event.getEntity() instanceof ServerPlayer p) || !active(p)) return;
+        int station = SessionBuilder.stationAt(event.getPos());
+        if (station < 0) return;
         event.setCanceled(true); event.setCancellationResult(InteractionResult.SUCCESS);
         DreamData data = p.getData(DreamAttachments.DREAM);
         int left = data.getTicksLeft();
-        if (data.getSessionNextAttemptTicks() > 0 && left > data.getSessionNextAttemptTicks()) return;
-        int tries = data.getSessionAttempts();
-        int[] waits = NightmareTuning.SESSION_RETRY_BY_ATTEMPT;
-        data.setSessionNextAttemptTicks(Math.max(0, left - waits[Math.min(tries, waits.length - 1)]));
         int elapsed = NightmareTuning.SESSION_DURATION_TICKS - left;
         if (elapsed >= NightmareTuning.SESSION_CLOCK_0313_AT) {
             p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.expired"), false);
             return;
         }
         int attempt = data.getSessionAttempts();
+        if (attempt >= ORDER.length) {
+            p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.closed"), true);
+            return;
+        }
+        if (station != ORDER[attempt]) {
+            p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.wrong." + NAMES[ORDER[attempt]]), true);
+            return;
+        }
+        if (data.getSessionNextAttemptTicks() > 0 && left > data.getSessionNextAttemptTicks()) {
+            p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.pending"), true);
+            return;
+        }
+        int[] waits = NightmareTuning.SESSION_RETRY_BY_ATTEMPT;
+        data.setSessionNextAttemptTicks(Math.max(0, left - waits[Math.min(attempt, waits.length - 1)]));
         data.addSessionAttempt();
-        p.displayClientMessage(Component.translatable(attempt >= 3 && data.getSessionAttempts() >= 3 && left < NightmareTuning.SESSION_DURATION_TICKS - NightmareTuning.SESSION_CLOCK_0312_AT
-                ? "hypersomnia.nightmare.session47.closed" : "hypersomnia.nightmare.session47.attempt." + attempt), false);
+        p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.attempt." + attempt), false);
     }
     @SubscribeEvent public static void breakBlock(BlockEvent.BreakEvent event) {
         if (event.getLevel() instanceof ServerLevel level && level.dimension().equals(DreamDimension.LEVEL)

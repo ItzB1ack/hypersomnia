@@ -11,7 +11,7 @@ import java.util.UUID;
 /** Личные секции шахты; аренда сохраняется и на время отключения игрока. */
 public final class ShaftStorage extends SavedData {
     private static final String NAME = "hypersomnia_shaft";
-    private int builtMask, failedMask;
+    private int builtMask, failedMask, layout;
     private final Map<UUID, Integer> lanes = new HashMap<>();
     private final Map<UUID, Integer> trips = new HashMap<>();
 
@@ -30,13 +30,16 @@ public final class ShaftStorage extends SavedData {
     public void release(UUID id) { boolean a = lanes.remove(id) != null, b = trips.remove(id) != null; if (a || b) setDirty(); }
     public int trips(UUID id) { return trips.getOrDefault(id, 0); }
     public void addTrip(UUID id) { trips.merge(id, 1, (a, b) -> Math.min(999, a + b)); setDirty(); }
+    public int layout() { return layout; }
+    /** Сбрасывает признаки постройки (блоки уже очищены) и помечает текущую версию вида. */
+    public void resetBuilds() { builtMask = 0; failedMask = 0; layout = NightmareTuning.SHAFT_LAYOUT; setDirty(); }
     public boolean built(int lane) { return (builtMask & (1 << lane)) != 0; }
     public boolean failed(int lane) { return (failedMask & (1 << lane)) != 0; }
     public void setBuilt(int lane) { builtMask |= 1 << lane; failedMask &= ~(1 << lane); setDirty(); }
     public void setFailed(int lane) { failedMask |= 1 << lane; setDirty(); }
 
     @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
-        tag.putInt("built", builtMask); tag.putInt("failed", failedMask);
+        tag.putInt("built", builtMask); tag.putInt("failed", failedMask); tag.putInt("layout", layout);
         CompoundTag entries = new CompoundTag();
         lanes.forEach((id, lane) -> entries.putInt(id.toString(), lane));
         tag.put("lanes", entries);
@@ -47,7 +50,7 @@ public final class ShaftStorage extends SavedData {
     }
     private static ShaftStorage load(CompoundTag tag, HolderLookup.Provider provider) {
         ShaftStorage result = new ShaftStorage();
-        result.builtMask = tag.getInt("built"); result.failedMask = tag.getInt("failed");
+        result.builtMask = tag.getInt("built"); result.failedMask = tag.getInt("failed"); result.layout = tag.getInt("layout");
         CompoundTag entries = tag.getCompound("lanes");
         for (String key : entries.getAllKeys()) {
             try {

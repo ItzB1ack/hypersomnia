@@ -96,6 +96,7 @@ public final class ShaftHandler {
             p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
             p.resetFallDistance(); p.removeEffect(MobEffects.BLINDNESS);
             ShaftStorage.get(world).addTrip(p.getUUID());
+            if (t.target != 0) p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.arrive", "B" + t.target), true);
             ShaftBuilder.setDoor(world, t.lane, t.from, false);
             ShaftBuilder.setDoor(world, t.lane, t.target, false);
             if (t.target == 0) DreamTransition.exit(p);
