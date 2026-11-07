@@ -172,6 +172,7 @@ public final class ShaftHandler {
             p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.restore_failed"), false); return;
         }
         for (int stop : new int[]{0, 6, 7, 8}) ShaftBuilder.setDoor(p.serverLevel(), lane, stop, false);
+        ShaftBuilder.repairCovers(p.serverLevel(), lane);
         relight(p.serverLevel(), lane);
         // Если сервер упал посреди поездки, игрок мог остаться на дне шахты или между остановками:
         // возвращаем в ближайшую кабину, иначе он сохранится в воздухе и упадёт.
