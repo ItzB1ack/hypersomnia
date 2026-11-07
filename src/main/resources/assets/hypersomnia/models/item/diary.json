@@ -342,15 +342,51 @@
   "overrides": [
     {
       "predicate": {
-        "hypersomnia:using": 0.18
+        "hypersomnia:using": 0.1
       },
       "model": "hypersomnia:item/diary_open_0"
     },
     {
       "predicate": {
-        "hypersomnia:using": 0.55
+        "hypersomnia:using": 0.21
       },
       "model": "hypersomnia:item/diary_open_1"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.32
+      },
+      "model": "hypersomnia:item/diary_open_2"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.43
+      },
+      "model": "hypersomnia:item/diary_open_3"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.55
+      },
+      "model": "hypersomnia:item/diary_open_4"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.66
+      },
+      "model": "hypersomnia:item/diary_open_5"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.77
+      },
+      "model": "hypersomnia:item/diary_open_6"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.88
+      },
+      "model": "hypersomnia:item/diary_open_7"
     }
   ]
 }

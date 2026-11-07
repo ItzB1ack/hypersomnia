@@ -21,6 +21,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderHandEvent;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -105,9 +106,13 @@ public final class SyringeViewModel {
         float tilt = ARM_TILT * raise;
         float lift = ARM_LIFT * raise;
 
-        // ---- рука-цель ----
+        // Корень PoseStack — обратная матрица проекции (ванильный приём для рук).
+        // Для расчёта точек её нужно убрать: руки живут в видовом пространстве,
+        // а не в этом проективном корне, иначе точка уезжает от кисти.
+        Matrix4f rootInverse = new Matrix4f(pose.last().pose()).invert();
         PlayerModel<AbstractClientPlayer> model = renderer.getModel();
-        Vector3f targetPoint;
+
+        // ---- рука-цель ----
         pose.pushPose();
         applyArmPose(pose, target, equip, lift);
         pose.mulPose(Axis.ZP.rotationDegrees(sign(target) * TARGET_SWING * raise));
@@ -119,12 +124,13 @@ public final class SyringeViewModel {
                 renderer.renderLeftHand(pose, buffer, light, player);
             }
         }
-        // Точка на предплечье: от кисти в сторону плеча.
-        targetPoint = armPoint(pose, model, target, TARGET_ALONG_ARM);
+        Matrix4f targetHand = new Matrix4f(viewMatrix(pose, rootInverse))
+                .mul(partMatrix(partOf(model, target)));
+        Vector3f targetView = targetHand.transformPosition(new Vector3f(
+                handX(target), (10.0F - 12.0F * TARGET_ALONG_ARM) / 16.0F, 0.0F));
         pose.popPose();
 
-        // ---- рука со шприцем ----
-        Vector3f grip;
+        // ---- рука со шприцем: шприц продолжает её позу, поэтому всегда в кисти ----
         pose.pushPose();
         applyArmPose(pose, injector, equip, lift);
         pose.mulPose(Axis.ZP.rotationDegrees(sign(injector) * INJECTOR_SWING * raise));
@@ -136,22 +142,29 @@ public final class SyringeViewModel {
                 renderer.renderLeftHand(pose, buffer, light, player);
             }
         }
-        grip = armPoint(pose, model, injector, 0.0F);
-        pose.popPose();
 
-        // ---- шприц: игла смотрит на предплечье ----
-        Vector3f aimDir = new Vector3f(targetPoint).sub(grip);
+        Matrix4f injectorHand = new Matrix4f(viewMatrix(pose, rootInverse))
+                .mul(partMatrix(partOf(model, injector)));
+        Matrix4f toHand = new Matrix4f(injectorHand).invert();
+        Vector3f grip = new Vector3f(handX(injector), 10.0F / 16.0F, 0.0F);
+        Vector3f targetInHand = toHand.transformPosition(new Vector3f(targetView));
+        Vector3f aimDir = new Vector3f(targetInHand).sub(grip);
         if (aimDir.lengthSquared() < 1.0E-6F) {
             aimDir.set(NEUTRAL_AIM);
         } else {
             aimDir.normalize();
         }
-        aimDir.lerp(NEUTRAL_AIM, 1.0F - aim).normalize();
+        Vector3f neutral = toHand.transformDirection(new Vector3f(NEUTRAL_AIM)).normalize();
+        aimDir.lerp(neutral, 1.0F - aim).normalize();
 
         // Смещение вдоль иглы: на старте кисть держит середину шприца, к моменту
         // укола игла дотягивается ровно до предплечья (минус половина модели).
-        float reach = Math.max(0.0F, grip.distance(targetPoint) - 0.5F * SYRINGE_SCALE);
-        pose.pushPose();
+        float reach = Math.max(0.0F, grip.distance(targetInHand) - 0.5F * SYRINGE_SCALE);
+
+        ModelPart injectorPart = partOf(model, injector);
+        pose.translate(injectorPart.x / 16.0F, injectorPart.y / 16.0F, injectorPart.z / 16.0F);
+        pose.mulPose(new Quaternionf().rotationZYX(
+                injectorPart.zRot, injectorPart.yRot, injectorPart.xRot));
         pose.translate(grip.x, grip.y, grip.z);
         pose.mulPose(new Quaternionf().rotationTo(NEEDLE_AXIS, aimDir));
         pose.translate(reach * aim + INJECT_DEPTH * inject, 0.0F, 0.0F);
@@ -180,33 +193,35 @@ public final class SyringeViewModel {
         pose.translate(f * 5.6F, 0.0F, 0.0F);
     }
 
+    /** Часть руки в модели игрока. */
+    private static ModelPart partOf(PlayerModel<AbstractClientPlayer> model, HumanoidArm arm) {
+        return arm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm;
+    }
+
     /**
-     * Точка на руке в пространстве камеры. Учитывает собственную трансформацию
-     * части модели (плечо и наклон из setupAnim): без неё шприц висит рядом с
-     * рукой, а не в кисти. alongArm: 0 — кисть, 1 — плечо.
+     * Собственная трансформация части руки: смещение плеча и поворот из
+     * setupAnim. Именно её применяет ModelPart.translateAndRotate.
      */
-    private static Vector3f armPoint(PoseStack pose, PlayerModel<AbstractClientPlayer> model,
-                                     HumanoidArm arm, float alongArm) {
-        ModelPart part = arm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm;
-        pose.pushPose();
-        pose.translate(part.x / 16.0F, part.y / 16.0F, part.z / 16.0F);
-        pose.mulPose(new Quaternionf().rotationZYX(part.zRot, part.yRot, part.xRot));
-        Vector3f point = new Vector3f(
-                arm == HumanoidArm.RIGHT ? -1.0F / 16.0F : 1.0F / 16.0F,
-                (10.0F - 12.0F * alongArm) / 16.0F,
-                0.0F);
-        transform(pose, point);
-        pose.popPose();
-        return point;
+    private static Matrix4f partMatrix(ModelPart part) {
+        Matrix4f matrix = new Matrix4f();
+        matrix.translate(part.x / 16.0F, part.y / 16.0F, part.z / 16.0F);
+        matrix.rotate(new Quaternionf().rotationZYX(part.zRot, part.yRot, part.xRot));
+        return matrix;
+    }
+
+    /** Середина кисти в системе координат части: правая смещена в -X, левая в +X. */
+    private static float handX(HumanoidArm arm) {
+        return arm == HumanoidArm.RIGHT ? -1.0F / 16.0F : 1.0F / 16.0F;
+    }
+
+    /** Матрица руки в видовом пространстве: убирает проективный корень PoseStack. */
+    private static Matrix4f viewMatrix(PoseStack pose, Matrix4f rootInverse) {
+        return new Matrix4f(rootInverse).mul(pose.last().pose());
     }
 
     /** Знак поворота к центру экрана: правая рука идёт в +, левая в -. */
     private static float sign(HumanoidArm arm) {
         return arm == HumanoidArm.RIGHT ? -1.0F : 1.0F;
-    }
-
-    private static void transform(PoseStack pose, Vector3f point) {
-        pose.last().pose().transformPosition(point);
     }
 
     private static float smooth(float t) {

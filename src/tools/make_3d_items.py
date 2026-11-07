@@ -1,8 +1,8 @@
 """HYPERSOMNIA 3D item models: adrenaline syringe + diary book.
 
 The syringe is a cuboid model whose plunger slides back as the item is used.
-The diary is a closed 3D book; two extra frames lift the front cover by
-22.5 / 45 degrees, which the item switches through while it is being opened.
+The diary is a closed 3D book; extra frames lift the front cover up to 180
+degrees, which the item switches through while it is being opened.
 
 Files are generated into:
   assets/hypersomnia/textures/item/syringe_*.png
@@ -13,6 +13,7 @@ Files are generated into:
 Run: python src/tools/make_3d_items.py
 """
 import json
+import math
 import os
 
 from PIL import Image
@@ -218,22 +219,55 @@ DIARY_DISPLAY = {
 }
 
 
+def _rotate_box(frm, to, degrees):
+    """Поворот коробки вокруг оси Z книжного корешка на 90/180 градусов.
+
+    BlockElement разрешает только -45..45, поэтому кадры 90/180 запекаются
+    в координатах (они остаются осевыми), а промежуточные доворачиваются
+    обычным rotation на ±22.5/±45.
+    """
+    if not degrees:
+        return frm, to
+    ox, oy = 2.0, 2.3
+    a = math.radians(degrees)
+    c, s = math.cos(a), math.sin(a)
+    xs, ys = [], []
+    for x in (frm[0], to[0]):
+        for y in (frm[1], to[1]):
+            dx, dy = x - ox, y - oy
+            xs.append(ox + c * dx - s * dy)
+            ys.append(oy + s * dx + c * dy)
+    return (min(xs), min(ys), frm[2]), (max(xs), max(ys), to[2])
+
+
 def diary_elements(angle=0.0):
-    rot = None
-    if angle:
-        rot = {"origin": [2.0, 2.3, 8.0], "axis": "z",
-               "angle": angle, "rescale": False}
+    """Кадр обложки: angle 0..180. 90/180 запекаются, остальное — rotation."""
+    if angle <= 45.0:
+        bake, rot = 0.0, angle
+    elif angle <= 135.0:
+        bake, rot = 90.0, angle - 90.0
+    else:
+        bake, rot = 180.0, angle - 180.0
+    rotation = None
+    if rot:
+        rotation = {"origin": [2.0, 2.3, 8.0], "axis": "z",
+                    "angle": rot, "rescale": False}
+
+    def cover_box(frm, to, tex):
+        baked = _rotate_box(frm, to, bake)
+        return box(baked[0], baked[1], tex, rot=rotation)
+
     return [
         # back cover
         box((2.0, 0.0, 2.0), (14.0, 1.0, 14.0), "cover"),
         # paper block
         box((2.5, 1.0, 2.5), (13.5, 1.8, 13.5), "pages"),
         # front cover (lifts around the spine)
-        box((2.0, 1.8, 2.0), (14.0, 2.8, 14.0), "cover", rot=rot),
+        cover_box((2.0, 1.8, 2.0), (14.0, 2.8, 14.0), "cover"),
         # red strap over the cover
-        box((9.5, 2.81, 2.0), (11.0, 3.1, 14.0), "strap", rot=rot),
+        cover_box((9.5, 2.81, 2.0), (11.0, 3.1, 14.0), "strap"),
         # metal clasp near the opening edge
-        box((9.5, 2.81, 12.4), (11.0, 3.5, 14.0), "metal", rot=rot),
+        cover_box((9.5, 2.81, 12.4), (11.0, 3.5, 14.0), "metal"),
         # bookmark sticking out of the pages
         box((11.3, 1.7, 13.4), (11.9, 1.78, 15.2), "strap"),
     ]
@@ -249,12 +283,19 @@ def diary():
         ("diary", 0.0),
         ("diary_open_0", 22.5),
         ("diary_open_1", 45.0),
+        ("diary_open_2", 67.5),
+        ("diary_open_3", 90.0),
+        ("diary_open_4", 112.5),
+        ("diary_open_5", 135.0),
+        ("diary_open_6", 157.5),
+        ("diary_open_7", 180.0),
     ]
     overrides = [
-        {"predicate": {"hypersomnia:using": 0.18},
-         "model": "hypersomnia:item/diary_open_0"},
-        {"predicate": {"hypersomnia:using": 0.55},
-         "model": "hypersomnia:item/diary_open_1"},
+        {"predicate": {"hypersomnia:using": t},
+         "model": "hypersomnia:item/" + name}
+        for (name, _), t in zip(frames[1:],
+                                (0.10, 0.21, 0.32, 0.43,
+                                 0.55, 0.66, 0.77, 0.88))
     ]
     for name, angle in frames:
         data = {
@@ -271,7 +312,7 @@ def diary():
 def main():
     syringe()
     diary()
-    print("3d items: syringe 4 frames, diary 3 frames")
+    print("3d items: syringe 4 frames, diary 9 frames")
 
 
 if __name__ == "__main__":
