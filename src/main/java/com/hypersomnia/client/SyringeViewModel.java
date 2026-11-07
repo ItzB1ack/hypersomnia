@@ -5,6 +5,9 @@ import com.hypersomnia.ModItems;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
@@ -48,7 +51,7 @@ public final class SyringeViewModel {
     /** Насколько игла входит в предплечье в момент вкола. */
     private static final float INJECT_DEPTH = 0.03F;
     /** Доля предплечья от кисти к плечу, куда должна попасть игла. */
-    private static final float TARGET_ALONG_ARM = 0.15F;
+    private static final float TARGET_ALONG_ARM = 0.30F;
     /** Куда смотрит шприц, пока руки ещё не сведены. */
     private static final Vector3f NEUTRAL_AIM = new Vector3f(0.10F, 0.18F, -0.98F).normalize();
     private static final Vector3f NEEDLE_AXIS = new Vector3f(1.0F, 0.0F, 0.0F);
@@ -103,7 +106,8 @@ public final class SyringeViewModel {
         float lift = ARM_LIFT * raise;
 
         // ---- рука-цель ----
-        Vector3f targetPoint = new Vector3f();
+        PlayerModel<AbstractClientPlayer> model = renderer.getModel();
+        Vector3f targetPoint;
         pose.pushPose();
         applyArmPose(pose, target, equip, lift);
         pose.mulPose(Axis.ZP.rotationDegrees(sign(target) * TARGET_SWING * raise));
@@ -115,13 +119,12 @@ public final class SyringeViewModel {
                 renderer.renderLeftHand(pose, buffer, light, player);
             }
         }
-        // Точка на предплечье: от кисти (0.75) в сторону плеча (0.0).
-        targetPoint.set(localX(target), 0.75F - 0.75F * TARGET_ALONG_ARM, 0.0F);
-        transform(pose, targetPoint);
+        // Точка на предплечье: от кисти в сторону плеча.
+        targetPoint = armPoint(pose, model, target, TARGET_ALONG_ARM);
         pose.popPose();
 
         // ---- рука со шприцем ----
-        Vector3f grip = new Vector3f();
+        Vector3f grip;
         pose.pushPose();
         applyArmPose(pose, injector, equip, lift);
         pose.mulPose(Axis.ZP.rotationDegrees(sign(injector) * INJECTOR_SWING * raise));
@@ -133,8 +136,7 @@ public final class SyringeViewModel {
                 renderer.renderLeftHand(pose, buffer, light, player);
             }
         }
-        grip.set(localX(injector), 0.75F, 0.0F);
-        transform(pose, grip);
+        grip = armPoint(pose, model, injector, 0.0F);
         pose.popPose();
 
         // ---- шприц: игла смотрит на предплечье ----
@@ -178,9 +180,24 @@ public final class SyringeViewModel {
         pose.translate(f * 5.6F, 0.0F, 0.0F);
     }
 
-    /** Правая кисть в модели смещена в -X, левая в +X. */
-    private static float localX(HumanoidArm arm) {
-        return arm == HumanoidArm.RIGHT ? -0.375F : 0.375F;
+    /**
+     * Точка на руке в пространстве камеры. Учитывает собственную трансформацию
+     * части модели (плечо и наклон из setupAnim): без неё шприц висит рядом с
+     * рукой, а не в кисти. alongArm: 0 — кисть, 1 — плечо.
+     */
+    private static Vector3f armPoint(PoseStack pose, PlayerModel<AbstractClientPlayer> model,
+                                     HumanoidArm arm, float alongArm) {
+        ModelPart part = arm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm;
+        pose.pushPose();
+        pose.translate(part.x / 16.0F, part.y / 16.0F, part.z / 16.0F);
+        pose.mulPose(new Quaternionf().rotationZYX(part.zRot, part.yRot, part.xRot));
+        Vector3f point = new Vector3f(
+                arm == HumanoidArm.RIGHT ? -1.0F / 16.0F : 1.0F / 16.0F,
+                (10.0F - 12.0F * alongArm) / 16.0F,
+                0.0F);
+        transform(pose, point);
+        pose.popPose();
+        return point;
     }
 
     /** Знак поворота к центру экрана: правая рука идёт в +, левая в -. */

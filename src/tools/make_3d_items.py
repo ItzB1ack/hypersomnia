@@ -133,17 +133,17 @@ def syringe_elements(push=0.0):
     }
     return [
         # glass barrel with the fluid showing through the long sides
-        box((4.0, 6.5, 6.5), (12.5, 9.5, 9.5), "fluid", barrel_faces),
+        box((4.0, 6.9, 6.9), (12.5, 9.1, 9.1), "fluid", barrel_faces),
         # red dose ring
-        box((8.0, 6.2, 6.2), (9.0, 9.8, 9.8), "red"),
+        box((8.0, 6.7, 6.7), (9.0, 9.3, 9.3), "red"),
         # finger flange
-        box((3.5, 5.0, 5.0), (4.2, 11.0, 11.0), "steel"),
+        box((3.5, 5.9, 5.9), (4.2, 10.1, 10.1), "steel"),
         # plunger rod + thumb pad (slide into the barrel as push -> 1)
-        box((1.0 + shift, 7.6, 7.6), (4.0 + shift, 8.4, 8.4), "steel_light"),
-        box((0.0 + shift, 6.0, 6.0), (1.2 + shift, 10.0, 10.0), "rubber"),
+        box((1.0 + shift, 7.7, 7.7), (4.0 + shift, 8.3, 8.3), "steel_light"),
+        box((0.0 + shift, 6.4, 6.4), (1.2 + shift, 9.6, 9.6), "rubber"),
         # needle hub + needle
-        box((12.5, 7.3, 7.3), (13.2, 8.7, 8.7), "steel"),
-        box((13.2, 7.85, 7.85), (16.0, 8.15, 8.15), "steel_light"),
+        box((12.5, 7.45, 7.45), (13.2, 8.55, 8.55), "steel"),
+        box((13.2, 7.925, 7.925), (16.0, 8.075, 8.075), "steel_light"),
     ]
 
 

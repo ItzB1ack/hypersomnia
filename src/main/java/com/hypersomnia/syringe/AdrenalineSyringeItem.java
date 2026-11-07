@@ -38,7 +38,10 @@ public class AdrenalineSyringeItem extends Item {
 
     @Override
     public UseAnim getUseAnimation(ItemStack stack) {
-        return UseAnim.BOW;
+        // NONE keeps both arms in a neutral pose: the custom viewmodel computes
+        // hand positions from the vanilla arm transform, and BOW would rotate
+        // the model arms away from those points.
+        return UseAnim.NONE;
     }
 
     @Override
