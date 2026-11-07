@@ -115,17 +115,12 @@ def official(accent=RED, accent_hi=RED_HI, header=SLATE1, style="text"):
     # строки текста
     if style == "morse":
         y = 7
-        xs = 4
-        pattern = [1, 0, 1, 1, 0, 1, 0, 1, 1, 0]
-        for p in pattern:
-            if p:
-                put(px, xs, y, INK)
-                put(px, xs + 1, y, INK)
-                xs += 3
-            else:
-                put(px, xs, y, INK)
-                xs += 2
-        for x in range(5, 10, 2):
+        for x in (4, 7, 10):
+            put(px, x, y, INK)
+            put(px, x + 1, y, INK)
+        for x in (6, 9):
+            put(px, x, y, INK)
+        for x in (5, 8):
             put(px, x, 9, PAPER_DK)
     else:
         for y in (7, 9):
