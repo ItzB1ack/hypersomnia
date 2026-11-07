@@ -1,0 +1,315 @@
+diff --git a/src/main/java/com/hypersomnia/dream/DreamData.java b/src/main/java/com/hypersomnia/dream/DreamData.java
+index 936132c..79f326b 100644
+--- a/src/main/java/com/hypersomnia/dream/DreamData.java
++++ b/src/main/java/com/hypersomnia/dream/DreamData.java
+@@ -12,17 +12,22 @@ public class DreamData implements INBTSerializable<CompoundTag> {
+     private float returnYaw, returnPitch;
+     private int ticksLeft;
+     private String kind = "";
++    private int wardLoops;
+ 
+     public boolean isInDream() { return inDream; }
+     public void setInDream(boolean inDream) {
+         this.inDream = inDream;
+-        if (!inDream) this.kind = ""; // любой выход из сна сбрасывает кошмар
++        if (!inDream) { this.kind = ""; this.wardLoops = 0; } // любой выход из сна сбрасывает кошмар
+     }
+ 
+     /** "" = обычный сон, иначе id из NightmareDefs. Ставить после setInDream(true). */
+     public String getKind() { return kind; }
+     public void setKind(String kind) { this.kind = kind == null ? "" : kind; }
+ 
++    /** Число проходов вперёд за текущий кошмар; не меняет другие механики. */
++    public int getWardLoops() { return wardLoops; }
++    public void addWardLoop() { if (wardLoops < Integer.MAX_VALUE) wardLoops++; }
++
+     public int getTicksLeft() { return ticksLeft; }
+     public void setTicksLeft(int ticks) { this.ticksLeft = Math.max(0, ticks); }
+ 
+@@ -54,6 +59,7 @@ public class DreamData implements INBTSerializable<CompoundTag> {
+         tag.putFloat("rpitch", returnPitch);
+         tag.putInt("ticksLeft", ticksLeft);
+         tag.putString("kind", kind);
++        tag.putInt("wardLoops", wardLoops);
+         return tag;
+     }
+ 
+@@ -68,5 +74,6 @@ public class DreamData implements INBTSerializable<CompoundTag> {
+         returnPitch = tag.getFloat("rpitch");
+         ticksLeft = Math.max(0, tag.getInt("ticksLeft"));
+         kind = tag.getString("kind");
++        wardLoops = inDream ? Math.max(0, tag.getInt("wardLoops")) : 0;
+     }
+ }
+diff --git a/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java b/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java
+index fd08a14..dbdfabc 100644
+--- a/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java
++++ b/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java
+@@ -31,7 +31,7 @@ public final class NightmareBuilder {
+         if (n != NightmareDefs.WARD_CORRIDOR) return false; // №2-4: свои построители в шагах 7+
+         ServerLevel dream = server.getLevel(DreamDimension.LEVEL);
+         if (dream == null) return false;
+-        if (NightmareSavedData.get(dream).isBuilt(n)) return true;
++        if (NightmareSavedData.get(dream).isBuilt(n)) return WardLoopPortals.ensure(dream);
+         return build(server, n);
+     }
+ 
+@@ -42,7 +42,7 @@ public final class NightmareBuilder {
+         if (dream == null) return false;
+         buildWard(dream, n.origin());
+         NightmareSavedData.get(dream).setBuilt(n, true);
+-        return true;
++        return WardLoopPortals.ensure(dream);
+     }
+ 
+     /**
+diff --git a/src/main/java/com/hypersomnia/nightmare/NightmareCommand.java b/src/main/java/com/hypersomnia/nightmare/NightmareCommand.java
+index 290dbf7..6d8789e 100644
+--- a/src/main/java/com/hypersomnia/nightmare/NightmareCommand.java
++++ b/src/main/java/com/hypersomnia/nightmare/NightmareCommand.java
+@@ -2,6 +2,9 @@ package com.hypersomnia.nightmare;
+ 
+ import com.hypersomnia.Hypersomnia;
+ import com.hypersomnia.dream.DreamDimension;
++import com.hypersomnia.dream.DreamAttachments;
++import com.hypersomnia.dream.DreamData;
++import com.hypersomnia.dream.DreamTransition;
+ import com.mojang.brigadier.arguments.StringArgumentType;
+ import net.minecraft.commands.Commands;
+ import net.minecraft.core.BlockPos;
+@@ -21,6 +24,40 @@ public final class NightmareCommand {
+     public static void onRegisterCommands(RegisterCommandsEvent event) {
+         event.getDispatcher().register(Commands.literal("hypersomnia_nightmare")
+                 .requires(src -> src.hasPermission(2))
++                // Внутренняя команда IP: вызывается от имени пересёкшего игрока, без вывода в чат.
++                .then(Commands.literal("_ward_loop").executes(ctx -> {
++                    ServerPlayer player = ctx.getSource().getPlayerOrException();
++                    DreamData data = player.getData(DreamAttachments.DREAM);
++                    if (data.isInDream() && NightmareDefs.WARD_CORRIDOR.id().equals(data.getKind())
++                            && WardLoopPortals.atForwardDestination(player.serverLevel(), player.position())) {
++                        data.addWardLoop();
++                        return 1;
++                    }
++                    return 0;
++                }))
++                .then(Commands.literal("status").executes(ctx -> {
++                    ServerPlayer player = ctx.getSource().getPlayerOrException();
++                    DreamData data = player.getData(DreamAttachments.DREAM);
++                    ctx.getSource().sendSuccess(() -> Component.literal("Dream=" + data.isInDream()
++                            + ", kind=" + data.getKind() + ", ward forward loops=" + data.getWardLoops()), false);
++                    return 1;
++                }))
++                .then(Commands.literal("enter").then(Commands.literal("ward").executes(ctx -> {
++                    ServerPlayer player = ctx.getSource().getPlayerOrException();
++                    if (!NightmareBuilder.ensureBuilt(player.server, NightmareDefs.WARD_CORRIDOR)) {
++                        ctx.getSource().sendFailure(Component.literal("Ward portals not ready; wait a few seconds and retry. If it persists, stop and inspect the saved portal pair."));
++                        return 0;
++                    }
++                    boolean ok = DreamTransition.enterNightmare(player, NightmareDefs.WARD_CORRIDOR);
++                    if (!ok) ctx.getSource().sendFailure(Component.literal("Cannot enter nightmare from current state"));
++                    return ok ? 1 : 0;
++                })))
++                .then(Commands.literal("exit").executes(ctx -> {
++                    ServerPlayer player = ctx.getSource().getPlayerOrException();
++                    boolean ok = DreamTransition.exit(player);
++                    if (!ok) ctx.getSource().sendFailure(Component.literal("Not in a dream or cannot exit"));
++                    return ok ? 1 : 0;
++                }))
+                 .then(Commands.literal("build").then(Commands.argument("id", StringArgumentType.word())
+                         .executes(ctx -> {
+                             NightmareDefs n = NightmareDefs.byId(StringArgumentType.getString(ctx, "id"));
+@@ -30,7 +67,7 @@ public final class NightmareCommand {
+                             }
+                             boolean ok = NightmareBuilder.build(ctx.getSource().getServer(), n);
+                             ctx.getSource().sendSuccess(() -> Component.literal(
+-                                    "Nightmare " + n.id() + (ok ? ": built" : ": no builder yet")), false);
++                                    "Nightmare " + n.id() + (ok ? ": built and ready" : ": not ready; wait and use tp or enter to retry")), false);
+                             return ok ? 1 : 0;
+                         })))
+                 .then(Commands.literal("tp").then(Commands.argument("id", StringArgumentType.word())
+@@ -39,7 +76,7 @@ public final class NightmareCommand {
+                             ServerPlayer p = ctx.getSource().getPlayerOrException();
+                             ServerLevel dream = p.server.getLevel(DreamDimension.LEVEL);
+                             if (n == null || dream == null || !NightmareBuilder.ensureBuilt(p.server, n)) {
+-                                ctx.getSource().sendFailure(Component.literal("Unknown id, no builder, or dream dimension missing"));
++                                ctx.getSource().sendFailure(Component.literal("Unknown id, dream dimension missing, or portals not ready; wait and retry"));
+                                 return 0;
+                             }
+                             BlockPos s = n.spawn();
+diff --git a/src/main/java/com/hypersomnia/nightmare/NightmareSavedData.java b/src/main/java/com/hypersomnia/nightmare/NightmareSavedData.java
+index d670f49..e230b13 100644
+--- a/src/main/java/com/hypersomnia/nightmare/NightmareSavedData.java
++++ b/src/main/java/com/hypersomnia/nightmare/NightmareSavedData.java
+@@ -4,11 +4,14 @@ import net.minecraft.core.HolderLookup;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.level.saveddata.SavedData;
++import java.util.UUID;
+ 
+ /** Какие кошмары построены. Хранится в данных измерения снов. */
+ public final class NightmareSavedData extends SavedData {
+     private static final String NAME = "hypersomnia_nightmare";
+     private int builtMask;
++    private UUID wardForwardPortal;
++    private UUID wardReversePortal;
+ 
+     public static NightmareSavedData get(ServerLevel dream) {
+         return dream.getDataStorage().computeIfAbsent(
+@@ -25,15 +28,27 @@ public final class NightmareSavedData extends SavedData {
+         setDirty();
+     }
+ 
++    public UUID wardForwardPortal() { return wardForwardPortal; }
++    public UUID wardReversePortal() { return wardReversePortal; }
++    public void setWardPortals(UUID forward, UUID reverse) {
++        wardForwardPortal = forward;
++        wardReversePortal = reverse;
++        setDirty();
++    }
++
+     @Override
+     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+         tag.putInt("built", builtMask);
++        if (wardForwardPortal != null) tag.putUUID("wardForwardPortal", wardForwardPortal);
++        if (wardReversePortal != null) tag.putUUID("wardReversePortal", wardReversePortal);
+         return tag;
+     }
+ 
+     private static NightmareSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
+         NightmareSavedData d = new NightmareSavedData();
+         d.builtMask = tag.getInt("built");
++        if (tag.hasUUID("wardForwardPortal")) d.wardForwardPortal = tag.getUUID("wardForwardPortal");
++        if (tag.hasUUID("wardReversePortal")) d.wardReversePortal = tag.getUUID("wardReversePortal");
+         return d;
+     }
+ }
+\ No newline at end of file
+diff --git a/src/main/java/com/hypersomnia/nightmare/NightmareTuning.java b/src/main/java/com/hypersomnia/nightmare/NightmareTuning.java
+index 0962998..da14ba6 100644
+--- a/src/main/java/com/hypersomnia/nightmare/NightmareTuning.java
++++ b/src/main/java/com/hypersomnia/nightmare/NightmareTuning.java
+@@ -22,6 +22,9 @@ public final class NightmareTuning {
+     /** Уровни света невидимых блоков LIGHT. */
+     public static final int LIGHT_CORRIDOR = 7;
+     public static final int LIGHT_WARD = 3;
++    /** Плоскости на одинаковой фазе рисунка, вдали от дверных проёмов. */
++    public static final int WARD_LOOP_BACK_X = WARD_PERIOD + 2;
++    public static final int WARD_LOOP_FORWARD_X = WARD_PERIOD * 4 + 2;
+     /** Поворот при появлении: лицом по +X. */
+     public static final float SPAWN_YAW = -90f;
+ 
+diff --git a/src/main/java/com/hypersomnia/nightmare/WardLoopPortals.java b/src/main/java/com/hypersomnia/nightmare/WardLoopPortals.java
+new file mode 100644
+index 0000000..6f713fd
+--- /dev/null
++++ b/src/main/java/com/hypersomnia/nightmare/WardLoopPortals.java
+@@ -0,0 +1,93 @@
++package com.hypersomnia.nightmare;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.phys.AABB;
++import net.minecraft.world.phys.Vec3;
++import qouteall.imm_ptl.core.api.PortalAPI;
++import qouteall.imm_ptl.core.portal.Portal;
++
++import java.util.List;
++import java.util.UUID;
++
++/** Пара обычных порталов только в слоте коридора; не меняет глобальные порталы измерения. */
++public final class WardLoopPortals {
++    private static final String FORWARD_TAG = "hypersomnia:ward_loop_forward";
++    private static final String REVERSE_TAG = "hypersomnia:ward_loop_reverse";
++    private static final String LOOP_COMMAND = "hypersomnia_nightmare _ward_loop";
++    private WardLoopPortals() {}
++
++    private static Vec3 center(BlockPos o, int x) {
++        return new Vec3(o.getX() + x, o.getY() + 1 + NightmareTuning.CORRIDOR_HEIGHT / 2.0,
++                o.getZ() + NightmareTuning.CORRIDOR_WIDTH / 2.0);
++    }
++
++    /** false при ещё не загруженных сущностях или повреждённой существующей паре. */
++    public static boolean ensure(ServerLevel level) {
++        BlockPos origin = NightmareDefs.WARD_CORRIDOR.origin();
++        Vec3 a = center(origin, NightmareTuning.WARD_LOOP_FORWARD_X);
++        Vec3 b = center(origin, NightmareTuning.WARD_LOOP_BACK_X);
++        ChunkPos ca = new ChunkPos(BlockPos.containing(a));
++        ChunkPos cb = new ChunkPos(BlockPos.containing(b));
++        level.getChunk(ca.x, ca.z);
++        level.getChunk(cb.x, cb.z);
++        // getChunk загружает блоки, но чтение сохранённых сущностей может закончиться позже.
++        // Не создавать новую пару, пока нельзя надёжно обнаружить старую.
++        if (!level.areEntitiesLoaded(ca.toLong()) || !level.areEntitiesLoaded(cb.toLong())) return false;
++
++        NightmareSavedData data = NightmareSavedData.get(level);
++        UUID fId = data.wardForwardPortal(), rId = data.wardReversePortal();
++        if (fId != null || rId != null) {
++            return fId != null && rId != null && valid(level.getEntity(fId), fId, FORWARD_TAG, a, b, new Vec3(-1, 0, 0), true)
++                    && valid(level.getEntity(rId), rId, REVERSE_TAG, b, a, new Vec3(1, 0, 0), false);
++        }
++        // Сохраняем чужие порталы нетронутыми. При найденной сиротской паре не дублируем её.
++        if (!level.getEntitiesOfClass(Portal.class, new AABB(a, a).inflate(4),
++                p -> FORWARD_TAG.equals(p.portalTag) || REVERSE_TAG.equals(p.portalTag)).isEmpty()
++                || !level.getEntitiesOfClass(Portal.class, new AABB(b, b).inflate(4),
++                p -> FORWARD_TAG.equals(p.portalTag) || REVERSE_TAG.equals(p.portalTag)).isEmpty()) return false;
++
++        Portal forward = Portal.ENTITY_TYPE.create(level);
++        if (forward == null) return false;
++        forward.setOriginPos(a);
++        // W × H = -X: виден игроку, идущему по +X.
++        forward.setOrientationAndSize(new Vec3(0, 0, 1), new Vec3(0, 1, 0),
++                NightmareTuning.CORRIDOR_WIDTH, NightmareTuning.CORRIDOR_HEIGHT);
++        PortalAPI.setPortalTransformation(forward, level.dimension(), b, null, 1.0);
++        forward.portalTag = FORWARD_TAG;
++        forward.setCommandsOnTeleported(List.of(LOOP_COMMAND));
++        Portal reverse = PortalAPI.createReversePortal(forward);
++        if (reverse == null) return false;
++        reverse.portalTag = REVERSE_TAG;
++        reverse.setCommandsOnTeleported(null);
++        if (!forward.isPortalValid() || !reverse.isPortalValid()) return false;
++        if (!level.addFreshEntity(forward)) return false;
++        if (!level.addFreshEntity(reverse)) {
++            forward.discard();
++            return false;
++        }
++        data.setWardPortals(forward.getUUID(), reverse.getUUID());
++        return true;
++    }
++
++    private static boolean valid(Entity entity, UUID id, String tag, Vec3 from, Vec3 to, Vec3 normal, boolean forward) {
++        if (id == null || !(entity instanceof Portal p)) return false;
++        return tag.equals(p.portalTag) && p.isPortalValid() && p.position().distanceToSqr(from) < 1.0e-6
++                && p.level().dimension().equals(p.getDestDim()) && p.getDestPos().distanceToSqr(to) < 1.0e-6
++                && Math.abs(p.getScaling() - 1.0) < 1.0e-6 && p.getRotation() == null
++                && (forward ? List.of(LOOP_COMMAND).equals(p.getCommandsOnTeleported()) : p.getCommandsOnTeleported() == null)
++                && p.getNormal().distanceToSqr(normal) < 1.0e-6
++                && Math.abs(p.getWidth() - NightmareTuning.CORRIDOR_WIDTH) < 1.0e-6
++                && Math.abs(p.getHeight() - NightmareTuning.CORRIDOR_HEIGHT) < 1.0e-6;
++    }
++
++    /** IP выполняет внутреннюю команду сразу после переноса вперёд, от лица игрока. */
++    public static boolean atForwardDestination(ServerLevel level, Vec3 pos) {
++        Vec3 b = center(NightmareDefs.WARD_CORRIDOR.origin(), NightmareTuning.WARD_LOOP_BACK_X);
++        return level.dimension().equals(com.hypersomnia.dream.DreamDimension.LEVEL)
++                && Math.abs(pos.x - b.x) <= 3 && Math.abs(pos.z - b.z) <= 2
++                && pos.y >= b.y - 3 && pos.y <= b.y + 2;
++    }
++}
+diff --git a/src/main/resources/META-INF/neoforge.mods.toml b/src/main/resources/META-INF/neoforge.mods.toml
+index fa2df92..36ea836 100644
+--- a/src/main/resources/META-INF/neoforge.mods.toml
++++ b/src/main/resources/META-INF/neoforge.mods.toml
+@@ -93,3 +93,11 @@ Hypersomnia: a slow analog horror mod.
+ # stop your mod loading on the server for example.
+ #[features.${mod_id}]
+ #openGLVersion="[3.2,)"
++
++# The corridor loop uses Immersive Portals on both logical sides.
++[[dependencies.${mod_id}]]
++    modId="imm_ptl"
++    type="required"
++    versionRange="[6.0.7,6.0.8)"
++    ordering="AFTER"
++    side="BOTH"

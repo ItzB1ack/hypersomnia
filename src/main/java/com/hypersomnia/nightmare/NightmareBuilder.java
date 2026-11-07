@@ -1,7 +1,10 @@
 package com.hypersomnia.nightmare;
 
 import com.hypersomnia.dream.DreamDimension;
+import com.hypersomnia.ModBlocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
@@ -16,22 +19,26 @@ public final class NightmareBuilder {
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
-    private static final BlockState FLOOR = Blocks.DEEPSLATE_TILES.defaultBlockState();
+    // Приглушённая палитра: контрастные края пола, светлые стены и холодная полоса.
+    private static final BlockState FLOOR = Blocks.SMOOTH_STONE.defaultBlockState();
+    private static final BlockState FLOOR_EDGE = Blocks.POLISHED_ANDESITE.defaultBlockState();
     private static final BlockState CEIL = Blocks.SMOOTH_STONE.defaultBlockState();
     private static final BlockState PANEL = Blocks.WHITE_CONCRETE.defaultBlockState();
     private static final BlockState WALL = Blocks.LIGHT_GRAY_CONCRETE.defaultBlockState();
-    private static final BlockState COT = Blocks.SMOOTH_QUARTZ_SLAB.defaultBlockState();
+    private static final BlockState TRIM = Blocks.POLISHED_ANDESITE.defaultBlockState();
+    private static final BlockState STRIPE = Blocks.LIGHT_BLUE_TERRACOTTA.defaultBlockState();
+    private static final BlockState WINDOW = Blocks.LIGHT_GRAY_STAINED_GLASS.defaultBlockState();
     private static final BlockState LIGHT_CORRIDOR =
             Blocks.LIGHT.defaultBlockState().setValue(BlockStateProperties.LEVEL, NightmareTuning.LIGHT_CORRIDOR);
     private static final BlockState LIGHT_WARD =
-            Blocks.LIGHT.defaultBlockState().setValue(BlockStateProperties.LEVEL, NightmareTuning.LIGHT_WARD);
+            Blocks.LIGHT.defaultBlockState().setValue(BlockStateProperties.LEVEL, 8);
 
     /** true, если место кошмара есть (при необходимости строит сразу). Для кошмаров без построителя всегда false. */
     public static boolean ensureBuilt(MinecraftServer server, NightmareDefs n) {
         if (n != NightmareDefs.WARD_CORRIDOR) return false; // №2-4: свои построители в шагах 7+
         ServerLevel dream = server.getLevel(DreamDimension.LEVEL);
         if (dream == null) return false;
-        if (NightmareSavedData.get(dream).isBuilt(n)) return true;
+        if (NightmareSavedData.get(dream).isBuilt(n)) return WardLoopPortals.ensure(dream);
         return build(server, n);
     }
 
@@ -42,12 +49,12 @@ public final class NightmareBuilder {
         if (dream == null) return false;
         buildWard(dream, n.origin());
         NightmareSavedData.get(dream).setBuilt(n, true);
-        return true;
+        return WardLoopPortals.ensure(dream);
     }
 
     /**
      * Коридор вдоль +X: внутри z 0..W-1, высота H, пол на y = origin.y. Палаты по обе стороны, проём в центре каждой.
-     * Рисунок повторяется с периодом P по X (нужно для телепорта на период). Ячейки x = -1 и L+1 — торцы.
+     * Палаты повторяются через P блоков. Ячейки x = -1 и L+1 — торцы.
      */
     private static void buildWard(ServerLevel lv, BlockPos o) {
         int p = NightmareTuning.WARD_PERIOD;
@@ -66,23 +73,73 @@ public final class NightmareBuilder {
                 }
     }
 
+    /**
+     * План палат повторяется каждые 8 блоков. Сдвиг порталов — 24: на стыке
+     * совпадают не только стены, но и вся мебель, отделка и освещение.
+     * m=3..4 — вход и свободный проход; две койки стоят по его сторонам.
+     */
     private static BlockState wardCell(int x, int ry, int z, int p, int len, int h, int w, int d, int zN, int zS) {
-        int door = NightmareTuning.DOOR_OFFSET;
-        int m = x % p; // для x = -1 не используется: торец отсекается раньше
+        int m = Math.floorMod(x, p);
         boolean shell = x == -1 || x == len + 1 || z == zN || z == zS;
-        if (ry == 0) return FLOOR;
-        if (ry == h + 1) return (!shell && m == door && z == w / 2) ? PANEL : CEIL;
-        if (shell) return WALL;
-        if (z >= 0 && z < w) { // коридор
-            return (ry == h && m == door && z == w / 2) ? LIGHT_CORRIDOR : AIR;
+        boolean corridor = z >= 0 && z < w;
+        boolean front = z == -1 || z == w;
+        // t=1 у входа, t=d у дальней стены палаты с любой стороны.
+        int t = z < 0 ? -z - 1 : z - w;
+
+        if (ry == 0) {
+            if (corridor) return (z == 0 || z == w - 1) ? FLOOR_EDGE : FLOOR;
+            return FLOOR;
         }
-        if (z == -1 || z == w) { // стена коридора с проёмом 2 высотой
-            return (m == door && ry <= 2) ? AIR : WALL;
+        if (ry == h + 1) {
+            boolean corridorLamp = corridor && m == 4 && z == w / 2;
+            boolean wardLamp = !front && !corridor && !shell && m == 4 && t == 3;
+            return corridorLamp || wardLamp ? PANEL : CEIL;
         }
-        if (m == 0) return WALL; // перегородка между палатами
-        // внутри палаты: койка у дальней стены, тусклый свет
-        if (ry == 1 && (m == door + 1 || m == door + 2) && (z == -(d + 1) || z == w + d)) return COT;
-        if (ry == h && m == door && (z == -((d + 1) / 2 + 1) || z == (w + 1) + (d - 1) / 2)) return LIGHT_WARD;
+        if (shell) {
+            // Акцентная полоса на дальней стене — не занимает место внутри палаты.
+            if ((z == zN || z == zS) && x >= 0 && x <= len && m != 0 && ry == 2) return STRIPE;
+            return WALL;
+        }
+        if (corridor) {
+            return (ry == h && m == 4 && z == w / 2) ? LIGHT_CORRIDOR : AIR;
+        }
+        if (front) {
+            if ((m == 3 || m == 4) && ry <= 2) return AIR;
+            if ((m == 2 || m == 5) && ry <= 3) return TRIM;
+            if ((m == 3 || m == 4) && ry == 3) return TRIM;
+            if (m == 6 && (ry == 2 || ry == 3)) return WINDOW;
+            return ry == 2 ? STRIPE : PANEL;
+        }
+        if (m == 0) return ry == 2 ? WALL : PANEL;
+        if (ry == h && m == 4 && t == 3) return LIGHT_WARD;
+
+        // Две полноценные койки с доступом со стороны центрального прохода.
+        boolean bed = (m == 2 || m == 6) && (t == 3 || t == 4);
+        if (ry == 1 && bed) {
+            return WardDecorBlocks.BED.defaultBlockState()
+                    .setValue(WardBedBlock.FACING, z < 0 ? Direction.NORTH : Direction.SOUTH)
+                    .setValue(WardBedBlock.PART, t == 4 ? BedPart.HEAD : BedPart.FOOT);
+        }
+        // Мониторы рядом с изголовьями, экраны повёрнуты к койкам.
+        if (ry == 1 && t == 4 && (m == 1 || m == 7)) {
+            return WardDecorBlocks.MONITOR.defaultBlockState()
+                    .setValue(WardMonitorBlock.FACING, m == 1 ? Direction.EAST : Direction.WEST);
+        }
+        // Вместо безликих кубов — тумбы с ящиками из существующих моделей мода.
+        if (ry == 1 && t == 5 && (m == 1 || m == 7)) {
+            return ModBlocks.DESK.get().defaultBlockState()
+                    .setValue(BlockStateProperties.HORIZONTAL_FACING, m == 1 ? Direction.EAST : Direction.WEST);
+        }
+        // Небольшой стол и стул для посетителя у боковой стены; середина комнаты свободна.
+        if (m == 7 && t == 2 && ry == 1) {
+            return ModBlocks.DESK.get().defaultBlockState()
+                    .setValue(BlockStateProperties.HORIZONTAL_FACING, z < 0 ? Direction.SOUTH : Direction.NORTH);
+        }
+        if (m == 7 && t == 1 && ry == 1) {
+            return ModBlocks.CHAIR.get().defaultBlockState()
+                    .setValue(BlockStateProperties.HORIZONTAL_FACING, z < 0 ? Direction.NORTH : Direction.SOUTH);
+        }
+        if (m == 7 && t == 2 && ry == 2) return Blocks.POTTED_FERN.defaultBlockState();
         return AIR;
     }
 }

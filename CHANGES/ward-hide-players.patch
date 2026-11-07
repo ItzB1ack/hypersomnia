@@ -1,0 +1,51 @@
+--- a/src/main/java/com/hypersomnia/nightmare/WardLoopPortals.java
++++ b/src/main/java/com/hypersomnia/nightmare/WardLoopPortals.java
+@@ -53,9 +53,14 @@
+             if (fId == null || rId == null) return Result.INCOMPLETE_IDS;
+             Entity f = level.getEntity(fId), r = level.getEntity(rId);
+             if (f == null || r == null) return Result.MISSING_SAVED_PORTAL;
+-            return valid(f, fId, FORWARD_TAG, a, b, new Vec3(-1, 0, 0), true)
+-                    && valid(r, rId, REVERSE_TAG, b, a, new Vec3(1, 0, 0), false)
+-                    ? Result.READY : Result.INVALID_SAVED_PORTAL;
++            if (!valid(f, fId, FORWARD_TAG, a, b, new Vec3(-1, 0, 0), true)
++                    || !valid(r, rId, REVERSE_TAG, b, a, new Vec3(1, 0, 0), false)) {
++                return Result.INVALID_SAVED_PORTAL;
++            }
++            // Обновляем только уже проверенную собственную пару; синхронизируем существующих клиентов.
++            hidePlayers((Portal) f);
++            hidePlayers((Portal) r);
++            return Result.READY;
+         }
+         // Сохраняем чужие порталы нетронутыми. При найденной сиротской паре не дублируем её.
+         if (!level.getEntitiesOfClass(Portal.class, new AABB(a, a).inflate(4),
+@@ -71,10 +76,12 @@
+                 NightmareTuning.CORRIDOR_WIDTH, NightmareTuning.CORRIDOR_HEIGHT);
+         PortalAPI.setPortalTransformation(forward, level.dimension(), b, null, 1.0);
+         forward.portalTag = FORWARD_TAG;
++        forward.setDoRenderPlayer(false);
+         forward.setCommandsOnTeleported(List.of(LOOP_COMMAND));
+         Portal reverse = PortalAPI.createReversePortal(forward);
+         if (reverse == null) return Result.SPAWN_FAILED;
+         reverse.portalTag = REVERSE_TAG;
++        reverse.setDoRenderPlayer(false);
+         reverse.setCommandsOnTeleported(null);
+         if (!forward.isPortalValid() || !reverse.isPortalValid()) return Result.INVALID_NEW_PORTAL;
+         if (!level.addFreshEntity(forward)) return Result.SPAWN_FAILED;
+@@ -86,9 +93,16 @@
+         return Result.READY;
+     }
+ 
++    private static void hidePlayers(Portal portal) {
++        if (portal.getDoRenderPlayer()) {
++            portal.setDoRenderPlayer(false);
++            portal.reloadAndSyncToClient();
++        }
++    }
++
+     private static boolean valid(Entity entity, UUID id, String tag, Vec3 from, Vec3 to, Vec3 normal, boolean forward) {
+         if (id == null || !(entity instanceof Portal p)) return false;
+-        return tag.equals(p.portalTag) && p.isPortalValid() && p.position().distanceToSqr(from) < 1.0e-6
++        return !p.isGlobalPortal && tag.equals(p.portalTag) && p.isPortalValid() && p.position().distanceToSqr(from) < 1.0e-6
+                 && p.level().dimension().equals(p.getDestDim()) && p.getDestPos().distanceToSqr(to) < 1.0e-6
+                 && Math.abs(p.getScaling() - 1.0) < 1.0e-6 && p.getRotation() == null
+                 && (forward ? List.of(LOOP_COMMAND).equals(p.getCommandsOnTeleported()) : p.getCommandsOnTeleported() == null)

@@ -12,16 +12,21 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     private float returnYaw, returnPitch;
     private int ticksLeft;
     private String kind = "";
+    private int wardLoops;
 
     public boolean isInDream() { return inDream; }
     public void setInDream(boolean inDream) {
         this.inDream = inDream;
-        if (!inDream) this.kind = ""; // любой выход из сна сбрасывает кошмар
+        if (!inDream) { this.kind = ""; this.wardLoops = 0; } // любой выход из сна сбрасывает кошмар
     }
 
     /** "" = обычный сон, иначе id из NightmareDefs. Ставить после setInDream(true). */
     public String getKind() { return kind; }
     public void setKind(String kind) { this.kind = kind == null ? "" : kind; }
+
+    /** Число проходов вперёд за текущий кошмар; не меняет другие механики. */
+    public int getWardLoops() { return wardLoops; }
+    public void addWardLoop() { if (wardLoops < Integer.MAX_VALUE) wardLoops++; }
 
     public int getTicksLeft() { return ticksLeft; }
     public void setTicksLeft(int ticks) { this.ticksLeft = Math.max(0, ticks); }
@@ -54,6 +59,7 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         tag.putFloat("rpitch", returnPitch);
         tag.putInt("ticksLeft", ticksLeft);
         tag.putString("kind", kind);
+        tag.putInt("wardLoops", wardLoops);
         return tag;
     }
 
@@ -68,5 +74,6 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         returnPitch = tag.getFloat("rpitch");
         ticksLeft = Math.max(0, tag.getInt("ticksLeft"));
         kind = tag.getString("kind");
+        wardLoops = inDream ? Math.max(0, tag.getInt("wardLoops")) : 0;
     }
 }

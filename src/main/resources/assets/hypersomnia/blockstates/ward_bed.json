@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north,part=head": {
+      "model": "hypersomnia:block/ward_bed_head"
+    },
+    "facing=north,part=foot": {
+      "model": "hypersomnia:block/ward_bed_foot"
+    },
+    "facing=east,part=head": {
+      "model": "hypersomnia:block/ward_bed_head",
+      "y": 90
+    },
+    "facing=east,part=foot": {
+      "model": "hypersomnia:block/ward_bed_foot",
+      "y": 90
+    },
+    "facing=south,part=head": {
+      "model": "hypersomnia:block/ward_bed_head",
+      "y": 180
+    },
+    "facing=south,part=foot": {
+      "model": "hypersomnia:block/ward_bed_foot",
+      "y": 180
+    },
+    "facing=west,part=head": {
+      "model": "hypersomnia:block/ward_bed_head",
+      "y": 270
+    },
+    "facing=west,part=foot": {
+      "model": "hypersomnia:block/ward_bed_foot",
+      "y": 270
+    }
+  }
+}

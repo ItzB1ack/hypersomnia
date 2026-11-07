@@ -1,0 +1,112 @@
+diff --git a/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java b/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java
+index dbdfabc..324a0a7 100644
+--- a/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java
++++ b/src/main/java/com/hypersomnia/nightmare/NightmareBuilder.java
+@@ -16,15 +16,23 @@ public final class NightmareBuilder {
+     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+ 
+     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+-    private static final BlockState FLOOR = Blocks.DEEPSLATE_TILES.defaultBlockState();
++    // Приглушённая палитра: контрастные края пола, светлые стены и холодная полоса.
++    private static final BlockState FLOOR = Blocks.SMOOTH_STONE.defaultBlockState();
++    private static final BlockState FLOOR_EDGE = Blocks.POLISHED_ANDESITE.defaultBlockState();
+     private static final BlockState CEIL = Blocks.SMOOTH_STONE.defaultBlockState();
+     private static final BlockState PANEL = Blocks.WHITE_CONCRETE.defaultBlockState();
+     private static final BlockState WALL = Blocks.LIGHT_GRAY_CONCRETE.defaultBlockState();
+-    private static final BlockState COT = Blocks.SMOOTH_QUARTZ_SLAB.defaultBlockState();
++    private static final BlockState TRIM = Blocks.POLISHED_ANDESITE.defaultBlockState();
++    private static final BlockState STRIPE = Blocks.LIGHT_BLUE_TERRACOTTA.defaultBlockState();
++    private static final BlockState WINDOW = Blocks.LIGHT_GRAY_STAINED_GLASS.defaultBlockState();
++    private static final BlockState COT = Blocks.LIGHT_GRAY_WOOL.defaultBlockState();
++    private static final BlockState PILLOW = Blocks.WHITE_WOOL.defaultBlockState();
++    private static final BlockState HEADBOARD = Blocks.LIGHT_BLUE_TERRACOTTA.defaultBlockState();
++    private static final BlockState CABINET = Blocks.LIGHT_GRAY_CONCRETE.defaultBlockState();
+     private static final BlockState LIGHT_CORRIDOR =
+             Blocks.LIGHT.defaultBlockState().setValue(BlockStateProperties.LEVEL, NightmareTuning.LIGHT_CORRIDOR);
+     private static final BlockState LIGHT_WARD =
+-            Blocks.LIGHT.defaultBlockState().setValue(BlockStateProperties.LEVEL, NightmareTuning.LIGHT_WARD);
++            Blocks.LIGHT.defaultBlockState().setValue(BlockStateProperties.LEVEL, 5);
+ 
+     /** true, если место кошмара есть (при необходимости строит сразу). Для кошмаров без построителя всегда false. */
+     public static boolean ensureBuilt(MinecraftServer server, NightmareDefs n) {
+@@ -47,7 +55,7 @@ public final class NightmareBuilder {
+ 
+     /**
+      * Коридор вдоль +X: внутри z 0..W-1, высота H, пол на y = origin.y. Палаты по обе стороны, проём в центре каждой.
+-     * Рисунок повторяется с периодом P по X (нужно для телепорта на период). Ячейки x = -1 и L+1 — торцы.
++     * Палаты через P блоков, три варианта повторяются через 3×P. Ячейки x = -1 и L+1 — торцы.
+      */
+     private static void buildWard(ServerLevel lv, BlockPos o) {
+         int p = NightmareTuning.WARD_PERIOD;
+@@ -66,23 +74,57 @@ public final class NightmareBuilder {
+                 }
+     }
+ 
++    /**
++     * Три варианта палат на 24 блока. Сдвиг порталов — тоже 24: на стыке
++     * совпадают не только стены, но и вся мебель, отделка и освещение.
++     * m=3..4 — вход и свободный проход; кровати стоят по его сторонам.
++     */
+     private static BlockState wardCell(int x, int ry, int z, int p, int len, int h, int w, int d, int zN, int zS) {
+-        int door = NightmareTuning.DOOR_OFFSET;
+-        int m = x % p; // для x = -1 не используется: торец отсекается раньше
++        int m = Math.floorMod(x, p);
++        int variant = Math.floorMod(Math.floorDiv(x, p), 3);
+         boolean shell = x == -1 || x == len + 1 || z == zN || z == zS;
+-        if (ry == 0) return FLOOR;
+-        if (ry == h + 1) return (!shell && m == door && z == w / 2) ? PANEL : CEIL;
++        boolean corridor = z >= 0 && z < w;
++        boolean front = z == -1 || z == w;
++        // t=1 у входа, t=d у дальней стены палаты с любой стороны.
++        int t = z < 0 ? -z - 1 : z - w;
++
++        if (ry == 0) {
++            if (corridor) return (z == 0 || z == w - 1) ? FLOOR_EDGE : FLOOR;
++            return FLOOR;
++        }
++        if (ry == h + 1) {
++            boolean corridorLamp = corridor && m == 4 && z == w / 2;
++            boolean wardLamp = !front && !corridor && !shell && m == 4 && t == 3;
++            return corridorLamp || wardLamp ? PANEL : CEIL;
++        }
+         if (shell) return WALL;
+-        if (z >= 0 && z < w) { // коридор
+-            return (ry == h && m == door && z == w / 2) ? LIGHT_CORRIDOR : AIR;
++        if (corridor) {
++            return (ry == h && m == 4 && z == w / 2) ? LIGHT_CORRIDOR : AIR;
++        }
++        if (front) {
++            if ((m == 3 || m == 4) && ry <= 2) return AIR;
++            if ((m == 2 || m == 5) && ry <= 3) return TRIM;
++            if ((m == 3 || m == 4) && ry == 3) return TRIM;
++            if (m == 6 && (ry == 2 || ry == 3)) return WINDOW;
++            return ry == 2 ? STRIPE : PANEL;
+         }
+-        if (z == -1 || z == w) { // стена коридора с проёмом 2 высотой
+-            return (m == door && ry <= 2) ? AIR : WALL;
++        if (m == 0) return ry == 2 ? WALL : PANEL;
++        if (ry == h && m == 4 && t == 3) return LIGHT_WARD;
++
++        // Койка вдоль дальней части комнаты, с доступом из центрального прохода.
++        boolean leftBed = m == 2 && (t == 3 || t == 4);
++        boolean rightBed = m == 6 && (t == 3 || t == 4) && variant == 0;
++        if (leftBed || rightBed) {
++            if (ry == 1) return t == 4 ? PILLOW : COT;
+         }
+-        if (m == 0) return WALL; // перегородка между палатами
+-        // внутри палаты: койка у дальней стены, тусклый свет
+-        if (ry == 1 && (m == door + 1 || m == door + 2) && (z == -(d + 1) || z == w + d)) return COT;
+-        if (ry == h && m == door && (z == -((d + 1) / 2 + 1) || z == (w + 1) + (d - 1) / 2)) return LIGHT_WARD;
++        // Изголовья у глухой задней стены, не в проходе.
++        if ((ry == 1 || ry == 2) && t == 5
++                && (m == 2 || (m == 6 && variant == 0))) return HEADBOARD;
++        // Тумбы у изголовий; у других вариантов справа — шкаф или рабочая поверхность.
++        if (ry == 1 && t == 4 && (m == 1 || (m == 7 && variant == 0))) return CABINET;
++        if (variant == 1 && m == 7 && t == 5 && (ry == 1 || ry == 2)) return CABINET;
++        if (variant == 2 && t == 5 && (m == 6 || m == 7) && ry == 1) return CABINET;
++        if (variant == 2 && m == 7 && t == 5 && ry == 2) return CABINET;
+         return AIR;
+     }
+-}
+\ No newline at end of file
++}

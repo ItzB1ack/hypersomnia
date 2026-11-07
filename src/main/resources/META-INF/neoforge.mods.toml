@@ -93,3 +93,11 @@ Hypersomnia: a slow analog horror mod.
 # stop your mod loading on the server for example.
 #[features.${mod_id}]
 #openGLVersion="[3.2,)"
+
+# The corridor loop uses Immersive Portals on both logical sides.
+[[dependencies.${mod_id}]]
+    modId="imm_ptl"
+    type="required"
+    versionRange="[6.0.7,6.0.8)"
+    ordering="AFTER"
+    side="BOTH"

@@ -22,8 +22,16 @@ public final class NightmareTuning {
     /** Уровни света невидимых блоков LIGHT. */
     public static final int LIGHT_CORRIDOR = 7;
     public static final int LIGHT_WARD = 3;
+    /** Плоскости на одинаковой фазе рисунка, вдали от дверных проёмов. */
+    public static final int WARD_LOOP_BACK_X = WARD_PERIOD + 2;
+    public static final int WARD_LOOP_FORWARD_X = WARD_PERIOD * 4 + 2;
     /** Поворот при появлении: лицом по +X. */
     public static final float SPAWN_YAW = -90f;
+
+    // Клиентские осколки у коек: период обновления и запас на задержку пакета.
+    public static final int WARD_GHOST_SYNC_TICKS = 40;
+    public static final int WARD_GHOST_TIMEOUT_TICKS = 160;
+    public static final double WARD_GHOST_RENDER_DISTANCE = 40.0;
 
     /** Запасной выход по таймеру (тики): 6000 = 5 минут. */
     public static final int WARD_DURATION_TICKS = 6000;
