@@ -14,14 +14,18 @@ import net.minecraft.resources.ResourceLocation;
 public record ChasePayload(int run, int phase, int info, double x, double y, double z, float stare, int nextDay)
         implements CustomPacketPayload {
 
-    public static final int PH_IDLE = 0, PH_WARN = 1, PH_RUN = 2, PH_BLOCKED = 3, PH_CAUGHT = 4, PH_END = 5, PH_REJECT = 6;
+    public static final int PH_IDLE = 0, PH_WARN = 1, PH_RUN = 2, PH_BLOCKED = 3, PH_CAUGHT = 4, PH_END = 5,
+            PH_REJECT = 6, PH_WATCH = 7;
 
-    /** Исходы: выдержал взгляд, продержался, ушёл от двери, учебная (остановился рядом), поймал, прервана. */
-    public static final int O_NONE = 0, O_STARED = 1, O_ESCAPED = 2, O_BLOCKED = 3, O_TAUGHT = 4, O_CAUGHT = 5, O_ABORT = 6;
+    /** Исходы: выдержал взгляд, продержался, ушёл от двери, учебная (остановился рядом), поймал, прервана, тестовое наблюдение. */
+    public static final int O_NONE = 0, O_STARED = 1, O_ESCAPED = 2, O_BLOCKED = 3, O_TAUGHT = 4, O_CAUGHT = 5,
+            O_ABORT = 6, O_WATCH = 7;
 
     /** Флаги в info вне PH_END и PH_REJECT: I_DARK — «обесточено» (лаборатория в темноте, LabOutage): глаза видны издалека. */
     public static final int I_DARK = 1;
     public static final int I_DOOR = 2;
+    /** Тестовая команда: фигуру вывел сервер (без запроса клиента) — клиент показывает её как есть. */
+    public static final int I_PUSH = 4;
 
     /** Причины отказа (для журнала режиссёра). */
     public static final int R_BUSY = 1, R_STAGE = 2, R_DAYS = 3, R_CONTEXT = 4, R_LAB = 5, R_SAFETY = 6, R_TRAIL = 7,

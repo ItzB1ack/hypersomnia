@@ -16,8 +16,10 @@ import com.hypersomnia.server.TraceHandler;
 import com.hypersomnia.trace.TraceAttachments;
 import com.hypersomnia.trace.TraceData;
 import com.hypersomnia.trace.TraceType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -57,6 +59,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -79,6 +82,10 @@ import java.util.UUID;
  * Поимка до стадии DAMAGE_MIN_STAGE забирает вещь из руки (вернётся у кровати через 1-3 дня, рядом с его шагами),
  * прибавляет усталость и безумие; с неё — ещё и ранит (тип урона hypersomnia:fragment, мимо брони). Пока он бежит,
  * лечь спать нельзя («рядом монстры»).
+ * <p>
+ * Тестовые команды для мультиплеера (/hypersomnia_shard, только оператор): watch — фигура встаёт перед другим игроком
+ * и смотрит заданное время (PH_WATCH, не бежит и не ловит, день погони не тратит); chase [teach] — настоящая погоня
+ * без требования следа, стадии, ночи и дней; stop/status. Фигуру видит только цель: она рисуется на её клиенте.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class ChaseHandler {
@@ -102,6 +109,11 @@ public final class ChaseHandler {
         int stage;
         boolean teach;
         boolean fromDoor;
+        /** Тестовое наблюдение (команда /hypersomnia_shard watch): стоит на месте, не бежит и не ловит. */
+        boolean watch;
+        int watchLeft;
+        /** Сервер вывел фигуру сам (тестовая команда): клиенту не нужен свой запрос погони. */
+        boolean pushed;
         int phase = ChasePayload.PH_WARN;
         int phaseTicks;
         int warnTicks;
@@ -172,7 +184,7 @@ public final class ChaseHandler {
             end(player, run, ChasePayload.O_ABORT);
             return;
         }
-        if (added != null) run.path.add(added);
+        if (added != null && !run.watch) run.path.add(added);
         step(player, run);
     }
 
@@ -183,6 +195,14 @@ public final class ChaseHandler {
             return;
         }
         run.phaseTicks++;
+        if (run.watch) {
+            if (--run.watchLeft <= 0) {
+                end(player, run, ChasePayload.O_WATCH);
+                return;
+            }
+            send(player, run, ChasePayload.PH_WATCH, ChasePayload.O_NONE);
+            return;
+        }
         Vec3 feet = player.position();
         if (run.pos.distanceTo(feet) > ChaseTuning.ABORT_DIST) {
             end(player, run, ChasePayload.O_ABORT);
@@ -553,6 +573,7 @@ public final class ChaseHandler {
         // stare в пакете — 0: взгляд в погоне не работает, пыли «он исчезает» нет. Вне PH_END info — флаги (I_DARK)
         if (phase != ChasePayload.PH_END && run.outage >= 0) info |= ChasePayload.I_DARK;
         if (phase != ChasePayload.PH_END && run.fromDoor) info |= ChasePayload.I_DOOR;
+        if (phase != ChasePayload.PH_END && run.pushed) info |= ChasePayload.I_PUSH;
         PacketDistributor.sendToPlayer(player, new ChasePayload(run.id, phase, info, run.pos.x, run.pos.y, run.pos.z,
                 0f, player.getData(ModAttachments.CHASE).nextDay()));
     }
@@ -583,6 +604,14 @@ public final class ChaseHandler {
 
     /** 0 — погоня началась, иначе причина отказа ChasePayload.R_*. force: 1 — отладка, 2 — отладка и не учебная. */
     public static int start(ServerPlayer player, int force) {
+        return start(player, force, false);
+    }
+
+    /**
+     * spawnIfNoTrail — тестовая команда (/hypersomnia_shard chase): без следа поставить фигуру за спиной игрока.
+     * Остальные проверки (стадия, мир, безопасность, лаборатория) остаются прежними.
+     */
+    private static int start(ServerPlayer player, int force, boolean spawnIfNoTrail) {
         if (RUNS.containsKey(player.getUUID())) return ChasePayload.R_BUSY;
         ServerLevel level = player.serverLevel();
         boolean dream = level.dimension().equals(DreamDimension.LEVEL);
@@ -603,12 +632,20 @@ public final class ChaseHandler {
             if (!dream && outage < 0 && !nightOrDark(level, player)) return ChasePayload.R_CONTEXT;
         }
         if (!safe(player, level)) return ChasePayload.R_SAFETY;
+        List<Vec3> pts = null;
+        int startIdx = -1;
+        Vec3 spawn = null;
         Trail t = TRAILS.get(player.getUUID());
-        if (t == null || t.points.size() < 2) return ChasePayload.R_TRAIL;
-        List<Vec3> pts = new ArrayList<>(t.points);
-        int startIdx = pickStart(player, level, pts);
-        if (startIdx == -1) return ChasePayload.R_TRAIL;
-        if (startIdx < 0) return ChasePayload.R_VIEW;
+        if (t == null || t.points.size() < 2) {
+            if (!spawnIfNoTrail) return ChasePayload.R_TRAIL;
+            spawn = spotAround(player, level, false);
+            if (spawn == null) return ChasePayload.R_TRAIL;
+        } else {
+            pts = new ArrayList<>(t.points);
+            startIdx = pickStart(player, level, pts);
+            if (startIdx == -1) return ChasePayload.R_TRAIL;
+            if (startIdx < 0) return ChasePayload.R_VIEW;
+        }
 
         Run run = new Run();
         run.id = nextId++;
@@ -616,18 +653,90 @@ public final class ChaseHandler {
         run.stage = Mth.clamp(stage, ChaseTuning.MIN_STAGE, 5);
         run.teach = force < 2 && (data.count() == 0 || stage < ChaseTuning.CATCH_MIN_STAGE);
         if (force == 2) run.stage = Math.max(run.stage, ChaseTuning.CATCH_MIN_STAGE);
+        run.pushed = spawnIfNoTrail;
         run.warnTicks = Mth.randomBetweenInclusive(player.getRandom(), ChaseTuning.WARN_MIN, ChaseTuning.WARN_MAX);
-        run.pos = pts.get(startIdx);
-        run.path.addAll(pts.subList(startIdx + 1, pts.size()));
+        if (spawn != null) {
+            run.pos = spawn;
+        } else {
+            run.pos = pts.get(startIdx);
+            run.path.addAll(pts.subList(startIdx + 1, pts.size()));
+        }
         if (outage >= 0) {
             if (!LabOutage.begin(level, outage, player)) return ChasePayload.R_LAB;
             run.outage = outage;
             run.warnTicks += LabOutage.flickerTicks(); // стоит на следе, пока мигает свет, и ещё WARN_MIN..MAX в темноте
         }
-        data.markStarted(prog.getDays());
+        // Тестовая погоня не тратит день и не двигает расписание: она не меняет прогресс.
+        if (!run.pushed) data.markStarted(prog.getDays());
         RUNS.put(player.getUUID(), run);
         send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
         return 0;
+    }
+
+    /**
+     * Тестовое наблюдение: фигура встаёт перед игроком и смотрит на него ticks тиков. Не бежит, не ловит, не тратит
+     * день погони и не запускает «обесточено». Стадия, ночь и след не нужны — только живой игрок и место под фигуру.
+     */
+    public static int startWatch(ServerPlayer player, int ticks) {
+        if (RUNS.containsKey(player.getUUID())) return ChasePayload.R_BUSY;
+        if (!player.isAlive() || player.isSpectator() || FinaleLogic.completed(player)) {
+            return ChasePayload.R_CONTEXT;
+        }
+        Vec3 spot = spotAround(player, player.serverLevel(), true);
+        if (spot == null) return ChasePayload.R_SAFETY;
+        Run run = new Run();
+        run.id = nextId++;
+        run.dim = player.level().dimension();
+        run.stage = Mth.clamp(player.getData(ModAttachments.OBSERVER).stage(), ChaseTuning.MIN_STAGE, 5);
+        run.watch = true;
+        run.pushed = true;
+        run.watchLeft = Math.max(1, ticks);
+        run.phase = ChasePayload.PH_WATCH;
+        run.warnTicks = 0;
+        run.pos = spot;
+        RUNS.put(player.getUUID(), run);
+        send(player, run, ChasePayload.PH_WATCH, ChasePayload.O_NONE);
+        return 0;
+    }
+
+    /**
+     * Место для тестовой фигуры: кольцо вокруг игрока, на твёрдом полу, без воды и коллизий.
+     * front — перед игроком (наблюдатель должен быть виден), иначе за спиной (погоня).
+     */
+    private static Vec3 spotAround(ServerPlayer player, ServerLevel level, boolean front) {
+        Vec3 look = player.getViewVector(1.0f);
+        Vec3 dir = new Vec3(look.x, 0, look.z);
+        dir = dir.lengthSqr() < 1.0E-4 ? new Vec3(0, 0, 1) : dir.normalize();
+        if (!front) dir = dir.scale(-1);
+        Vec3 base = player.position();
+        double[] angles = {0, 20, -20, 40, -40, 60, -60, 90, -90, 180};
+        for (double dist : new double[]{6, 7, 8, 5, 9}) {
+            for (double deg : angles) {
+                double rad = Math.toRadians(deg);
+                double dx = dir.x * Math.cos(rad) - dir.z * Math.sin(rad);
+                double dz = dir.x * Math.sin(rad) + dir.z * Math.cos(rad);
+                Vec3 ground = floorAt(level, base.add(dx * dist, 0, dz * dist));
+                if (ground != null) return ground;
+            }
+        }
+        return null;
+    }
+
+    /** Пол под точкой в радиусе нескольких блоков по вертикали: два свободных блока и твёрдый блок под ними. */
+    private static Vec3 floorAt(ServerLevel level, Vec3 at) {
+        BlockPos c = BlockPos.containing(at);
+        if (!level.hasChunkAt(c)) return null;
+        for (int dy = 2; dy >= -4; dy--) {
+            BlockPos p = c.offset(0, dy, 0);
+            BlockPos below = p.below();
+            if (!level.hasChunkAt(below)) continue;
+            if (!level.getBlockState(p).getCollisionShape(level, p).isEmpty()
+                    || !level.getBlockState(p.above()).getCollisionShape(level, p.above()).isEmpty()) continue;
+            if (level.getBlockState(below).getCollisionShape(level, below).isEmpty()) continue;
+            if (!level.getFluidState(p).isEmpty() || !level.getFluidState(p.above()).isEmpty()) continue;
+            return Vec3.atBottomCenterOf(p);
+        }
+        return null;
     }
 
     /** Можно ли безопасно предложить дверной эпизод; отладочные обходы здесь не действуют. */
@@ -854,6 +963,97 @@ public final class ChaseHandler {
                     list.clear();
                     return say(ctx.getSource(), "Chase: returned " + n + " item(s) at your feet");
                 })));
+        // [новое] Тестовые команды для мультиплеера: один игрок запускает фигуру другому. Не тратят дни погони
+        // и не меняют прогресс; watch не бежит и не ловит, chase — настоящая погоня с обходом требований следа/стадии.
+        event.getDispatcher().register(Commands.literal("hypersomnia_shard")
+                .requires(src -> src.hasPermission(2))
+                .then(Commands.literal("watch")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(ctx -> shardWatch(ctx.getSource(), EntityArgument.getPlayers(ctx, "targets"), 20))
+                                .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 300))
+                                        .executes(ctx -> shardWatch(ctx.getSource(), EntityArgument.getPlayers(ctx, "targets"),
+                                                IntegerArgumentType.getInteger(ctx, "seconds"))))))
+                .then(Commands.literal("chase")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(ctx -> shardChase(ctx.getSource(), EntityArgument.getPlayers(ctx, "targets")))
+                                .then(Commands.literal("teach").executes(ctx -> shardChaseTeach(ctx.getSource(),
+                                        EntityArgument.getPlayers(ctx, "targets"))))))
+                .then(Commands.literal("stop")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(ctx -> shardStop(ctx.getSource(), EntityArgument.getPlayers(ctx, "targets")))))
+                .then(Commands.literal("status").executes(ctx -> shardStatus(ctx.getSource()))));
+    }
+
+    private static int shardWatch(CommandSourceStack src, Collection<ServerPlayer> targets, int seconds) {
+        int ok = 0;
+        for (ServerPlayer t : targets) {
+            int r = startWatch(t, seconds * 20);
+            if (r == 0) {
+                ok++;
+                t.displayClientMessage(Component.literal("Shard: watching you (" + seconds + "s)"), true);
+                say(src, "Shard: watching " + t.getName().getString() + " for " + seconds + "s");
+            } else {
+                say(src, "Shard: " + t.getName().getString() + " - " + ChasePayload.reason(r));
+            }
+        }
+        if (ok > 0) say(src, "Shard: visible only to the target (client-side figure)");
+        return ok;
+    }
+
+    private static int shardChase(CommandSourceStack src, Collection<ServerPlayer> targets) {
+        return shardChase(src, targets, 2);
+    }
+
+    private static int shardChaseTeach(CommandSourceStack src, Collection<ServerPlayer> targets) {
+        return shardChase(src, targets, 1);
+    }
+
+    /** force 2 — настоящая погоня (ловит), 1 — отладочная учебная (исчезает рядом). */
+    private static int shardChase(CommandSourceStack src, Collection<ServerPlayer> targets, int force) {
+        int ok = 0;
+        for (ServerPlayer t : targets) {
+            int r = start(t, force, true);
+            if (r == 0) {
+                ok++;
+                t.displayClientMessage(Component.literal("Shard: chase started (test)"), true);
+                say(src, "Shard: chasing " + t.getName().getString() + (force == 2 ? " (real)" : " (teaching)"));
+            } else {
+                say(src, "Shard: " + t.getName().getString() + " - " + ChasePayload.reason(r));
+            }
+        }
+        return ok;
+    }
+
+    private static int shardStop(CommandSourceStack src, Collection<ServerPlayer> targets) {
+        int n = 0;
+        for (ServerPlayer t : targets) {
+            Run run = RUNS.get(t.getUUID());
+            if (run == null) {
+                say(src, "Shard: " + t.getName().getString() + " - not active");
+                continue;
+            }
+            n++;
+            end(t, run, ChasePayload.O_ABORT);
+            t.displayClientMessage(Component.literal("Shard: stopped (test)"), true);
+            say(src, "Shard: stopped for " + t.getName().getString());
+        }
+        return n;
+    }
+
+    private static int shardStatus(CommandSourceStack src) {
+        int n = 0;
+        for (ServerPlayer p : src.getServer().getPlayerList().getPlayers()) {
+            Run r = RUNS.get(p.getUUID());
+            if (r == null) continue;
+            n++;
+            String what = r.watch
+                    ? "watch, " + Math.max(0, r.watchLeft / 20) + "s left"
+                    : "chase, phase " + r.phase + (r.teach ? " (teaching)" : "");
+            say(src, "Shard: " + p.getName().getString() + " - #" + r.id + ", " + what + ", "
+                    + String.format("%.1f", r.pos.distanceTo(p.position())) + " blocks");
+        }
+        if (n == 0) say(src, "Shard: none");
+        return n > 0 ? 1 : 0;
     }
 
     private static int status(CommandSourceStack src) throws com.mojang.brigadier.exceptions.CommandSyntaxException {

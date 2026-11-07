@@ -829,6 +829,34 @@ public final class ObserverClient {
             if (ours) endChase(mc, player, pl.info());
             return;
         }
+        // [новое] Тестовая команда: сервер вывел фигуру сам (без запроса клиента) — показываем и не шлём STOP.
+        if (ph == ChasePayload.PH_WATCH || (pl.info() & ChasePayload.I_PUSH) != 0) {
+            if (ours) {
+                pos = new Vec3(pl.x(), pl.y(), pl.z());
+                chasePhase = ph;
+                return;
+            }
+            if ((pl.info() & ChasePayload.I_PUSH) != 0 && mode == Mode.NONE && ghost == null
+                    && chasePending == null && pl.run() != 0 && pl.run() != chaseStopped) {
+                chaseRun = pl.run();
+                chaseEnded = false;
+                show(mc, player, new Vec3(pl.x(), pl.y(), pl.z()), false, Mode.CHASE);
+                chasePhase = ph;
+                chaseStare = pl.stare();
+                chaseDark = (pl.info() & ChasePayload.I_DARK) != 0;
+                stepLeft = ChaseTuning.STEP_EVERY;
+                knockIn = 0;
+                if (ph != ChasePayload.PH_WATCH) {
+                    hushWorld(mc);
+                    BreathClient.triggerNow();
+                    ChaseClient.begin();
+                    ChaseMusic.begin(mc);
+                    ChaseVoice.begin();
+                }
+                return;
+            }
+            return;
+        }
         Vec3 at = new Vec3(pl.x(), pl.y(), pl.z());
         if (ours) {
             pos = at;
@@ -939,6 +967,7 @@ public final class ObserverClient {
             case ChasePayload.O_ESCAPED ->
                     finishGhost(Outcome.TIMEOUT, viewState(mc, player, player.getEyePosition()) == VIEW_VISIBLE);
             case ChasePayload.O_BLOCKED, ChasePayload.O_CAUGHT -> finishGhost(Outcome.DONE, false);
+            case ChasePayload.O_WATCH -> finishGhost(Outcome.TIMEOUT, false);
             default -> finishGhost(Outcome.ABORT, false);
         }
     }
@@ -1188,7 +1217,7 @@ public final class ObserverClient {
         float yaw = (float) (Mth.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0f;
         float pitch = (float) -(Mth.atan2(dy, Math.hypot(dx, dz)) * (180.0 / Math.PI));
 
-        if (mode == Mode.CHASE) {
+        if (mode == Mode.CHASE && chasePhase != ChasePayload.PH_WATCH) {
             placeRunner(yaw, pitch);
             return;
         }
