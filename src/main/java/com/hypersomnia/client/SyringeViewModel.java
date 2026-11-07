@@ -28,38 +28,38 @@ import org.joml.Vector3f;
 
 /**
  * First-person viewmodel укола: пока игрок держит адреналиновый шприц, ванильные
- * руки заменяются двумя руками и шприцем. Рука со шприцем подносит иглу к
- * предплечью второй руки, затем игла входит, а поршень давит (кадры модели).
+ * руки заменяются одной рукой со шприцем. Рука поднимает шприц, разворачивает
+ * иглу вниз к собственному торсу (он ниже края кадра) и вкалывает; поршень давит
+ * (кадры модели). Второй руки нет, поэтому её рисовать не нужно.
  *
  * Ванильная рука в first person ставится через renderPlayerArm; здесь берётся
- * та же база (swing = 0), после чего обе руки доворачиваются к центру экрана.
- * Все числа вынесены в константы и подбирались расчётом позы, а не в игре:
- * точную посадку нужно один раз посмотреть глазами.
+ * та же база (swing = 0). Положение кисти задаётся целевой точкой в видовом
+ * пространстве: сдвиг руки считается как «цель минус кисть при нулевом сдвиге».
+ * Числа подбирались расчётом позы, а не в игре: посадку нужно один раз
+ * посмотреть глазами (все X заданы для правой руки и зеркалятся).
  *
- * Плавность: фазы идут внахлёст и на кривых smoother-step (нулевая скорость и
- * ускорение на краях), поршень двигается по прогрессу с долей тика, а после
- * укола или раннего отпускания руки не пропадают рывком, а отводят иглу и
- * уходят (RETRACT_MS).
+ * Плавность: фазы идут внахлёст и на кривых smoother-step, поршень двигается по
+ * прогрессу с долей тика, а после укола или раннего отпускания рука не
+ * пропадает рывком, а отводит иглу и уходит (RETRACT_MS).
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class SyringeViewModel {
     private SyringeViewModel() {}
 
-    /** Доворот руки-цели (предплечье уходит к центру и становится поперёк экрана). */
-    private static final float TARGET_SWING = 80.0F;
-    /** Доворот руки со шприцем: меньше, поэтому кисть остаётся выше цели. */
-    private static final float INJECTOR_SWING = 52.0F;
-    /** Наклон обеих рук к центру (поднимает кисти в кадр). */
-    private static final float ARM_TILT = -20.0F;
-    /** Подъём рук в пространстве камеры. */
-    private static final float ARM_LIFT = 0.48F;
     /** Масштаб 3D-модели шприца в руке (длина модели 1 блок). */
-    private static final float SYRINGE_SCALE = 0.62F;
-    /** Насколько игла входит в предплечье в момент вкола. */
-    private static final float INJECT_DEPTH = 0.03F;
-    /** Доля предплечья от кисти к плечу, куда должна попасть игла. */
-    private static final float TARGET_ALONG_ARM = 0.30F;
-    /** Куда смотрит шприц, пока руки ещё не сведены. */
+    private static final float SCALE = 0.62F;
+    /** Насколько кисть с шприцем идёт вдоль иглы при проколе (блоки). */
+    private static final float INJECT_TRAVEL = 0.10F;
+
+    /** Поза «готов»: кисть поднята правее центра, игла смотрит вверх-вперёд. */
+    private static final Vector3f READY_GRIP = new Vector3f(0.30F, -0.02F, -0.85F);
+    private static final float READY_SWING = 25.0F, READY_TILT = -15.0F;
+    private static final Vector3f READY_AIM = new Vector3f(0.0F, 0.55F, -0.85F).normalize();
+    /** Поза «к торсу»: кисть внизу у центра, игла вниз и к телу. */
+    private static final Vector3f TORSO_GRIP = new Vector3f(0.14F, -0.20F, -0.66F);
+    private static final float TORSO_SWING = 60.0F, TORSO_TILT = -30.0F;
+    private static final Vector3f TORSO_AIM = new Vector3f(-0.30F, -0.80F, -0.25F).normalize();
+    /** Куда смотрит шприц в покое. */
     private static final Vector3f NEUTRAL_AIM = new Vector3f(0.10F, 0.18F, -0.98F).normalize();
     private static final Vector3f NEEDLE_AXIS = new Vector3f(1.0F, 0.0F, 0.0F);
 
@@ -222,76 +222,55 @@ public final class SyringeViewModel {
         int light = event.getPackedLight();
         float equip = event.getEquipProgress();
 
-        boolean injectorIsRight = lastHand == InteractionHand.MAIN_HAND;
-        HumanoidArm injector = injectorIsRight ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
-        HumanoidArm target = injectorIsRight ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-
-        float tilt = ARM_TILT * raise;
-        float lift = ARM_LIFT * raise - DROP_DISTANCE * drop;
-
-        // Корень PoseStack — обратная матрица проекции (ванильный приём для рук).
-        // Для расчёта точек её нужно убрать: руки живут в видовом пространстве,
-        // а не в этом проективном корне, иначе точка уезжает от кисти.
-        Matrix4f rootInverse = new Matrix4f(pose.last().pose()).invert();
+        HumanoidArm arm = lastHand == InteractionHand.MAIN_HAND
+                ? player.getMainArm() : player.getMainArm().getOpposite();
+        float side = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
         PlayerModel<AbstractClientPlayer> model = renderer.getModel();
 
-        // ---- рука-цель ----
+        // ---- поза: покой -> готов (raise) -> к торсу (aim) ----
+        float swing = lerp(lerp(0.0F, READY_SWING, raise), TORSO_SWING, aim);
+        float tilt = lerp(lerp(0.0F, READY_TILT, raise), TORSO_TILT, aim);
+
+        Vector3f aimView = new Vector3f(NEUTRAL_AIM)
+                .lerp(mirror(READY_AIM, side), raise)
+                .lerp(mirror(TORSO_AIM, side), aim)
+                .normalize();
+
+        Vector3f restGrip = gripAtZeroOffset(model, arm, equip, 0.0F, 0.0F);
+        Vector3f goal = new Vector3f(restGrip)
+                .lerp(mirror(READY_GRIP, side), raise)
+                .lerp(mirror(TORSO_GRIP, side), aim);
+        // Прокол: кисть вместе со шприцем идёт вдоль иглы.
+        goal.fma(INJECT_TRAVEL * inject, aimView);
+        Vector3f offset = goal.sub(gripAtZeroOffset(model, arm, equip, swing, tilt));
+        offset.y -= DROP_DISTANCE * drop;
+
         pose.pushPose();
-        applyArmPose(pose, target, equip, lift);
-        pose.mulPose(Axis.ZP.rotationDegrees(sign(target) * TARGET_SWING * raise));
+        applyArmPose(pose, arm, equip, offset);
+        pose.mulPose(Axis.ZP.rotationDegrees(sign(arm) * swing));
         pose.mulPose(Axis.XP.rotationDegrees(tilt));
         if (!player.isInvisible()) {
-            if (target == HumanoidArm.RIGHT) {
+            if (arm == HumanoidArm.RIGHT) {
                 renderer.renderRightHand(pose, buffer, light, player);
             } else {
                 renderer.renderLeftHand(pose, buffer, light, player);
             }
         }
-        Matrix4f targetHand = new Matrix4f(viewMatrix(pose, rootInverse))
-                .mul(partMatrix(partOf(model, target)));
-        Vector3f targetView = targetHand.transformPosition(new Vector3f(
-                handX(target), (10.0F - 12.0F * TARGET_ALONG_ARM) / 16.0F, 0.0F));
-        pose.popPose();
 
-        // ---- рука со шприцем: шприц продолжает её позу, поэтому всегда в кисти ----
-        pose.pushPose();
-        applyArmPose(pose, injector, equip, lift);
-        pose.mulPose(Axis.ZP.rotationDegrees(sign(injector) * INJECTOR_SWING * raise));
-        pose.mulPose(Axis.XP.rotationDegrees(tilt));
-        if (!player.isInvisible()) {
-            if (injector == HumanoidArm.RIGHT) {
-                renderer.renderRightHand(pose, buffer, light, player);
-            } else {
-                renderer.renderLeftHand(pose, buffer, light, player);
-            }
-        }
+        // Шприц продолжает позу руки, поэтому всегда в кисти.
+        Matrix4f rootInverse = new Matrix4f(pose.last().pose()).invert();
+        Matrix4f handView = new Matrix4f(viewMatrix(pose, rootInverse))
+                .mul(partMatrix(partOf(model, arm)));
+        Vector3f aimLocal = handView.invert(new Matrix4f())
+                .transformDirection(new Vector3f(aimView)).normalize();
+        Vector3f grip = new Vector3f(handX(arm), 10.0F / 16.0F, 0.0F);
 
-        Matrix4f injectorHand = new Matrix4f(viewMatrix(pose, rootInverse))
-                .mul(partMatrix(partOf(model, injector)));
-        Matrix4f toHand = new Matrix4f(injectorHand).invert();
-        Vector3f grip = new Vector3f(handX(injector), 10.0F / 16.0F, 0.0F);
-        Vector3f targetInHand = toHand.transformPosition(new Vector3f(targetView));
-        Vector3f aimDir = new Vector3f(targetInHand).sub(grip);
-        if (aimDir.lengthSquared() < 1.0E-6F) {
-            aimDir.set(NEUTRAL_AIM);
-        } else {
-            aimDir.normalize();
-        }
-        Vector3f neutral = toHand.transformDirection(new Vector3f(NEUTRAL_AIM)).normalize();
-        aimDir.lerp(neutral, 1.0F - aim).normalize();
-
-        // Смещение вдоль иглы: на старте кисть держит середину шприца, к моменту
-        // укола игла дотягивается ровно до предплечья (минус половина модели).
-        float reach = Math.max(0.0F, grip.distance(targetInHand) - 0.5F * SYRINGE_SCALE);
-
-        ModelPart injectorPart = partOf(model, injector);
-        pose.translate(injectorPart.x / 16.0F, injectorPart.y / 16.0F, injectorPart.z / 16.0F);
-        pose.mulPose(new Quaternionf().rotationZYX(
-                injectorPart.zRot, injectorPart.yRot, injectorPart.xRot));
+        ModelPart part = partOf(model, arm);
+        pose.translate(part.x / 16.0F, part.y / 16.0F, part.z / 16.0F);
+        pose.mulPose(new Quaternionf().rotationZYX(part.zRot, part.yRot, part.xRot));
         pose.translate(grip.x, grip.y, grip.z);
-        pose.mulPose(new Quaternionf().rotationTo(NEEDLE_AXIS, aimDir));
-        pose.translate(reach * aim + INJECT_DEPTH * inject, 0.0F, 0.0F);
-        pose.scale(SYRINGE_SCALE, SYRINGE_SCALE, SYRINGE_SCALE);
+        pose.mulPose(new Quaternionf().rotationTo(NEEDLE_AXIS, aimLocal));
+        pose.scale(SCALE, SCALE, SCALE);
 
         // Кадр модели выбирается по свойству hypersomnia:using: отдаём ему
         // положение поршня этого кадра, а не округлённое до тика.
@@ -308,13 +287,39 @@ public final class SyringeViewModel {
         pose.popPose();
     }
 
+    /** Положение кисти в видовом пространстве при нулевом сдвиге руки. */
+    private static Vector3f gripAtZeroOffset(PlayerModel<AbstractClientPlayer> model, HumanoidArm arm,
+                                             float equip, float swing, float tilt) {
+        float f = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
+        Matrix4f m = new Matrix4f();
+        m.translate(f * 0.64000005F, -0.6F + equip * -0.6F, -0.71999997F);
+        m.rotateY((float) Math.toRadians(f * 45.0F));
+        m.translate(f * -1.0F, 3.6F, 3.5F);
+        m.rotateZ((float) Math.toRadians(f * 120.0F));
+        m.rotateX((float) Math.toRadians(200.0F));
+        m.rotateY((float) Math.toRadians(f * -135.0F));
+        m.translate(f * 5.6F, 0.0F, 0.0F);
+        m.rotateZ((float) Math.toRadians(sign(arm) * swing));
+        m.rotateX((float) Math.toRadians(tilt));
+        m.mul(partMatrix(partOf(model, arm)));
+        return m.transformPosition(new Vector3f(handX(arm), 10.0F / 16.0F, 0.0F));
+    }
+
+    private static Vector3f mirror(Vector3f v, float side) {
+        return new Vector3f(v.x * side, v.y, v.z);
+    }
+
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
     /**
      * Копия ванильного renderPlayerArm (swing = 0) плюс подъём в пространстве
      * камеры: ставит руку в обычную first-person позицию.
      */
-    private static void applyArmPose(PoseStack pose, HumanoidArm side, float equip, float lift) {
+    private static void applyArmPose(PoseStack pose, HumanoidArm side, float equip, Vector3f offset) {
         float f = side == HumanoidArm.RIGHT ? 1.0F : -1.0F;
-        pose.translate(0.0F, lift, 0.0F);
+        pose.translate(offset.x, offset.y, offset.z);
         pose.translate(f * 0.64000005F, -0.6F + equip * -0.6F, -0.71999997F);
         pose.mulPose(Axis.YP.rotationDegrees(f * 45.0F));
         pose.translate(f * -1.0F, 3.6F, 3.5F);

@@ -71,7 +71,10 @@ def save_tex(name, img):
 
 
 def face(tex):
-    return {"texture": "#" + tex}
+    # Явный UV на весь тайл 16x16. Без него Minecraft берёт UV из координат
+    # элемента; у открытой обложки x уходит в минус, UV выходит за тайл и
+    # читает соседние спрайты атласа (дырки и чужие цвета).
+    return {"texture": "#" + tex, "uv": [0, 0, 16, 16]}
 
 
 DIRS = ("north", "east", "south", "west", "up", "down")
@@ -219,29 +222,39 @@ DIARY_DISPLAY = {
 }
 
 
-def _rotate_box(frm, to, degrees):
-    """Поворот коробки вокруг оси Z книжного корешка на 90/180 градусов.
+# Шарнир обложки: линия корешка x=2, середина стопки (между нижней и верхней
+# половинами бумаги). Поворот на 180 градусов кладёт обложку вместе с верхней
+# половиной страниц ровно рядом с задней обложкой, на тот же уровень.
+HINGE_X, HINGE_Y = 2.0, 1.4
 
-    BlockElement разрешает только -45..45, поэтому кадры 90/180 запекаются
-    в координатах (они остаются осевыми), а промежуточные доворачиваются
-    обычным rotation на ±22.5/±45.
+
+def _rotate_box(frm, to, degrees):
+    """Поворот коробки вокруг шарнира книги на 90/180 градусов.
+
+    BlockElement разрешает только -45..45 (шаг 22.5), поэтому 90/180 запекаются
+    в координатах (коробка остаётся осевой), а остаток доворачивается обычным
+    rotation вокруг того же шарнира.
     """
     if not degrees:
         return frm, to
-    ox, oy = 2.0, 2.3
     a = math.radians(degrees)
     c, s = math.cos(a), math.sin(a)
     xs, ys = [], []
     for x in (frm[0], to[0]):
         for y in (frm[1], to[1]):
-            dx, dy = x - ox, y - oy
-            xs.append(ox + c * dx - s * dy)
-            ys.append(oy + s * dx + c * dy)
+            dx, dy = x - HINGE_X, y - HINGE_Y
+            xs.append(HINGE_X + c * dx - s * dy)
+            ys.append(HINGE_Y + s * dx + c * dy)
     return (min(xs), min(ys), frm[2]), (max(xs), max(ys), to[2])
 
 
 def diary_elements(angle=0.0):
-    """Кадр обложки: angle 0..180. 90/180 запекаются, остальное — rotation."""
+    """Кадр обложки: angle 0..180. 90/180 запекаются, остальное — rotation.
+
+    Вместе с обложкой поворачивается верхняя половина страниц, поэтому открытая
+    книга лежит как настоящая: слева обложка со своими страницами, справа задняя
+    обложка со своими, ничего не висит в воздухе.
+    """
     if angle <= 45.0:
         bake, rot = 0.0, angle
     elif angle <= 135.0:
@@ -250,26 +263,28 @@ def diary_elements(angle=0.0):
         bake, rot = 180.0, angle - 180.0
     rotation = None
     if rot:
-        rotation = {"origin": [2.0, 2.3, 8.0], "axis": "z",
+        rotation = {"origin": [HINGE_X, HINGE_Y, 8.0], "axis": "z",
                     "angle": rot, "rescale": False}
 
-    def cover_box(frm, to, tex):
+    def moving_box(frm, to, tex):
         baked = _rotate_box(frm, to, bake)
         return box(baked[0], baked[1], tex, rot=rotation)
 
     return [
         # back cover
         box((2.0, 0.0, 2.0), (14.0, 1.0, 14.0), "cover"),
-        # paper block
-        box((2.5, 1.0, 2.5), (13.5, 1.8, 13.5), "pages"),
-        # front cover (lifts around the spine)
-        cover_box((2.0, 1.8, 2.0), (14.0, 2.8, 14.0), "cover"),
+        # lower half of the paper block (stays)
+        box((2.5, 1.0, 2.5), (13.5, 1.4, 13.5), "pages"),
+        # upper half of the paper block (turns with the front cover)
+        moving_box((2.5, 1.4, 2.5), (13.5, 1.8, 13.5), "pages"),
+        # front cover (turns around the spine)
+        moving_box((2.0, 1.8, 2.0), (14.0, 2.8, 14.0), "cover"),
         # red strap over the cover
-        cover_box((9.5, 2.81, 2.0), (11.0, 3.1, 14.0), "strap"),
+        moving_box((9.5, 2.81, 2.0), (11.0, 3.1, 14.0), "strap"),
         # metal clasp near the opening edge
-        cover_box((9.5, 2.81, 12.4), (11.0, 3.5, 14.0), "metal"),
+        moving_box((9.5, 2.81, 12.4), (11.0, 3.5, 14.0), "metal"),
         # bookmark sticking out of the pages
-        box((11.3, 1.7, 13.4), (11.9, 1.78, 15.2), "strap"),
+        box((11.3, 1.2, 13.4), (11.9, 1.28, 15.2), "strap"),
     ]
 
 
