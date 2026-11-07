@@ -101,7 +101,6 @@ public final class ShaftHandler {
             ServerLevel world = p.serverLevel();
             t.elapsed++;
             // [новое] Кабина едет плавно: копия оболочки и сиденье игрока движутся вместе, блоки мира не трогаются.
-<<<<<<< HEAD
             // Путь строго вертикальный: кабина уходит вниз к следующей кабине или поднимается на 0.
             if (t.ride == null && t.elapsed >= NightmareTuning.SHAFT_START_DELAY) {
                 // [новое] Кабина едет строго по вертикали: кабины стоят друг под другом. Если этаж
@@ -113,18 +112,6 @@ public final class ShaftHandler {
                         t.ticks - com.hypersomnia.server.LiftRide.PAD_TICKS);
                 t.ride = com.hypersomnia.server.LiftRide.start(world, ShaftBuilder.shellMin(t.lane, t.from), ShaftBuilder.shellMax(t.lane, t.from),
                         java.util.List.of(p), 0, dy, 0, dip, moveTicks, true);
-=======
-            // Кабина уходит вниз по шахте, проходит к целевой шахте и поднимается в целевую кабину — без
-            // финального телепорта на 24 блока вверх, который раньше давал главный рывок.
-            if (t.ride == null && t.elapsed >= NightmareTuning.SHAFT_START_DELAY) {
-                int dx = ShaftBuilder.x(t.target) - ShaftBuilder.x(t.from);
-                // Кабина проходит вниз и снова вверх, то есть вдвое больше блоков, чем при старом одиночном
-                // спуске: удваиваем время, иначе спуск/подъём ощущаются быстрым провалом, а не поездкой.
-                int moveTicks = Math.max(NightmareTuning.SHAFT_DROP * NightmareTuning.SHAFT_STEP_TICKS * 2,
-                        t.ticks - com.hypersomnia.server.LiftRide.PAD_TICKS);
-                t.ride = com.hypersomnia.server.LiftRide.start(world, ShaftBuilder.shellMin(t.lane, t.from), ShaftBuilder.shellMax(t.lane, t.from),
-                        java.util.List.of(p), dx, 0, 0, NightmareTuning.SHAFT_DROP, moveTicks);
->>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
             }
             if (t.ride != null) t.ride.tick();
             if (t.elapsed % 8 == 0) p.playNotifySound(net.minecraft.sounds.SoundEvents.MINECART_RIDING, net.minecraft.sounds.SoundSource.AMBIENT, 0.3f, 0.4f);
@@ -186,9 +173,7 @@ public final class ShaftHandler {
             p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.restore_failed"), false); return;
         }
         for (int stop : new int[]{0, 6, 7, 8}) ShaftBuilder.setDoor(p.serverLevel(), lane, stop, false);
-        ShaftBuilder.repairCovers(p.serverLevel(), lane);
         relight(p.serverLevel(), lane);
-<<<<<<< HEAD
         // Если сервер упал посреди поездки (или остался старый горизонтальный вид шахты), игрок мог
         // оказаться вне кабины: возвращаем в ближайшую по высоте кабину, иначе он сохранится в воздухе.
         if (ShaftBuilder.stopOf(lane, p.position()) < 0) {
@@ -197,19 +182,6 @@ public final class ShaftHandler {
             for (int s : new int[]{0, 6, 7, 8}) {
                 double dist = Math.abs(p.getY() - (ShaftBuilder.y(s) + 1.5));
                 if (dist < best) { best = dist; stop = s; }
-=======
-        // Если сервер упал посреди поездки, игрок мог остаться на дне шахты или между остановками:
-        // возвращаем в ближайшую кабину, иначе он сохранится в воздухе и упадёт.
-        if (p.getY() < ShaftBuilder.y() + 0.9) {
-            int stop = ShaftBuilder.stopOf(lane, p.position());
-            if (stop < 0) {
-                stop = 6;
-                double best = Double.MAX_VALUE;
-                for (int s : new int[]{0, 6, 7, 8}) {
-                    double dist = Math.abs(p.getX() - (ShaftBuilder.x(s) + 1.5));
-                    if (dist < best) { best = dist; stop = s; }
-                }
->>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
             }
             BlockPos home = ShaftBuilder.spawn(lane, stop);
             p.teleportTo(p.serverLevel(), home.getX() + 0.5, home.getY(), home.getZ() + 0.5, p.getYRot(), p.getXRot());

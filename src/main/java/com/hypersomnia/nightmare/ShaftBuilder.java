@@ -146,33 +146,8 @@ public final class ShaftBuilder {
         if (stop != 8) LabSigns.wall(level, new BlockPos(x + 7, y + 2, z + 1), Direction.WEST, stop == 0 ? "0" : "B" + stop);
     }
     /** Оболочка кабины для плавной поездки (включительно): стены, пол, потолок, рамка двери. */
-<<<<<<< HEAD
     public static BlockPos shellMin(int lane, int stop) { return new BlockPos(x(stop) - 1, y(stop), z(lane) - 1); }
     public static BlockPos shellMax(int lane, int stop) { return new BlockPos(x(stop) + 3, y(stop) + 4, z(lane) + 3); }
-=======
-    public static BlockPos shellMin(int lane, int stop) { return new BlockPos(x(stop) - 1, y(), z(lane) - 1); }
-    public static BlockPos shellMax(int lane, int stop) { return new BlockPos(x(stop) + 3, y() + 4, z(lane) + 3); }
-    /**
-     * [новое] Аварийное восстановление внутренних плит пола/потолка: LiftRide на время рейса убирает их,
-     * чтобы камера не проходила сквозь настоящие блоки. Если сервер упал посреди рейса, дырки заделываются
-     * при следующем входе игрока; уже стоящие блоки не трогаем.
-     */
-    public static void repairCovers(ServerLevel level, int lane) {
-        BlockState cabin = Blocks.POLISHED_DEEPSLATE.defaultBlockState();
-        for (int stop : new int[]{0, 6, 7, 8}) {
-            int x = x(stop), y = y(), z = z(lane);
-            for (int dx = 0; dx <= 2; dx++) for (int dz = 0; dz <= 2; dz++) {
-                fillIfAir(level, x + dx, y, z + dz, cabin);
-                fillIfAir(level, x + dx, y + 4, z + dz, cabin);
-            }
-            fillIfAir(level, x + 1, y + 4, z + 1, Blocks.WHITE_STAINED_GLASS.defaultBlockState());
-        }
-    }
-    private static void fillIfAir(ServerLevel level, int x, int y, int z, BlockState state) {
-        BlockPos p = new BlockPos(x, y, z);
-        if (level.getBlockState(p).isAir()) level.setBlock(p, state, FLAGS);
-    }
->>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
     public static boolean inShaft(int lane, int stop, net.minecraft.world.phys.Vec3 p) {
         return p.x >= x(stop) - 1 && p.x < x(stop) + 4 && p.z >= z(lane) - 1 && p.z < z(lane) + 4
                 && p.y >= y(8) - NightmareTuning.SHAFT_DROP && p.y <= y(0) + 5;

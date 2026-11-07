@@ -141,13 +141,8 @@ public final class LabLift {
         // Пока между G и B1 нет вырытой шахты, объёмный режим там не включаем — он вырыл бы весь грунт.
         boolean volume = t.from != 0 && t.to != 0;
         t.ride = com.hypersomnia.server.LiftRide.start(t.level, new BlockPos(d.originX - 2, y - 1, d.originZ - 2),
-<<<<<<< HEAD
                 new BlockPos(d.originX + 2, y + 5, d.originZ + 2), inside, 0, d.stopY[t.to] - y, 0, 0,
                 Math.max(10, t.total - 10 - com.hypersomnia.server.LiftRide.PAD_TICKS), volume);
-=======
-                new BlockPos(d.originX + 2, y + 3, d.originZ + 2), inside, d.stopY[t.to] - y,
-                Math.max(10, t.total - 10 - com.hypersomnia.server.LiftRide.PAD_TICKS));
->>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
     }
 
     private static void finish(Trip t) {
