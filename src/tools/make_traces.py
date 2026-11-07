@@ -128,28 +128,30 @@ def scribble(v):
 
 
 ITEM_OUT = "src/main/resources/assets/hypersomnia/textures/item"
-# Зайка: потёртая красная игрушка с рисунка 4 и из записи «Норы» («He's on the floor.»); лица нет, одно ухо загнуто, светлая заплатка
+# Зайка: потёртая красная игрушка с рисунка 4 и из записи «Норы» («He's on the floor.»);
+# одно ухо надорвано, светлая заплатка, глаз-пуговица, швы. 16x16, мягкое затенение.
 BUNNY_PAL = {
-    "O": (58, 24, 30), "R": (140, 52, 56), "H": (166, 78, 76), "S": (106, 38, 44),
-    "P": (196, 182, 184), "T": (84, 40, 44), "I": (170, 120, 122),
+    "O": (40, 18, 24), "R": (132, 50, 54), "H": (168, 80, 78), "S": (96, 34, 40),
+    "P": (196, 182, 184), "T": (74, 30, 36), "I": (170, 120, 122),
+    "E": (12, 8, 10), "W": (222, 212, 202),
 }
 BUNNY = [
     "................",
-    ".....OO.........",
-    "....OHRO........",
-    "....OHIO........",
-    "....OHIO..OOO...",
-    "....OHIO.OHRSO..",
-    "....OHROOHRSO...",
-    "...OHRRRRRSOO...",
-    "..OHHRRRRRRSO...",
+    "....OO...OO.....",
+    "...OHRO.OHRO....",
+    "...OHIO.OHIO....",
+    "...OHIO.OHRO....",
+    "...OHROOOHRO....",
     "..OHRRRRRRRSO...",
-    "...OHRRRRRSO....",
-    "....OORRRSOO....",
-    "...OHRRRRRRSO...",
-    "..OHRPPTRRRRSO..",
-    "..OHRPPTRRRSSO..",
-    "...OOOOOOOOOO...",
+    "..OHREWRRTRSO...",
+    "..OHRRRIRRRSO...",
+    "..OHRRRRRRRSO...",
+    ".OHHRRRRRRRRSO..",
+    ".OHRRPPPPPRRSO..",
+    ".OHRRPPPPPRRSO..",
+    ".OHRRRRRRRRRSO..",
+    "..OORRRRRRRSOO..",
+    "...OOOOOOOOO....",
 ]
 
 
@@ -160,15 +162,26 @@ def bunny():
         for x, c in enumerate(row):
             if c != ".":
                 img.putpixel((x, y), BUNNY_PAL[c] + (255,))
+    # крестик-шов на месте второго глаза
+    for x, y in [(9, 6), (9, 8), (8, 7), (10, 7)]:
+        img.putpixel((x, y), BUNNY_PAL["T"] + (255,))
+    # швы на заплатке
+    for x, y in [(5, 12), (9, 11), (6, 13), (8, 13)]:
+        img.putpixel((x, y), BUNNY_PAL["T"] + (255,))
+    # надорванное ухо и торчащая нитка
+    img.putpixel((4, 1), (0, 0, 0, 0))
+    img.putpixel((13, 10), BUNNY_PAL["S"] + (255,))
+    img.putpixel((13, 11), BUNNY_PAL["T"] + (255,))
     img.save(os.path.join(ITEM_OUT, "bunny.png"))
 
 
-for v in range(2):
-    steps(v)
-    tally(v)
-    hand(v)
-for v in range(3):
-    scribble(v)
-hopscotch()
-bunny()
-print("ok")
+if __name__ == "__main__":
+    for v in range(2):
+        steps(v)
+        tally(v)
+        hand(v)
+    for v in range(3):
+        scribble(v)
+    hopscotch()
+    bunny()
+    print("ok")

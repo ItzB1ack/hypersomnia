@@ -25,12 +25,17 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class SyringeHandler {
     private SyringeHandler() {}
 
-    /** Вызывается из предмета. false, если укол сейчас невозможен. */
-    public static boolean inject(ServerPlayer player) {
+    /** Можно ли сделать укол сейчас (без расхода предмета). */
+    public static boolean canInject(ServerPlayer player) {
         if (player.isCreative() || player.isSpectator() || !player.isAlive()) return false;
+        if (player.getData(SyringeAttachments.SYRINGE).getWakeTicks() > 0) return false;
+        return !player.getData(DreamAttachments.DREAM).isInDream();
+    }
+
+    /** Вызывается из предмета после удержания. false, если укол сейчас невозможен. */
+    public static boolean inject(ServerPlayer player) {
+        if (!canInject(player)) return false;
         SyringeData s = player.getData(SyringeAttachments.SYRINGE);
-        if (s.getWakeTicks() > 0) return false;
-        if (player.getData(DreamAttachments.DREAM).isInDream()) return false;
 
         FatigueData f = player.getData(ModAttachments.FATIGUE);
         float eff = (float) Math.pow(SyringeTuning.EFFICIENCY_BASE, s.getTolerance());

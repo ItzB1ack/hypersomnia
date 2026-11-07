@@ -1,4 +1,26 @@
 {
   "parent": "minecraft:item/generated",
-  "textures": { "layer0": "hypersomnia:item/adrenaline_syringe" }
+  "textures": {
+    "layer0": "hypersomnia:item/adrenaline_syringe"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "hypersomnia:using": 0.001
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_0"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.45
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_1"
+    },
+    {
+      "predicate": {
+        "hypersomnia:using": 0.8
+      },
+      "model": "hypersomnia:item/adrenaline_syringe_use_2"
+    }
+  ]
 }

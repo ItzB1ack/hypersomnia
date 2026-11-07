@@ -32,6 +32,9 @@ public final class  SyringeTuning {
     /** Пауза между уколами (тики) и самоподавление повторного использования. */
     public static final int USE_COOLDOWN = 40;
 
+    /** Длительность применения шприца (тики): анимация удержания, затем эффект. */
+    public static final int APPLY_TICKS = 20;
+
     /** Крах после отката: замедление и тошнота (тики). */
     public static final int CRASH_SLOW_TICKS = 160;
     public static final int CRASH_NAUSEA_TICKS = 80;
