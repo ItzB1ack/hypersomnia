@@ -19,7 +19,8 @@ public final class NightmareTuning {
     /** [новое] Этаж 0 отвечает только после стольких поездок; раньше панель уводит глубже. */
     /** [новое] Реальный спуск кабины: глубина шахты в блоках, тиков на блок, пауза до старта. */
     public static final int SHAFT_DROP = 24;
-    public static final int SHAFT_STEP_TICKS = 2;
+    /** [новое] Медленнее спуск/подъём: меньше скорость — меньше ощущение рывка. */
+    public static final int SHAFT_STEP_TICKS = 3;
     public static final int SHAFT_START_DELAY = 20;
     public static final int SHAFT_TRIPS_TO_ZERO = 4;
     /** [новое] С какого этажа возможны личные события глубины. */

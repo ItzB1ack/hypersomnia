@@ -101,16 +101,30 @@ public final class ShaftHandler {
             ServerLevel world = p.serverLevel();
             t.elapsed++;
             // [новое] Кабина едет плавно: копия оболочки и сиденье игрока движутся вместе, блоки мира не трогаются.
-            if (t.ride == null && t.elapsed >= NightmareTuning.SHAFT_START_DELAY)
+            // Кабина уходит вниз по шахте, проходит к целевой шахте и поднимается в целевую кабину — без
+            // финального телепорта на 24 блока вверх, который раньше давал главный рывок.
+            if (t.ride == null && t.elapsed >= NightmareTuning.SHAFT_START_DELAY) {
+                int dx = ShaftBuilder.x(t.target) - ShaftBuilder.x(t.from);
+                // Кабина проходит вниз и снова вверх, то есть вдвое больше блоков, чем при старом одиночном
+                // спуске: удваиваем время, иначе спуск/подъём ощущаются быстрым провалом, а не поездкой.
+                int moveTicks = Math.max(NightmareTuning.SHAFT_DROP * NightmareTuning.SHAFT_STEP_TICKS * 2,
+                        t.ticks - com.hypersomnia.server.LiftRide.PAD_TICKS);
                 t.ride = com.hypersomnia.server.LiftRide.start(world, ShaftBuilder.shellMin(t.lane, t.from), ShaftBuilder.shellMax(t.lane, t.from),
-                        java.util.List.of(p), -NightmareTuning.SHAFT_DROP, NightmareTuning.SHAFT_DROP * NightmareTuning.SHAFT_STEP_TICKS);
+                        java.util.List.of(p), dx, 0, 0, NightmareTuning.SHAFT_DROP, moveTicks);
+            }
             if (t.ride != null) t.ride.tick();
             if (t.elapsed % 8 == 0) p.playNotifySound(net.minecraft.sounds.SoundEvents.MINECART_RIDING, net.minecraft.sounds.SoundSource.AMBIENT, 0.3f, 0.4f);
             if (--t.ticks > 0 || (t.ride != null && !t.ride.motionDone())) continue;
             iterator.remove();
+            double[] end = t.ride != null ? t.ride.finalPos(p) : null;
             if (t.ride != null) t.ride.end();
             BlockPos destination = ShaftBuilder.spawn(t.lane, t.target);
-            p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
+            // Лишний телепорт в конце — это отдельный «щелчок» камеры. После settle клиент уже стоит
+            // в конечной точке, поэтому поправляем позицию только при заметном расхождении.
+            if (end != null) {
+                if (p.position().distanceToSqr(end[0], end[1], end[2]) > 0.25)
+                    p.teleportTo(world, end[0], end[1], end[2], p.getYRot(), p.getXRot());
+            } else p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
             p.resetFallDistance();
             ShaftStorage.get(world).addTrip(p.getUUID());
             if (t.floor != 0) p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.arrive", "B" + t.floor), true);
@@ -159,13 +173,21 @@ public final class ShaftHandler {
         }
         for (int stop : new int[]{0, 6, 7, 8}) ShaftBuilder.setDoor(p.serverLevel(), lane, stop, false);
         relight(p.serverLevel(), lane);
-        // Если сервер упал посреди поездки, игрок мог остаться на дне шахты: возвращаем в кабину.
-        for (int stop : new int[]{0, 6, 7, 8})
-            if (ShaftBuilder.inShaft(lane, stop, p.position()) && p.getY() < ShaftBuilder.y() + 0.9) {
-                BlockPos home = ShaftBuilder.spawn(lane, stop);
-                p.teleportTo(p.serverLevel(), home.getX() + 0.5, home.getY(), home.getZ() + 0.5, p.getYRot(), p.getXRot());
-                break;
+        // Если сервер упал посреди поездки, игрок мог остаться на дне шахты или между остановками:
+        // возвращаем в ближайшую кабину, иначе он сохранится в воздухе и упадёт.
+        if (p.getY() < ShaftBuilder.y() + 0.9) {
+            int stop = ShaftBuilder.stopOf(lane, p.position());
+            if (stop < 0) {
+                stop = 6;
+                double best = Double.MAX_VALUE;
+                for (int s : new int[]{0, 6, 7, 8}) {
+                    double dist = Math.abs(p.getX() - (ShaftBuilder.x(s) + 1.5));
+                    if (dist < best) { best = dist; stop = s; }
+                }
             }
+            BlockPos home = ShaftBuilder.spawn(lane, stop);
+            p.teleportTo(p.serverLevel(), home.getX() + 0.5, home.getY(), home.getZ() + 0.5, p.getYRot(), p.getXRot());
+        }
     }
     @SubscribeEvent public static void respawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer p && !active(p)) release(p);

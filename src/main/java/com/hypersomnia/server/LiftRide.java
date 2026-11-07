@@ -27,12 +27,23 @@ import java.util.UUID;
  * [новое] Плавный реальный подъём/спуск кабины без перестановки блоков: копия оболочки кабины из блочных
  * дисплеев и невидимое «сиденье» игрока плавно едут вместе; настоящие блоки мира не трогаются. Игрок сидит на
  * дисплее-носителе, поэтому клиент интерполирует движение, а не получает телепорт каждый тик.
+ *
+ * Профиль движения — quintic smootherstep: скорость и ускорение равны нулю в начале и в конце, поэтому нет
+ * рывка на старте и «щелчка» при остановке. После прибытия оболочка держится ещё несколько тиков, чтобы клиент
+ * догнал последнюю позицию, и только потом убирается (иначе кабина исчезает на 2–3 тика раньше, чем игрок
+ * визуально доехал).
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class LiftRide {
     private static final String TAG = "hypersomnia_lift_ride";
     private static final Set<LiftRide> ALL = new HashSet<>();
     private static final Set<UUID> RIDING = new HashSet<>();
+
+    /** Тиков на «догон» клиентской интерполяции после прибытия. */
+    public static final int SETTLE_TICKS = 5;
+    /** Тиков на выравнивание посадки; также запас, который надо вычесть из общего времени поездки. */
+    public static final int CALIB_TICKS = 4;
+    public static final int PAD_TICKS = CALIB_TICKS + SETTLE_TICKS;
 
     private static final class Rider {
         final ServerPlayer player; final Entity seat; final double x, y, z;
@@ -44,17 +55,30 @@ public final class LiftRide {
         Part(Entity entity) { this.entity = entity; x = entity.getX(); y = entity.getY(); z = entity.getZ(); }
     }
 
-    private final double dy;
+    private final double dx, dy, dz, dip;
     private final int moveTicks;
     private int t, calib;
     private final List<Part> shell = new ArrayList<>();
     private final List<Rider> riders = new ArrayList<>();
 
-    private LiftRide(double dy, int moveTicks) { this.dy = dy; this.moveTicks = Math.max(1, moveTicks); }
+    private LiftRide(double dx, double dy, double dz, double dip, int moveTicks) {
+        this.dx = dx; this.dy = dy; this.dz = dz; this.dip = dip;
+        this.moveTicks = Math.max(1, moveTicks);
+    }
 
     /** Копирует непустые блоки коробки min..max (включительно) в дисплеи и сажает игроков; dy — полный сдвиг по вертикали. */
     public static LiftRide start(ServerLevel level, BlockPos min, BlockPos max, List<ServerPlayer> players, double dy, int moveTicks) {
-        LiftRide ride = new LiftRide(dy, moveTicks);
+        return start(level, min, max, players, 0.0, dy, 0.0, 0.0, moveTicks);
+    }
+
+    /**
+     * Полный 3D-рейс. dx/dz — сдвиг по горизонтали, dy — итоговый сдвиг по вертикали, dip — дополнительная
+     * вертикальная «дуга» вниз (для шахты: кабина уходит в шахту и возвращается на уровень целевой кабины).
+     * dip задаётся положительным числом, внутри он вычитается.
+     */
+    public static LiftRide start(ServerLevel level, BlockPos min, BlockPos max, List<ServerPlayer> players,
+                                 double dx, double dy, double dz, double dip, int moveTicks) {
+        LiftRide ride = new LiftRide(dx, dy, dz, dip, moveTicks);
         for (int x = min.getX(); x <= max.getX(); x++) for (int y = min.getY(); y <= max.getY(); y++)
             for (int z = min.getZ(); z <= max.getZ(); z++) {
                 BlockState state = level.getBlockState(new BlockPos(x, y, z));
@@ -90,27 +114,32 @@ public final class LiftRide {
 
     /** Вызывать каждый серверный тик. */
     public void tick() {
-        if (calib < 2) {
-            // Два тика на то, чтобы клиент и сервер выставили игрока на сиденье; снимаем смещение сиденья.
-            if (++calib == 2) for (Rider r : riders) {
-                r.ox = r.player.getX() - r.seat.getX(); r.oy = r.player.getY() - r.seat.getY(); r.oz = r.player.getZ() - r.seat.getZ();
+        if (calib < CALIB_TICKS) {
+            // Несколько тиков на то, чтобы клиент и сервер выставили игрока на сиденье; снимаем смещение.
+            if (++calib == CALIB_TICKS) for (Rider r : riders) {
+                r.ox = r.player.getX() - r.seat.getX();
+                r.oy = r.player.getY() - r.seat.getY();
+                r.oz = r.player.getZ() - r.seat.getZ();
             }
             return;
         }
-        if (t < moveTicks) t++;
-        double k = (double) t / moveTicks, s = k * k * (3 - 2 * k); // плавный разгон и торможение
+        if (t < moveTicks + SETTLE_TICKS) t++;
+        double k = (double) Math.min(t, moveTicks) / moveTicks;
+        double s = k * k * k * (k * (k * 6 - 15) + 10); // smootherstep: без рывка на концах
+        double arc = -dip * Math.sin(Math.PI * s) * Math.sin(Math.PI * s);
         for (Rider r : riders) {
             if (!r.player.isPassenger()) r.player.startRiding(r.seat, true);
-            r.seat.moveTo(r.x - r.ox, r.y + dy * s - r.oy, r.z - r.oz);
+            r.player.resetFallDistance();
+            r.seat.setPos(r.x + dx * s - r.ox, r.y + dy * s + arc - r.oy, r.z + dz * s - r.oz);
         }
-        for (Part p : shell) p.entity.moveTo(p.x, p.y + dy * s, p.z);
+        for (Part p : shell) p.entity.setPos(p.x + dx * s, p.y + dy * s + arc, p.z + dz * s);
     }
 
-    public boolean motionDone() { return calib >= 2 && t >= moveTicks; }
+    public boolean motionDone() { return calib >= CALIB_TICKS && t >= moveTicks + SETTLE_TICKS; }
 
-    /** Конечная точка игрока (старт + dy). */
+    /** Конечная точка игрока (старт + полный сдвиг). */
     public double[] finalPos(ServerPlayer player) {
-        for (Rider r : riders) if (r.player == player) return new double[]{r.x, r.y + dy, r.z};
+        for (Rider r : riders) if (r.player == player) return new double[]{r.x + dx, r.y + dy, r.z + dz};
         return new double[]{player.getX(), player.getY(), player.getZ()};
     }
 
@@ -119,6 +148,7 @@ public final class LiftRide {
         if (!ALL.remove(this)) return;
         for (Rider r : riders) {
             r.player.stopRiding();
+            r.player.resetFallDistance();
             RIDING.remove(r.player.getUUID());
             r.seat.discard();
         }
