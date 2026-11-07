@@ -6,6 +6,7 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.SleepPenalty;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.MobSpawnType;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -37,7 +38,13 @@ public final class DreamHandler {
                         .noteSleep(p.getX(), p.getY(), p.getZ()));
             }
             player.stopSleepInBed(true, true);
-            DreamTransition.enter(player);
+            var progress = player.getData(ModAttachments.OBSERVER);
+            boolean session = (progress.getMemories() & (1 << 5)) != 0 && !progress.session47Seen();
+            boolean entered = session
+                    ? DreamTransition.enterNightmare(player, com.hypersomnia.nightmare.NightmareDefs.SESSION_47)
+                    : DreamTransition.enter(player);
+            if (!entered)
+                player.displayClientMessage(Component.translatable("hypersomnia.dream.transition_failed"), false);
             return;
         }
 
@@ -45,22 +52,28 @@ public final class DreamHandler {
             DreamTransition.adoptUnexpectedArrival(player, dream);
         } else if (!inDreamLevel && dream.isInDream()) {
             // Вышли из мира снов другим путём (команда, смерть): сон закончен
+            if (com.hypersomnia.nightmare.NightmareDefs.SHAFT.id().equals(dream.getKind()))
+                com.hypersomnia.nightmare.ShaftHandler.release(player);
             dream.setInDream(false);
             dream.setTicksLeft(0);
+            var observer = player.getData(ModAttachments.OBSERVER);
+            observer.clearPending();
+            observer.setNoteThisSleep(false);
             return;
         }
-        if (!dream.isInDream()) return;
+        if (!dream.isInDream() || !player.isAlive()) return;
 
         // Во сне усталость не копится
         FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
         int rest = SleepPenalty.restFatigue(fatigue);
-        if (fatigue.getFatigue() > rest) {
+        if (!com.hypersomnia.nightmare.NightmareDefs.SHAFT.id().equals(dream.getKind())
+                && fatigue.getFatigue() > rest) {
             fatigue.setFatigue(rest);
         }
 
         dream.setTicksLeft(dream.getTicksLeft() - 1);
         if (dream.getTicksLeft() <= 0) {
-            DreamTransition.exit(player);
+            if (!DreamTransition.exit(player)) dream.setTicksLeft(DreamTuning.WAKE_RETRY_TICKS);
         }
     }
 

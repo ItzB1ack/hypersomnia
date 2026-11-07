@@ -8,6 +8,7 @@ import com.hypersomnia.SleepPenalty;
 import com.hypersomnia.dream.DreamTransition;
 import com.hypersomnia.network.FatigueSyncPayload;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -40,10 +41,17 @@ public final class FatigueHandler {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         FatigueData data = player.getData(ModAttachments.FATIGUE);
         data.setCollapseTimer(0);
+        data.setCollapseGraceTicks(0);
+        data.setSyringeCollapse(false);
+        data.resetForcedSleepAttempts();
         data.setFatigue(Math.min(data.getFatigue(), FatigueTuning.FATIGUE_AFTER_FORCED_SLEEP));
     }
 
     private static void tickFatigue(ServerPlayer player, FatigueData data) {
+        // Усталость в кошмаре не набирается и не запускает новое падение.
+        if (player.getData(com.hypersomnia.dream.DreamAttachments.DREAM).isInDream()) return;
+        boolean grace = data.getCollapseGraceTicks() > 0;
+        if (grace) data.setCollapseGraceTicks(data.getCollapseGraceTicks() - 1);
         // 1) Идёт падение: ничего больше не считаем
         if (data.getCollapseTimer() > 0) {
             tickCollapse(player, data);
@@ -73,7 +81,8 @@ public final class FatigueHandler {
         }
 
         // 5) Достигли максимума: игрок падает
-        if (data.getFatigue() >= FatigueTuning.MAX_FATIGUE) {
+        if (!grace && data.getFatigue() >= FatigueTuning.MAX_FATIGUE) {
+            data.resetForcedSleepAttempts();
             data.setCollapseTimer(FatigueTuning.COLLAPSE_TICKS);
             player.setSprinting(false);
         }
@@ -93,13 +102,30 @@ public final class FatigueHandler {
     }
 
     private static void finishForcedSleep(ServerPlayer player, FatigueData data) {
-        data.addMadness(1); // осколок на шаг ближе к безумию
-        data.setFatigue(SleepPenalty.restFatigue(data)); // пол растёт с безумием
+        // Начисляем последствия только после успешного перехода. У сцены и отсутствующего измерения
+        // возможен отказ; ограничение повторов не оставляет игрока навсегда обездвиженным.
+        var nightmare = data.isSyringeCollapse()
+                ? com.hypersomnia.nightmare.NightmareDefs.ROUNDS
+                : com.hypersomnia.nightmare.NightmareDefs.SHAFT;
+        if (!DreamTransition.enterNightmare(player, nightmare)) {
+            if (data.incrementForcedSleepAttempts() < FatigueTuning.FORCED_SLEEP_MAX_ATTEMPTS) {
+                data.setCollapseTimer(FatigueTuning.FORCED_SLEEP_RETRY_TICKS);
+                return;
+            }
+            data.resetForcedSleepAttempts();
+            data.setCollapseTimer(0);
+            data.setSyringeCollapse(false);
+            data.setFatigue(Math.round(FatigueTuning.MAX_FATIGUE * FatigueTuning.FAILED_SLEEP_FATIGUE));
+            player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+            player.displayClientMessage(Component.translatable("hypersomnia.dream.transition_failed"), false);
+            return;
+        }
+        data.resetForcedSleepAttempts();
+        data.setSyringeCollapse(false);
+        data.addMadness(1);
+        // В «Шахте» отдыха нет: усталость не снижается.
         data.setCollapseTimer(0);
         player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
-
-        // Падение закончилось: засыпаем и попадаем в мир снов
-        DreamTransition.enterNightmare(player, com.hypersomnia.nightmare.NightmareDefs.SHAFT);
     }
 
     private static void syncIfNeeded(ServerPlayer player, FatigueData data, boolean exempt) {

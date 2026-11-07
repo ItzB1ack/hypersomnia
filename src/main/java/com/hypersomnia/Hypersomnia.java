@@ -1,8 +1,8 @@
 package com.hypersomnia;
 
-import com.hypersomnia.client.ClientFatigueState;
 import com.hypersomnia.dream.DreamAttachments;
 import com.hypersomnia.network.FatigueSyncPayload;
+import com.hypersomnia.network.ClientPayloadBridge;
 import com.hypersomnia.scene.SceneAttachments;
 import com.hypersomnia.syringe.SyringeAttachments;
 import net.neoforged.bus.api.IEventBus;
@@ -36,7 +36,7 @@ public class Hypersomnia {
         registrar.playToClient(
                 FatigueSyncPayload.TYPE,
                 FatigueSyncPayload.STREAM_CODEC,
-                ClientFatigueState::handleSync
+                ClientPayloadBridge::fatigue
         );
     }
 }

@@ -1,0 +1,27 @@
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
+// ./gradlew -I src/devtest/lab.init.gradle labSelfTests
+gradle.projectsEvaluated {
+    def p = gradle.rootProject
+    def output = p.layout.buildDirectory.dir('lab-selftests')
+    def compile = p.tasks.register('compileLabSelfTests', JavaCompile) {
+        dependsOn p.tasks.named('classes')
+        source p.fileTree('src/devtest/java') { include '**/LabSavedDataSelfTest.java', '**/LabBlueprintSelfTest.java', '**/LabVariantsSelfTest.java' }
+        classpath = p.files(p.sourceSets.main.output, p.configurations.compileClasspath)
+        destinationDirectory = output
+        javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+    def runners = ['LabSavedDataSelfTest', 'LabBlueprintSelfTest', 'LabVariantsSelfTest'].collect { name ->
+        p.tasks.register('run' + name, JavaExec) {
+            dependsOn compile
+            classpath = p.files(output, p.sourceSets.main.runtimeClasspath)
+            javaLauncher = p.javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+            mainClass = 'com.hypersomnia.lab.' + name
+        }
+    }
+    p.tasks.register('labSelfTests') { dependsOn runners }
+}

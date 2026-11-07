@@ -37,6 +37,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -179,6 +180,25 @@ public final class FinaleHandler {
         }
     }
 
+    /** Монитор общий для всех игроков: гасим его только после последней активной записи. */
+    private static void stopPlayback(ServerPlayer player) {
+        if (PLAYING.remove(player.getUUID()) == null || !PLAYING.isEmpty()) return;
+        ServerLevel dream = player.server.getLevel(DreamDimension.LEVEL);
+        if (dream == null) return;
+        LabSavedData data = LabSavedData.get(dream);
+        if (data.built) monitor(dream, data, false);
+    }
+
+    /** После остановки сервера воспроизведение не сохраняется, а состояние блока монитора — сохраняется. */
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        PLAYING.clear();
+        ServerLevel dream = event.getServer().getLevel(DreamDimension.LEVEL);
+        if (dream == null) return;
+        LabSavedData data = LabSavedData.get(dream);
+        if (data.built) monitor(dream, data, false);
+    }
+
     // ------------------------------------------------------------------
     // Концовка
     // ------------------------------------------------------------------
@@ -189,7 +209,7 @@ public final class FinaleHandler {
         boolean blank = data.hasBlank() && FinaleTuning.withTruth(ending);
         data.setEnding(ending);
         CONFIRM.remove(player.getUUID());
-        PLAYING.remove(player.getUUID());
+        stopPlayback(player);
         DreamData dream = player.getData(DreamAttachments.DREAM);
         if (dream.isInDream()) dream.setTicksLeft(Math.max(dream.getTicksLeft(), FinaleTuning.ENDING_HOLD_TICKS));
         LOGGER.info("Finale: {} reached ending {}", player.getGameProfile().getName(), FinaleTuning.KEYS[ending]);
@@ -235,9 +255,8 @@ public final class FinaleHandler {
         LabSavedData d = dreamLevel ? LabSavedData.get(level) : null;
         BlockPos mark = d != null && d.built ? d.find(LabSavedData.KIND_FINALE * 1000 + FinaleTuning.PART_FRAGMENT) : null;
         Long started = PLAYING.get(player.getUUID());
-        if (started != null && level.getGameTime() - started >= FinaleTuning.playTicks()) {
-            PLAYING.remove(player.getUUID());
-            if (d != null) monitor(level, d, false);
+        if (started != null && (!player.isAlive() || !dreamLevel || level.getGameTime() - started >= FinaleTuning.playTicks())) {
+            stopPlayback(player);
         }
         boolean inside = mark != null && !FinaleLogic.completed(player) && player.isAlive() && !player.isSpectator()
                 && inRoom(player.blockPosition(), mark);
@@ -318,14 +337,14 @@ public final class FinaleHandler {
         UUID id = event.getEntity().getUUID();
         CONFIRM.remove(id);
         INSIDE.remove(id);
-        PLAYING.remove(id);
+        if (event.getEntity() instanceof ServerPlayer player) stopPlayback(player);
         WAKE.remove(id);
     }
 
     /** Отладка (/hypersomnia_finale reset): забыть подтверждения и присутствие. */
     public static void forget(ServerPlayer player) {
         CONFIRM.remove(player.getUUID());
-        PLAYING.remove(player.getUUID());
+        stopPlayback(player);
         setInside(player, false, null);
     }
 }

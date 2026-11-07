@@ -3,6 +3,8 @@ package com.hypersomnia.client;
 import com.hypersomnia.Hypersomnia;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
@@ -36,6 +38,8 @@ public final class ChaseOverlay {
         event.registerAbove(vignette,
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_eyes"), ChaseEyes::render);
         event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY,
+                ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_rage"), ChaseOverlay::renderRage);
+        event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY,
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_black"), ChaseOverlay::renderBlack);
     }
 
@@ -60,6 +64,19 @@ public final class ChaseOverlay {
         RenderSystem.disableBlend();
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
+    }
+
+    private static void renderRage(GuiGraphics g, DeltaTracker delta) {
+        int line = ChaseClient.rageLine();
+        if (line < 0) return;
+        int w = g.guiWidth(), h = g.guiHeight();
+        g.fill(0, 0, w, 2, 0x668A2030);
+        g.fill(0, h - 2, w, h, 0x668A2030);
+        Component text = Component.translatable("hypersomnia.chase.rage." + line);
+        int textWidth = Minecraft.getInstance().font.width(text);
+        int y = (int)(h * .72f);
+        g.fill(w / 2 - textWidth / 2 - 5, y - 3, w / 2 + textWidth / 2 + 5, y + 12, 0x9903050A);
+        g.drawCenteredString(Minecraft.getInstance().font, text, w / 2, y, 0xFFE0B7BA);
     }
 
     private static void renderBlack(GuiGraphics g, DeltaTracker delta) {

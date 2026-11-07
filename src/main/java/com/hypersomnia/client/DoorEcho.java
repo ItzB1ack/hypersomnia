@@ -2,6 +2,10 @@ package com.hypersomnia.client;
 
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ObserverTuning;
+import com.hypersomnia.network.DoorEpisodeRequest;
+import com.hypersomnia.network.DoorEpisodeStatus;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import com.hypersomnia.client.ObserverDirector.Kind;
 import com.hypersomnia.client.ObserverDirector.Outcome;
 import com.hypersomnia.client.ObserverDirector.Plan;
@@ -47,6 +51,33 @@ public final class DoorEcho {
     private static int openGap;
     private static int closeGap;
     private static float pitch;
+    private static int sequence;
+    private static BlockPos realDoor;
+    private static boolean waitingServer, serverEpisode;
+    private static int serverWait;
+
+    public static void handleStatus(DoorEpisodeStatus payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (plan == null || payload.sequence() != sequence) return;
+            if (payload.status() == DoorEpisodeStatus.STARTED && waitingServer) {
+                waitingServer = false;
+                serverEpisode = true;
+            } else if (payload.status() == DoorEpisodeStatus.ENDED || payload.status() == DoorEpisodeStatus.REJECTED) {
+                stop(payload.status() == DoorEpisodeStatus.ENDED ? Outcome.DONE : Outcome.ABORT);
+            }
+        });
+    }
+
+    /** Передаём действующий план дверной сцены пришедшей с сервера погоне. */
+    public static Plan takeForChase() {
+        if (!serverEpisode || plan == null || ObserverDirector.current() != plan) return null;
+        Plan result = plan;
+        plan = null;
+        realDoor = null;
+        waitingServer = false;
+        serverEpisode = false;
+        return result;
+    }
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
@@ -55,7 +86,7 @@ public final class DoorEcho {
         LocalPlayer player = mc.player;
         if (level == null || player == null || mc.isPaused()) return;
         boolean blocked = level.dimension() != Level.OVERWORLD || player.isSleeping() || !player.isAlive()
-                || SleepSceneState.active() || ObserverClient.isBusy(mc);
+                || SleepSceneState.active() || ObserverClient.isBusy(mc) || NoraRoomClient.active() || LabPathClient.active();
         if (plan != null && ObserverDirector.current() != plan) stop(null);  // режиссёр прервал
         if (blocked) {
             if (plan != null) stop(Outcome.ABORT);
@@ -64,6 +95,10 @@ public final class DoorEcho {
         RandomSource r = level.random;
 
         if (plan != null) {
+            if (waitingServer || serverEpisode) {
+                if (waitingServer && ++serverWait > ObserverTuning.DOOR_EPISODE_ACK_TIMEOUT) stop(Outcome.ABORT);
+                return;
+            }
             if (watched(level, player)) {
                 stop(Outcome.LOOK); // посмотрел на дверь: серия обрывается
                 return;
@@ -105,6 +140,15 @@ public final class DoorEcho {
         p.variant = nearHome(door) ? 1 : 0;
         if (!ObserverDirector.accept(p)) return;
         plan = p;
+        if (nearHome(door) && mc.getConnection() != null) {
+            realDoor = door;
+            waitingServer = true;
+            serverEpisode = false;
+            serverWait = 0;
+            sequence++;
+            PacketDistributor.sendToServer(new DoorEpisodeRequest(DoorEpisodeRequest.START, sequence, door));
+            return;
+        }
         at = Vec3.atCenterOf(door);
         cyclesLeft = range(r, ObserverTuning.DOOR_CYCLES_MIN, ObserverTuning.DOOR_CYCLES_MAX);
         openGap = range(r, ObserverTuning.DOOR_OPEN_GAP_MIN, ObserverTuning.DOOR_OPEN_GAP_MAX);
@@ -120,6 +164,11 @@ public final class DoorEcho {
     }
 
     private static void stop(Outcome o) {
+        if ((waitingServer || serverEpisode) && realDoor != null && Minecraft.getInstance().getConnection() != null)
+            PacketDistributor.sendToServer(new DoorEpisodeRequest(DoorEpisodeRequest.CANCEL, sequence, realDoor));
+        waitingServer = false;
+        serverEpisode = false;
+        realDoor = null;
         if (o != null) ObserverDirector.end(plan, o);
         plan = null;
         cyclesLeft = 0;
@@ -188,6 +237,9 @@ public final class DoorEcho {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         plan = null;
+        waitingServer = false;
+        serverEpisode = false;
+        realDoor = null;
         cyclesLeft = 0;
         open = false;
         check = ObserverTuning.DOOR_CHECK_TICKS;

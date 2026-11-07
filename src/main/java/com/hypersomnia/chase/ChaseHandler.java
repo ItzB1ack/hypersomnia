@@ -101,6 +101,7 @@ public final class ChaseHandler {
         ResourceKey<Level> dim;
         int stage;
         boolean teach;
+        boolean fromDoor;
         int phase = ChasePayload.PH_WARN;
         int phaseTicks;
         int warnTicks;
@@ -129,6 +130,7 @@ public final class ChaseHandler {
     private static final Map<UUID, Trail> TRAILS = new HashMap<>();
     private static final Map<UUID, Run> RUNS = new HashMap<>();
     private static int nextId = 1;
+    public static boolean activeFor(ServerPlayer player) { return RUNS.containsKey(player.getUUID()); }
 
     // ------------------------------------------------------------------
     // Тик игрока: след и шаг погони
@@ -493,6 +495,9 @@ public final class ChaseHandler {
         } else {
             take(player);
         }
+        // Готовим портал пока идёт чёрный кадр, чтобы его сущности успели загрузиться.
+        if (player.isAlive()) com.hypersomnia.nightmare.NightmareBuilder.ensureBuilt(
+                player.server, com.hypersomnia.nightmare.NightmareDefs.WARD_CORRIDOR);
     }
 
     private static DamageSource damage(ServerLevel level) {
@@ -529,7 +534,7 @@ public final class ChaseHandler {
 
     /** Погоня снята (конец, STOP клиента, выход): после «обесточено» свет вернётся сам (LabOutage.chaseEnded). */
     private static void dropped(ServerPlayer player, Run run) {
-        if (run != null && run.outage >= 0) LabOutage.chaseEnded(player.serverLevel());
+        if (run != null && run.outage >= 0) LabOutage.chaseEnded(player.server.overworld());
     }
 
     /** Свет вернулся (LabOutage.restore): погони «обесточено» кончаются — он исчезает (поимку не прерываем). */
@@ -547,6 +552,7 @@ public final class ChaseHandler {
     private static void send(ServerPlayer player, Run run, int phase, int info) {
         // stare в пакете — 0: взгляд в погоне не работает, пыли «он исчезает» нет. Вне PH_END info — флаги (I_DARK)
         if (phase != ChasePayload.PH_END && run.outage >= 0) info |= ChasePayload.I_DARK;
+        if (phase != ChasePayload.PH_END && run.fromDoor) info |= ChasePayload.I_DOOR;
         PacketDistributor.sendToPlayer(player, new ChasePayload(run.id, phase, info, run.pos.x, run.pos.y, run.pos.z,
                 0f, player.getData(ModAttachments.CHASE).nextDay()));
     }
@@ -567,6 +573,8 @@ public final class ChaseHandler {
                 dropped(player, RUNS.remove(player.getUUID()));
                 return;
             }
+            // Неизвестные действия и режимы не должны превращаться в запуск погони.
+            if (pl.action() != ChaseRequestPayload.START || pl.force() < 0 || pl.force() > 2) return;
             int force = pl.force() > 0 && player.hasPermissions(2) ? pl.force() : 0;
             int r = start(player, force);
             if (r != 0) sendIdle(player, ChasePayload.PH_REJECT, r);
@@ -620,6 +628,51 @@ public final class ChaseHandler {
         RUNS.put(player.getUUID(), run);
         send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
         return 0;
+    }
+
+    /** Можно ли безопасно предложить дверной эпизод; отладочные обходы здесь не действуют. */
+    public static boolean canStartDoor(ServerPlayer player) {
+        ObserverProgressData progress = player.getData(ModAttachments.OBSERVER);
+        return player.serverLevel().dimension().equals(Level.OVERWORLD)
+                && !RUNS.containsKey(player.getUUID()) && !FinaleLogic.completed(player)
+                && progress.stage() >= 4 && progress.getDays() >= player.getData(ModAttachments.CHASE).nextDay()
+                && !player.isCreative() && !LabProtection.inside(player.serverLevel(), player.blockPosition())
+                && nightOrDark(player.serverLevel(), player) && safe(player, player.serverLevel());
+    }
+
+    /** Погоня из дверного эпизода, только после серверного таймера. Клиенту передаётся флаг связи с эпизодом. */
+    public static boolean startFromDoor(ServerPlayer player, BlockPos door) {
+        if (!canStartDoor(player)) return false;
+        ServerLevel level = player.serverLevel();
+        Vec3 spawn = null;
+        double best = Double.MAX_VALUE;
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            BlockPos p = door.offset(dx, 0, dz);
+            if (!level.hasChunkAt(p) || !level.hasChunkAt(p.above()) || !level.hasChunkAt(p.below())) continue;
+            Vec3 candidate = Vec3.atBottomCenterOf(p);
+            double distance = candidate.distanceToSqr(player.position());
+            if (distance < 4 || distance > 100 || !level.noCollision(body(candidate))) continue;
+            if (level.getBlockState(p.below()).getCollisionShape(level, p.below()).isEmpty()) continue;
+            double score = p.distSqr(door);
+            if (score < best) { best = score; spawn = candidate; }
+        }
+        if (spawn == null) return false;
+        ObserverProgressData progress = player.getData(ModAttachments.OBSERVER);
+        ChaseData data = player.getData(ModAttachments.CHASE);
+        Run run = new Run();
+        run.id = nextId++;
+        run.dim = level.dimension();
+        run.stage = Mth.clamp(progress.stage(), ChaseTuning.MIN_STAGE, 5);
+        run.teach = data.count() == 0 || run.stage < ChaseTuning.CATCH_MIN_STAGE;
+        run.fromDoor = true;
+        run.warnTicks = 1;
+        run.pos = spawn;
+        Trail trail = TRAILS.get(player.getUUID());
+        if (trail != null) run.path.addAll(trail.points);
+        data.markStarted(progress.getDays());
+        RUNS.put(player.getUUID(), run);
+        send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
+        return true;
     }
 
     /** Точка старта на следе: START_PATH_MIN..MAX блоков пути позади, вне взгляда. -1 — следа мало, -2 — всё на виду. */
@@ -709,7 +762,8 @@ public final class ChaseHandler {
                 if (!all) continue;
                 floor = player.blockPosition().below();
             }
-            spawn(level, floor, t.stack());
+            // Если другой мод или сервер отклонил сущность, не удаляем оригинал из сохранённых вещей.
+            if (!spawn(level, floor, t.stack())) continue;
             it.remove();
             if (!all && level.dimension() == Level.OVERWORLD && !traces.has(floor, Direction.UP.ordinal())) {
                 traces.add(new TraceData.Entry(TraceType.STEPS.ordinal(), floor, Direction.UP.ordinal(), 0,
@@ -742,12 +796,12 @@ public final class ChaseHandler {
         return found.isEmpty() ? null : found.get(rnd.nextInt(found.size()));
     }
 
-    private static void spawn(ServerLevel level, BlockPos floor, ItemStack stack) {
+    private static boolean spawn(ServerLevel level, BlockPos floor, ItemStack stack) {
         ItemEntity e = new ItemEntity(level, floor.getX() + 0.5, floor.getY() + 1.05, floor.getZ() + 0.5, stack.copy());
         e.setDeltaMovement(Vec3.ZERO);
         e.setUnlimitedLifetime();
         e.setPickUpDelay(ChaseTuning.RETURN_PICKUP_DELAY);
-        level.addFreshEntity(e);
+        return level.addFreshEntity(e);
     }
 
     // ------------------------------------------------------------------

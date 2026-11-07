@@ -2,6 +2,8 @@ package com.hypersomnia.nightmare;
 
 import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.ModBlocks;
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.properties.BedPart;
@@ -15,6 +17,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 /** Построители мест кошмаров. Вызывать только на сервере. */
 public final class NightmareBuilder {
     private NightmareBuilder() {}
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
 
@@ -35,21 +38,46 @@ public final class NightmareBuilder {
 
     /** true, если место кошмара есть (при необходимости строит сразу). Для кошмаров без построителя всегда false. */
     public static boolean ensureBuilt(MinecraftServer server, NightmareDefs n) {
+        if (n == NightmareDefs.ROUNDS || n == NightmareDefs.SESSION_47) {
+            ServerLevel dream = server.getLevel(DreamDimension.LEVEL);
+            return dream != null && (n == NightmareDefs.ROUNDS
+                    ? RoundsBuilder.ensureBuilt(dream) : SessionBuilder.ensureBuilt(dream));
+        }
         if (n != NightmareDefs.WARD_CORRIDOR) return false; // №2-4: свои построители в шагах 7+
         ServerLevel dream = server.getLevel(DreamDimension.LEVEL);
         if (dream == null) return false;
-        if (NightmareSavedData.get(dream).isBuilt(n)) return WardLoopPortals.ensure(dream);
+        NightmareSavedData data = NightmareSavedData.get(dream);
+        if (data.isBuilt(n)) return portalsReady(dream);
+        if (data.wardBuildFailed()) return false;
         return build(server, n);
     }
 
     /** Строит (или перестраивает) место кошмара. */
     public static boolean build(MinecraftServer server, NightmareDefs n) {
+        if (n == NightmareDefs.ROUNDS || n == NightmareDefs.SESSION_47) return ensureBuilt(server, n);
         if (n != NightmareDefs.WARD_CORRIDOR) return false;
         ServerLevel dream = server.getLevel(DreamDimension.LEVEL);
         if (dream == null) return false;
-        buildWard(dream, n.origin());
-        NightmareSavedData.get(dream).setBuilt(n, true);
-        return WardLoopPortals.ensure(dream);
+        NightmareSavedData data = NightmareSavedData.get(dream);
+        data.setWardBuildFailed(false); // только явный вызов build может повторить неудачную стройку
+        data.setBuilt(n, false);
+        try {
+            buildWard(dream, n.origin());
+            data.setBuilt(n, true);
+        } catch (RuntimeException error) {
+            data.setWardBuildFailed(true);
+            LOGGER.error("Ward build failed; automatic retries disabled. Inspect the world before an explicit rebuild", error);
+            return false;
+        }
+        return portalsReady(dream);
+    }
+
+    private static boolean portalsReady(ServerLevel dream) {
+        try { return WardLoopPortals.ensure(dream); }
+        catch (RuntimeException error) {
+            LOGGER.error("Ward portal preparation failed; ordinary dream remains available", error);
+            return false;
+        }
     }
 
     /**

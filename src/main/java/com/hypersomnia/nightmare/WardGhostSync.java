@@ -24,16 +24,23 @@ public final class WardGhostSync {
     public static void tick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         DreamData data = player.getData(DreamAttachments.DREAM);
-        boolean active = player.level().dimension().equals(DreamDimension.LEVEL)
+        boolean active = player.isAlive() && player.level().dimension().equals(DreamDimension.LEVEL)
                 && data.isInDream() && NightmareDefs.WARD_CORRIDOR.id().equals(data.getKind());
         UUID id = player.getUUID();
         if (active) {
             boolean started = ACTIVE.add(id);
             if (started || player.tickCount % NightmareTuning.WARD_GHOST_SYNC_TICKS == 0)
-                PacketDistributor.sendToPlayer(player, new WardGhostPayload(true));
+                PacketDistributor.sendToPlayer(player, new WardGhostPayload(true, data.getWardLoops()));
         } else if (ACTIVE.remove(id)) {
-            PacketDistributor.sendToPlayer(player, new WardGhostPayload(false));
+            PacketDistributor.sendToPlayer(player, new WardGhostPayload(false, 0));
         }
+    }
+    /** Сразу после прохождения петли: клиент видит персональные изменения без ожидания следующего sync. */
+    public static void syncNow(ServerPlayer player) {
+        DreamData data = player.getData(DreamAttachments.DREAM);
+        if (player.isAlive() && player.level().dimension().equals(DreamDimension.LEVEL)
+                && data.isInDream() && NightmareDefs.WARD_CORRIDOR.id().equals(data.getKind()))
+            PacketDistributor.sendToPlayer(player, new WardGhostPayload(true, data.getWardLoops()));
     }
     @SubscribeEvent
     public static void logout(PlayerEvent.PlayerLoggedOutEvent event) { ACTIVE.remove(event.getEntity().getUUID()); }

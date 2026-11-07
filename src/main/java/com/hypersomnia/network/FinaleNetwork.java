@@ -1,7 +1,6 @@
 package com.hypersomnia.network;
 
 import com.hypersomnia.Hypersomnia;
-import com.hypersomnia.client.FinaleClientState;
 import com.hypersomnia.server.FinaleHandler;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -16,8 +15,8 @@ public final class FinaleNetwork {
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
-        registrar.playToClient(FinaleRoomPayload.TYPE, FinaleRoomPayload.STREAM_CODEC, FinaleClientState::handleRoom);
-        registrar.playToClient(EndingPayload.TYPE, EndingPayload.STREAM_CODEC, FinaleClientState::handleEnding);
+        registrar.playToClient(FinaleRoomPayload.TYPE, FinaleRoomPayload.STREAM_CODEC, ClientPayloadBridge::finaleRoom);
+        registrar.playToClient(EndingPayload.TYPE, EndingPayload.STREAM_CODEC, ClientPayloadBridge::ending);
         registrar.playToServer(EndingDonePayload.TYPE, EndingDonePayload.STREAM_CODEC, FinaleHandler::handleDone);
     }
 }

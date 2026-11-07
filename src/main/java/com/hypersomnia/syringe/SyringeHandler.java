@@ -40,6 +40,7 @@ public final class SyringeHandler {
         int removed = Math.max(0, f.getFatigue() - pin);
 
         s.begin(duration, pin, removed);
+        player.getData(ModAttachments.OBSERVER).registerSyringeExposure();
         s.addTolerance(1);
         f.setFatigue(Math.min(f.getFatigue(), pin));
         // Награда: быстрая добыча и ночное зрение на всё время бодрствования
@@ -94,6 +95,7 @@ public final class SyringeHandler {
         long target = (long) s.getPin() + Math.round(s.getDebt() * (1f + interest)) + s.getAccrued();
         s.clearWake();
         if (target >= FatigueTuning.MAX_FATIGUE * SyringeTuning.COLLAPSE_RATIO) {
+            f.setSyringeCollapse(true);
             f.setFatigue(FatigueTuning.MAX_FATIGUE); // дальше сработает принудительный сон
             return;
         }

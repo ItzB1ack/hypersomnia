@@ -21,6 +21,7 @@ public record ChasePayload(int run, int phase, int info, double x, double y, dou
 
     /** Флаги в info вне PH_END и PH_REJECT: I_DARK — «обесточено» (лаборатория в темноте, LabOutage): глаза видны издалека. */
     public static final int I_DARK = 1;
+    public static final int I_DOOR = 2;
 
     /** Причины отказа (для журнала режиссёра). */
     public static final int R_BUSY = 1, R_STAGE = 2, R_DAYS = 3, R_CONTEXT = 4, R_LAB = 5, R_SAFETY = 6, R_TRAIL = 7,

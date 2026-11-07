@@ -25,6 +25,10 @@ public final class ObserverProgressHandler {
             data.addTick();
             // Память привычек: где игрок бывает (не во сне, не наблюдателем)
             if (!player.isSleeping() && !player.isSpectator()) {
+                boolean syringe = player.getData(com.hypersomnia.syringe.SyringeAttachments.SYRINGE).getWakeTicks() > 0;
+                float fatigue = com.hypersomnia.FatigueTuning.ratio(player.getData(ModAttachments.FATIGUE).getFatigue());
+                if (!player.isCreative() && (syringe || fatigue >= com.hypersomnia.ObserverTuning.EXPOSURE_FATIGUE_THRESHOLD))
+                    data.addExposureTick();
                 data.sampleRoute(player.getBlockX(), player.getBlockY(), player.getBlockZ());
             }
         }
@@ -42,5 +46,6 @@ public final class ObserverProgressHandler {
         PacketDistributor.sendToPlayer(player, new ObserverStagePayload(data.getDays(), data.getMemories(),
                 data.stageOverride(), data.routeList(), data.sleepList(),
                 com.hypersomnia.finale.FinaleTuning.pack(data.ending(), data.truth())));
+        PacketDistributor.sendToPlayer(player, new com.hypersomnia.network.ObserverExposurePayload(data.exposurePoints()));
     }
 }

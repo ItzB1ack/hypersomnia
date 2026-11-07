@@ -100,6 +100,12 @@ public final class FinaleTuning {
     public static final int LINE_FADE_TICKS = 24;
     public static final int LINE_GAP_TICKS = 50;
     public static final float LINE_TICKS_PER_CHAR = 0.9f;
+    /** Внешние кадры концовок: формат сценарного пакета, смена и плавный наезд. */
+    public static final int SHOT_WIDTH = 480;
+    public static final int SHOT_HEIGHT = 270;
+    public static final int SHOT_FADE_TICKS = 12;
+    public static final int SHOT_VARIANT_TICKS = 24;
+    public static final float SHOT_ZOOM = 1.04f;
     /** После последней строки — пауза, затем тёмная пауза и карточка концовки. */
     public static final int LINES_HOLD_TICKS = 80;
     public static final int BLACK_TICKS = 40;

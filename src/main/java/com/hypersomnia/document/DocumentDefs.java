@@ -106,7 +106,8 @@ public final class DocumentDefs {
         // WINDOW — на стекле окна (drawing_0), BEHIND THE DOOR — за ближайшей дверью (drawing_3), UNDER THE BED — у кровати (drawing_1).
         add(new Doc("note_l1_0", "Page", Style.NOTE, List.of(
                 new Para("Did I write this?"),                                    // 0
-                new Marked("*Where* is she? *It* was here again. *Never* asleep, never. *Did* I close the door? *Once* more. *Waiting*."))));  // 1: WINDOW
+                new Marked("*Where* is she? *It* was here again. *Never* asleep, never. *Did* I close the door? *Once* more. *Waiting*."), // 1: WINDOW
+                new Para("When the door opens, close it. Again. Until it stops.")))); // 2: правило до события
         add(new Doc("note_l1_1", "Page", Style.NOTE, List.of(
                 new Para("It was on the pillow again."),                          // 0
                 new Glyphs("BEHIND THE DOOR"))));                                 // 1

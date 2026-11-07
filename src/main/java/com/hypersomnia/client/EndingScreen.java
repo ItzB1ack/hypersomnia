@@ -2,12 +2,15 @@ package com.hypersomnia.client;
 
 import com.hypersomnia.finale.FinaleTexts;
 import com.hypersomnia.finale.FinaleTuning;
+import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.network.EndingDonePayload;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -33,6 +36,9 @@ public final class EndingScreen extends Screen {
     private final int ending;
     private final List<String> texts = new ArrayList<>();
     private final List<Character> styles = new ArrayList<>();
+    private final List<Integer> sourceIndices = new ArrayList<>();
+    private final List<ResourceLocation[]> shots = new ArrayList<>();
+    private final ResourceLocation specialFrame;
     private final int[] at;
     private final int linesEnd;
     private final int frameStart;
@@ -65,7 +71,10 @@ public final class EndingScreen extends Screen {
             String key = l.style() == 'b' ? "hypersomnia.finale.blank" : FinaleTexts.key(ending) + ".line." + i;
             texts.add(Component.translatableWithFallback(key, l.text()).getString());
             styles.add(l.style());
+            sourceIndices.add(i);
         }
+        for (int index : sourceIndices) shots.add(loadVariants(ending, index));
+        specialFrame = existing("textures/gui/ending/" + FinaleTuning.KEYS[ending] + "_frame.png");
         at = new int[texts.size()];
         int tick = FinaleTuning.BLACK_TICKS;
         for (int i = 0; i < texts.size(); i++) {
@@ -147,13 +156,80 @@ public final class EndingScreen extends Screen {
         g.fill(0, 0, width, height, BG);
         if (time < frameStart) {
             float fadeOut = time > linesEnd ? 1f - Mth.clamp((time - linesEnd) / FinaleTuning.BLACK_TICKS, 0f, 1f) : 1f;
-            drawLines(g, time, fadeOut);
+            int index = currentLine(time);
+            if (index >= 0 && shots.get(index).length > 0) drawShotLine(g, time, index, fadeOut);
+            else drawLines(g, time, fadeOut);
         } else if (time < cardStart - (FinaleTexts.hasFrame(ending) ? FinaleTuning.BLACK_TICKS : 0)) {
-            drawFrame(g, time - frameStart);
+            if (specialFrame != null) drawImage(g, specialFrame, 1f, 0f);
+            else drawFrame(g, time - frameStart);
         } else if (time >= cardStart) {
             drawCard(g, time - cardStart);
         }
         drawTape(g, time);
+    }
+
+    private static ResourceLocation existing(String path) {
+        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, path);
+        return Minecraft.getInstance().getResourceManager().getResource(location).isPresent() ? location : null;
+    }
+
+    /** Отсутствующие файлы не превращаются в розово-чёрные текстуры. */
+    private static ResourceLocation[] loadVariants(int ending, int index) {
+        String prefix = "textures/gui/ending/" + FinaleTuning.KEYS[ending] + "_"
+                + String.format(java.util.Locale.ROOT, "%02d", index);
+        List<ResourceLocation> found = new ArrayList<>();
+        ResourceLocation base = existing(prefix + ".png");
+        if (base != null) found.add(base);
+        for (int i = 1; i <= 3; i++) {
+            ResourceLocation variant = existing(prefix + "_" + i + ".png");
+            if (variant != null) found.add(variant);
+        }
+        return found.toArray(ResourceLocation[]::new);
+    }
+
+    private int currentLine(float time) {
+        int result = -1;
+        for (int i = 0; i < at.length && time >= at[i]; i++) result = i;
+        return result;
+    }
+
+    private ResourceLocation shotAt(int index, float elapsed) {
+        ResourceLocation[] options = shots.get(index);
+        return options[(Math.max(0, (int) elapsed) / FinaleTuning.SHOT_VARIANT_TICKS) % options.length];
+    }
+
+    private void drawShotLine(GuiGraphics g, float time, int index, float fadeOut) {
+        float age = time - at[index];
+        float blend = Mth.clamp(age / FinaleTuning.SHOT_FADE_TICKS, 0f, 1f);
+        if (index > 0 && shots.get(index - 1).length > 0 && blend < 1f)
+            drawImage(g, shotAt(index - 1, at[index] - at[index - 1]), fadeOut, 1f);
+        float duration = Math.max(1f, (index + 1 < at.length ? at[index + 1] : linesEnd) - at[index]);
+        drawImage(g, shotAt(index, age), blend * fadeOut, Mth.clamp(age / duration, 0f, 1f));
+        List<FormattedCharSequence> lines = font.split(Component.literal(texts.get(index)), Math.min(300, width - 40));
+        int y = (int) (height * 0.76f) - lines.size() * 5;
+        g.fill(0, y - 5, width, y + lines.size() * 11 + 5, argb(0.45f * fadeOut, 0));
+        int color = argb(Mth.clamp(age / FinaleTuning.LINE_FADE_TICKS, 0f, 1f) * fadeOut, styleColor(styles.get(index)));
+        for (FormattedCharSequence line : lines) {
+            if (color != 0) g.drawCenteredString(font, line, width / 2, y, color);
+            y += 11;
+        }
+    }
+
+    private void drawImage(GuiGraphics g, ResourceLocation image, float alpha, float progress) {
+        float scale = Math.max((float) width / FinaleTuning.SHOT_WIDTH, (float) height / FinaleTuning.SHOT_HEIGHT)
+                * Mth.lerp(progress, 1f, FinaleTuning.SHOT_ZOOM);
+        float x = (width - FinaleTuning.SHOT_WIDTH * scale) / 2f;
+        float y = (height - FinaleTuning.SHOT_HEIGHT * scale) / 2f;
+        RenderSystem.enableBlend();
+        g.setColor(1f, 1f, 1f, Mth.clamp(alpha, 0f, 1f));
+        g.pose().pushPose();
+        g.pose().translate(x, y, 0);
+        g.pose().scale(scale, scale, 1f);
+        g.blit(image, 0, 0, 0, 0f, 0f, FinaleTuning.SHOT_WIDTH, FinaleTuning.SHOT_HEIGHT,
+                FinaleTuning.SHOT_WIDTH, FinaleTuning.SHOT_HEIGHT);
+        g.flush();
+        g.pose().popPose();
+        g.setColor(1f, 1f, 1f, 1f);
     }
 
     private static int argb(float a, int rgb) {

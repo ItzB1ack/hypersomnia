@@ -16,7 +16,7 @@ gradle.projectsEvaluated {
         options.encoding = 'UTF-8'
         options.release = 21
     }
-    def runners = ['ForestReplySelfTest', 'ForestReplyCodecSelfTest'].collect { name ->
+    def runners = ['ForestReplySelfTest', 'ForestReplyCodecSelfTest', 'ForestReplyRhythmSelfTest'].collect { name ->
         p.tasks.register('run' + name, JavaExec) {
             dependsOn compile
             classpath = p.files(output, p.sourceSets.main.runtimeClasspath)

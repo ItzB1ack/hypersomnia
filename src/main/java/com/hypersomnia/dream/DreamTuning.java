@@ -12,6 +12,10 @@ public final class DreamTuning {
 
     /** Поиск безопасной точки при входе/выходе: на сколько блоков вверх и вниз искать. */
     public static final int SAFE_SEARCH_RANGE = 16;
+    /** Если исходная колонка небезопасна, проверяем поверхность соседних загруженных колонок. */
+    public static final int SAFE_SURFACE_RADIUS = 4;
+    /** При неудачном пробуждении сохраняем состояние сна и повторяем попытку не чаще раза в 10 секунд. */
+    public static final int WAKE_RETRY_TICKS = 200;
 
     /** Если игрок спит в Незере, в мир снов он попадает в координаты Верхнего мира (x8). */
     public static final double NETHER_SCALE = 8.0;

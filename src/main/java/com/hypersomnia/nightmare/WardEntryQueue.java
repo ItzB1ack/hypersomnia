@@ -13,6 +13,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.util.HashMap;
@@ -30,10 +31,12 @@ public final class WardEntryQueue {
 
     private static final class Request {
         final MinecraftServer server;
+        final ServerPlayer player;
         final ResourceKey<Level> startDimension;
         int attempts;
         Request(ServerPlayer player) {
             server = player.server;
+            this.player = player;
             startDimension = player.serverLevel().dimension();
         }
     }
@@ -67,7 +70,7 @@ public final class WardEntryQueue {
             Request request = entry.getValue();
             if (request.server != server) continue;
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
-            if (player == null) { it.remove(); continue; }
+            if (player != request.player) { it.remove(); continue; }
             if (!player.isAlive() || !player.serverLevel().dimension().equals(request.startDimension)
                     || player.getData(DreamAttachments.DREAM).isInDream()) {
                 player.sendSystemMessage(Component.literal("Ward: entry cancelled because your state or dimension changed."));
@@ -80,9 +83,19 @@ public final class WardEntryQueue {
                 it.remove();
                 continue;
             }
+            if (NightmareSavedData.get(dream).wardBuildFailed()) {
+                it.remove();
+                player.sendSystemMessage(Component.literal("Ward build failed. Inspect latest.log and the world before rebuilding."));
+                continue;
+            }
             if (!NightmareSavedData.get(dream).isBuilt(NightmareDefs.WARD_CORRIDOR)) {
                 // Действие как в прежней команде: первый вход строит коридор один раз.
                 NightmareBuilder.build(server, NightmareDefs.WARD_CORRIDOR);
+                if (NightmareSavedData.get(dream).wardBuildFailed()) {
+                    it.remove();
+                    player.sendSystemMessage(Component.literal("Ward build failed. Inspect latest.log and the world before rebuilding."));
+                    continue;
+                }
             }
             WardLoopPortals.Result result = WardLoopPortals.ensureDetailed(dream);
             request.attempts++;
@@ -99,6 +112,12 @@ public final class WardEntryQueue {
                 player.sendSystemMessage(Component.literal("Ward portal error: LOADING_TIMEOUT. Send latest.log."));
             }
         }
+    }
+
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        Request request = REQUESTS.get(event.getEntity().getUUID());
+        if (request != null && request.player == event.getEntity()) REQUESTS.remove(event.getEntity().getUUID());
     }
 
     @SubscribeEvent

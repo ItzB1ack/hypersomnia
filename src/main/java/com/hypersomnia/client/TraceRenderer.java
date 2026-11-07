@@ -101,6 +101,22 @@ public final class TraceRenderer {
                     ps.mulPose(Axis.ZP.rotationDegrees((e.rot() - 3.5f) * 4f));
                     decal(ps, buffers, texture(type, e.variant()), type.size, light);
                 }
+                case TEXT -> {
+                    if (face.getAxis().isVertical()) break;
+                    ps.translate(face.getStepX() * off, 0, face.getStepZ() * off);
+                    ps.mulPose(Axis.YP.rotationDegrees(-face.toYRot()));
+                    ps.mulPose(Axis.ZP.rotationDegrees(((p.hashCode() & 1) == 0 ? 1f : -1f) * TraceTuning.WRITING_TILT_DEGREES));
+                    int variant = Math.floorMod(e.variant(), 8);
+                    BlockPos reference = e.origin() == null ? p : e.origin();
+                    net.minecraft.network.chat.MutableComponent text = variant == 4
+                            ? net.minecraft.network.chat.Component.translatable("hypersomnia.trace.writing." + variant, reference.getX(), reference.getY(), reference.getZ())
+                            : net.minecraft.network.chat.Component.translatable("hypersomnia.trace.writing." + variant);
+                    text.withStyle(net.minecraft.ChatFormatting.ITALIC);
+                    float scale = Math.min(TraceTuning.WRITING_MAX_SCALE, TraceTuning.WRITING_MAX_WIDTH / Math.max(1, mc.font.width(text)));
+                    ps.scale(scale, -scale, scale);
+                    mc.font.drawInBatch(text, -mc.font.width(text) / 2f, -4f, 0xFF423138, false,
+                            ps.last().pose(), buffers, net.minecraft.client.gui.Font.DisplayMode.POLYGON_OFFSET, 0, light);
+                }
                 case ITEM -> {
                     // Игрушка упала: лежит на полу плашмя, повёрнута на rot * 45. Стоящий плоский предмет сбоку не виден.
                     ps.translate(0, 0.5 + TraceTuning.ITEM_LIFT, 0);

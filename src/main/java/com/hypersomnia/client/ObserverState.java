@@ -12,6 +12,7 @@ public final class ObserverState {
     public static int madness;
     public static int days;
     public static int memories;
+    public static int exposure;
     /** Стадия, заданная отладкой на сервере, или -1. */
     public static int stageOverride = -1;
     /** Копия памяти привычек с сервера (ObserverProgressData): маршрут x,y,z,вес и места сна x,y,z,счёт четвёрками. */
@@ -29,7 +30,7 @@ public final class ObserverState {
     /** Стадия осколка 0-5: от прожитых дней и найденных воспоминаний (или заданная отладкой). */
     public static int stage() {
         if (stageOverride >= 0) return stageOverride;
-        return com.hypersomnia.ObserverTuning.stage(days, Integer.bitCount(memories));
+        return com.hypersomnia.ObserverTuning.stage(days, Integer.bitCount(memories), exposure);
     }
 
     /** Самое частое место сна {x, y, z} или null. */
@@ -63,6 +64,10 @@ public final class ObserverState {
         return a;
     }
 
+    public static void handleExposure(com.hypersomnia.network.ObserverExposurePayload payload, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> exposure = Math.max(0, Math.min(com.hypersomnia.ObserverTuning.EXPOSURE_MAX_POINTS, payload.points())));
+    }
+
     public static void handleMadness(MadnessSyncPayload payload, IPayloadContext ctx) {
         ctx.enqueueWork(() -> madness = payload.madness());
     }
@@ -71,6 +76,7 @@ public final class ObserverState {
         madness = 0;
         days = 0;
         memories = 0;
+        exposure = 0;
         stageOverride = -1;
         route = new int[0];
         sleep = new int[0];

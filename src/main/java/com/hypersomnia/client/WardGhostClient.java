@@ -3,6 +3,10 @@ package com.hypersomnia.client;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ObserverTuning;
 import com.hypersomnia.dream.DreamDimension;
+import com.hypersomnia.document.DocumentItem;
+import com.hypersomnia.document.DrawingTuning;
+import com.hypersomnia.nightmare.WardScenario;
+import com.hypersomnia.nightmare.WardBedBlock;
 import com.hypersomnia.network.WardGhostPayload;
 import com.hypersomnia.nightmare.NightmareDefs;
 import com.hypersomnia.nightmare.NightmareTuning;
@@ -20,6 +24,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -34,13 +40,15 @@ public final class WardGhostClient {
     private WardGhostClient() {}
     private static int remaining;
     private static int age;
+    private static int loops;
+    private static ItemStack paper;
     private static ObserverGhost ghost;
 
     public static void receive(WardGhostPayload payload) {
-        if (payload.active()) remaining = NightmareTuning.WARD_GHOST_TIMEOUT_TICKS;
+        if (payload.active()) { remaining = NightmareTuning.WARD_GHOST_TIMEOUT_TICKS; loops = Math.max(0, payload.loops()); }
         else clear();
     }
-    private static void clear() { remaining = 0; ghost = null; age = 0; }
+    private static void clear() { remaining = 0; ghost = null; age = 0; loops = 0; }
     @SubscribeEvent
     public static void tick(ClientTickEvent.Post event) {
         if (remaining > 0) {
@@ -56,7 +64,7 @@ public final class WardGhostClient {
     public static void render(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || remaining <= 0) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || !mc.level.dimension().equals(DreamDimension.LEVEL)) return;
+        if (mc.level == null || mc.player == null || !mc.player.isAlive() || !mc.level.dimension().equals(DreamDimension.LEVEL)) return;
         if (ghost == null || ghost.level() != mc.level) {
             ghost = new ObserverGhost(mc.level);
             ghost.setPose(Pose.STANDING);
@@ -71,6 +79,7 @@ public final class WardGhostClient {
         for (int n = 0; n < NightmareTuning.WARD_PERIODS; n++) {
             int base = n * NightmareTuning.WARD_PERIOD;
             for (int side : new int[] {-1, 1}) {
+                if (WardScenario.emptyWard(loops, n, side)) continue;
                 // На северной стороне изголовье z=-5; на южной z=width+4.
                 double z = o.getZ() + (side < 0 ? -4.5 : NightmareTuning.CORRIDOR_WIDTH + 4.5);
                 for (int x : new int[] {3, 5}) {
@@ -78,6 +87,19 @@ public final class WardGhostClient {
                     if (at.distanceToSqr(cam) > max2 || !mc.level.hasChunkAt(BlockPos.containing(at))) continue;
                     draw(mc, at, cam, age + partial, partial, ps, buffers);
                 }
+            }
+        }
+        if (WardScenario.emptyWard(loops, NightmareTuning.WARD_EMPTY_PERIOD, -1)) {
+            BlockPos bed = WardScenario.paperBed();
+            if (mc.level.hasChunkAt(bed) && mc.level.getBlockState(bed).getBlock() instanceof WardBedBlock) {
+                if (paper == null) paper = DocumentItem.make(DrawingTuning.BLANK_ID);
+                ps.pushPose();
+                ps.translate(bed.getX() + 0.5 - cam.x, bed.getY() + 0.65 - cam.y, bed.getZ() + 0.5 - cam.z);
+                ps.mulPose(Axis.XP.rotationDegrees(-90f));
+                mc.getItemRenderer().renderStatic(paper, ItemDisplayContext.GROUND,
+                        LevelRenderer.getLightColor(mc.level, bed.above()), OverlayTexture.NO_OVERLAY,
+                        ps, buffers, mc.level, bed.hashCode());
+                ps.popPose();
             }
         }
         buffers.endBatch();

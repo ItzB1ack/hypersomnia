@@ -1,7 +1,6 @@
 package com.hypersomnia.network;
 
 import com.hypersomnia.Hypersomnia;
-import com.hypersomnia.client.DiaryClientState;
 import com.hypersomnia.server.DiaryHandler;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -14,7 +13,7 @@ public final class DiaryNetwork {
     @SubscribeEvent
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
         var registrar = event.registrar("1");
-        registrar.playToClient(DiarySyncPayload.TYPE, DiarySyncPayload.STREAM_CODEC, DiaryClientState::handleSync);
+        registrar.playToClient(DiarySyncPayload.TYPE, DiarySyncPayload.STREAM_CODEC, ClientPayloadBridge::diary);
         registrar.playToServer(DiaryActionPayload.TYPE, DiaryActionPayload.STREAM_CODEC, DiaryHandler::handleAction);
         registrar.playToServer(DiaryKeyPayload.TYPE, DiaryKeyPayload.STREAM_CODEC, DiaryHandler::handleKey);
     }

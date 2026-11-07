@@ -16,16 +16,18 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     private int days;
     private int ticks;
     private int memories;
+    private int exposurePoints;
+    private int exposureTicks;
     /** Служебное: значения изменились, клиенту нужно отправить (не сохраняется). */
     private boolean dirty;
     /** Маска выданных записок слоя 1. */
     private int notes;
     /** Маска найденных рисунков Nora: биты 0-4 рисунки, бит 5 пустой лист (бонус). */
     private int drawings;
-    /** Служебное: записка, выбранная при входе в сон и ждущая пробуждения (не сохраняется). */
+    /** Записка, выбранная при входе в сон и ждущая пробуждения (сохраняется). */
     private int pendingNote = -1;
     private int pendingWay = -1;
-    /** Служебное: в этот сон записка уже выдана при входе (не сохраняется). Тогда след после него не ставится. */
+    /** В этот сон записка уже выдана при входе (сохраняется). Тогда след после него не ставится. */
     private boolean noteThisSleep;
 
     /** Маршрут: ROUTE_SLOTS четвёрок x, y, z, вес (вес 0 = пусто). Места сна: SLEEP_SLOTS четвёрок x, y, z, счёт. */
@@ -51,6 +53,9 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     private int ending = -1;
     private int endings;
     private boolean truth;
+    private boolean session47Seen;
+    private boolean noraRoomSeen;
+    private boolean labPathSeen;
     /** Подарок воспоминания (ObserverNotesHandler.giveGift): пробуждений подряд без новой находки, маска на прошлом пробуждении, подаренные. */
     private int giftNights;
     private int giftSeen;
@@ -59,13 +64,38 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     public int getDays() { return days; }
     public void setDays(int v) { days = Math.max(0, v); dirty = true; }
     public int getMemories() { return memories; }
+    public boolean noraRoomSeen() { return noraRoomSeen; }
+    public void markNoraRoomSeen() { noraRoomSeen = true; dirty = true; }
+    public boolean labPathSeen() { return labPathSeen; }
+    public void markLabPathSeen() { labPathSeen = true; dirty = true; }
+    public void resetStage5Scenes() { noraRoomSeen = false; labPathSeen = false; dirty = true; }
+    public boolean session47Seen() { return session47Seen; }
+    public void markSession47Seen() { session47Seen = true; dirty = true; }
     public int memoriesCount() { return Integer.bitCount(memories); }
     /** Заглушка до пункта 2: index 0..6 = номер воспоминания. */
     public void addMemory(int index) { memories |= 1 << index; dirty = true; }
     public void setMemoriesCount(int n) { memories = (1 << Math.max(0, Math.min(7, n))) - 1; dirty = true; }
     public void markDirty() { dirty = true; }
     /** Стадия осколка: заданная отладкой или по формуле ObserverTuning.stage (дни + воспоминания). */
-    public int stage() { return stageOverride >= 0 ? stageOverride : ObserverTuning.stage(days, memoriesCount()); }
+    public int stage() { return stageOverride >= 0 ? stageOverride : ObserverTuning.stage(days, memoriesCount(), exposurePoints); }
+    public int exposurePoints() { return exposurePoints; }
+    public void registerSyringeExposure() {
+        exposurePoints = Math.min(ObserverTuning.EXPOSURE_MAX_POINTS, exposurePoints + ObserverTuning.EXPOSURE_SYRINGE_POINTS);
+        dirty = true;
+    }
+    public void addExposureTick() {
+        if (exposurePoints >= ObserverTuning.EXPOSURE_MAX_POINTS) return;
+        if (++exposureTicks >= ObserverTuning.EXPOSURE_AWAKE_TICKS_PER_POINT) {
+            exposureTicks = 0;
+            exposurePoints++;
+            dirty = true;
+        }
+    }
+    public void restExposure() {
+        exposureTicks = 0;
+        exposurePoints = Math.max(0, exposurePoints - ObserverTuning.EXPOSURE_REST_REDUCTION);
+        dirty = true;
+    }
     public int stageOverride() { return stageOverride; }
     /** -1 = снова по формуле. */
     public void setStageOverride(int s) { stageOverride = s < 0 ? -1 : Math.min(5, s); dirty = true; }
@@ -120,7 +150,7 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     public int notesCount() { return Integer.bitCount(notes); }
     public boolean hasNote(int i) { return (notes & (1 << i)) != 0; }
     public void addNote(int i) { notes |= 1 << i; }
-    public void resetNotes() { notes = 0; pendingNote = -1; pendingWay = -1; }
+    public void resetNotes() { notes = 0; clearPending(); noteThisSleep = false; }
 
     public void addDrawing(int i) { drawings |= 1 << i; }
     public boolean hasDrawing(int i) { return (drawings & (1 << i)) != 0; }
@@ -172,10 +202,13 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
                 if (empty < 0) empty = i;
                 continue;
             }
-            int dx = a[i] - x;
-            int dz = a[i + 2] - z;
-            if (dx * dx + dz * dz <= merge * merge && Math.abs(a[i + 1] - y) <= merge) {
-                a[i + 3] = Math.min(max, w + 1);
+            long dx = (long) a[i] - x;
+            long dy = (long) a[i + 1] - y;
+            long dz = (long) a[i + 2] - z;
+            // Далёкие координаты не должны сливаться из-за переполнения int.
+            if (Math.abs(dx) <= merge && Math.abs(dz) <= merge && Math.abs(dy) <= merge
+                    && dx * dx + dz * dz <= (long) merge * merge) {
+                a[i + 3] = w >= max ? max : w + 1;
                 dirty = true;
                 return;
             }
@@ -294,11 +327,20 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     @Override
     public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
+        tag.putBoolean("nora_room_seen", noraRoomSeen);
+        tag.putBoolean("lab_path_seen", labPathSeen);
         tag.putInt("days", days);
         tag.putInt("ticks", ticks);
         tag.putInt("memories", memories);
+        tag.putInt("exposure_points", exposurePoints);
+        tag.putInt("exposure_ticks", exposureTicks);
         tag.putInt("notes", notes);
         tag.putInt("drawings", drawings);
+        if (pendingNote >= 0) {
+            tag.putInt("pending_note", pendingNote);
+            tag.putInt("pending_way", pendingWay);
+        }
+        if (noteThisSleep) tag.putBoolean("note_this_sleep", true);
         tag.putIntArray("route", route);
         tag.putIntArray("sleep", sleep);
         tag.putIntArray("seen", seen);
@@ -308,6 +350,7 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
         tag.putInt("ending", ending);
         if (endings != 0) tag.putInt("endings", endings);
         if (truth) tag.putBoolean("truth", true);
+        if (session47Seen) tag.putBoolean("session47_seen", true);
         if (giftNights != 0) tag.putInt("gift_nights", giftNights);
         if (giftSeen != 0) tag.putInt("gift_seen", giftSeen);
         if (gifted != 0) tag.putInt("gifted", gifted);
@@ -316,11 +359,22 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
 
     @Override
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
+        exposurePoints = Math.max(0, Math.min(ObserverTuning.EXPOSURE_MAX_POINTS, tag.getInt("exposure_points")));
+        exposureTicks = Math.max(0, Math.min(ObserverTuning.EXPOSURE_AWAKE_TICKS_PER_POINT - 1, tag.getInt("exposure_ticks")));
+        noraRoomSeen = tag.getBoolean("nora_room_seen");
+        labPathSeen = tag.getBoolean("lab_path_seen");
         days = Math.max(0, tag.getInt("days"));
         ticks = Math.max(0, tag.getInt("ticks"));
         memories = tag.getInt("memories") & 0x7F;
+        session47Seen = tag.getBoolean("session47_seen");
         notes = tag.getInt("notes");
         drawings = tag.getInt("drawings");
+        int pn = tag.contains("pending_note") ? tag.getInt("pending_note") : -1;
+        int pw = tag.contains("pending_way") ? tag.getInt("pending_way") : -1;
+        // Отложенные варианты — только BED, CONTAINER, WINDOW. Старый или повреждённый NBT не индексируем.
+        if (pn >= 0 && pn < ObserverTuning.NOTE_PAGES.length && pw >= 0 && pw < ObserverTuning.NOTE_DEFERRED_WAYS) setPending(pn, pw);
+        else clearPending();
+        noteThisSleep = tag.getBoolean("note_this_sleep");
         copy(tag.getIntArray("route"), route);
         copy(tag.getIntArray("sleep"), sleep);
         copy(tag.getIntArray("seen"), seen);

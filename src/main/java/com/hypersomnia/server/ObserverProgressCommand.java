@@ -122,6 +122,15 @@ public final class ObserverProgressCommand {
                                     p.serverLevel().getGameTime());
                             return habits(ctx.getSource(), p);
                         })))
+                .then(Commands.literal("stage5")
+                        .then(Commands.literal("reset").executes(ctx -> {
+                            ServerPlayer p = ctx.getSource().getPlayerOrException();
+                            NoraRoomHandler.resetFor(p);
+                            LabPathHandler.resetFor(p);
+                            p.getData(ModAttachments.OBSERVER).resetStage5Scenes();
+                            ctx.getSource().sendSuccess(() -> Component.literal("Stage 5 scenes reset for this player."), false);
+                            return status(ctx.getSource(), p);
+                        })))
                 .then(Commands.literal("status").executes(ctx ->
                         status(ctx.getSource(), ctx.getSource().getPlayerOrException()))));
     }
@@ -156,12 +165,14 @@ public final class ObserverProgressCommand {
 
     private static int status(net.minecraft.commands.CommandSourceStack src, ServerPlayer p) {
         ObserverProgressData d = p.getData(ModAttachments.OBSERVER);
-        int formula = com.hypersomnia.ObserverTuning.stage(d.getDays(), d.memoriesCount());
+        int formula = com.hypersomnia.ObserverTuning.stage(d.getDays(), d.memoriesCount(), d.exposurePoints());
         String stage = d.stageOverride() >= 0 ? d.stageOverride() + " (forced, formula " + formula + ")" : String.valueOf(formula);
         src.sendSuccess(() -> Component.literal("days=" + d.getDays() + " memories=" + d.memoriesCount()
-                + " stage=" + stage + " notes=" + d.notesCount()
+                + " stage=" + stage + " exposure=" + d.exposurePoints() + " notes=" + d.notesCount()
                 + " drawings=" + d.drawingsCount() + (d.hasBlank() ? "+blank" : "")
-                + " route=" + d.routeCount() + " sleep=" + d.sleepCount()), false);
+                + " route=" + d.routeCount() + " sleep=" + d.sleepCount()
+                + " noraRoomSeen=" + d.noraRoomSeen() + " labPathSeen=" + d.labPathSeen()
+                + " session47Seen=" + d.session47Seen()), false);
         return 1;
     }
 }

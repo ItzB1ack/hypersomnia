@@ -1,7 +1,6 @@
 package com.hypersomnia.network;
 
 import com.hypersomnia.Hypersomnia;
-import com.hypersomnia.client.ObserverState;
 import com.hypersomnia.server.TraceHandler;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -19,12 +18,12 @@ public final class ObserverNetwork {
         registrar.playToClient(
                 MadnessSyncPayload.TYPE,
                 MadnessSyncPayload.STREAM_CODEC,
-                ObserverState::handleMadness
+                ClientPayloadBridge::madness
         );
         registrar.playToClient(
                 ObserverStagePayload.TYPE,
                 ObserverStagePayload.STREAM_CODEC,
-                ObserverState::handleStage
+                ClientPayloadBridge::stage
         );
         registrar.playToServer(
                 ObserverSeenPayload.TYPE,
@@ -39,7 +38,7 @@ public final class ObserverNetwork {
         registrar.playToClient(
                 ChasePayload.TYPE,
                 ChasePayload.STREAM_CODEC,
-                com.hypersomnia.client.ChaseState::handle
+                ClientPayloadBridge::chase
         );
     }
 }

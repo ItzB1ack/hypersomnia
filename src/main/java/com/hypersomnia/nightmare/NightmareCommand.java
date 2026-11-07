@@ -31,6 +31,7 @@ public final class NightmareCommand {
                     if (data.isInDream() && NightmareDefs.WARD_CORRIDOR.id().equals(data.getKind())
                             && WardLoopPortals.atForwardDestination(player.serverLevel(), player.position())) {
                         data.addWardLoop();
+                        WardGhostSync.syncNow(player);
                         return 1;
                     }
                     return 0;
@@ -45,6 +46,27 @@ public final class NightmareCommand {
                 .then(Commands.literal("enter").then(Commands.literal("ward").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     return WardEntryQueue.request(player) ? 1 : 0;
+                })).then(Commands.literal("shaft").executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    if (!DreamTransition.enterNightmare(player, NightmareDefs.SHAFT)) {
+                        ctx.getSource().sendFailure(Component.literal("Shaft unavailable: inspect the dream dimension and reserved lanes"));
+                        return 0;
+                    }
+                    return 1;
+                })).then(Commands.literal("rounds").executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    if (!DreamTransition.enterNightmare(player, NightmareDefs.ROUNDS)) {
+                        ctx.getSource().sendFailure(Component.literal("Rounds unavailable: inspect the dream dimension and build location"));
+                        return 0;
+                    }
+                    return 1;
+                })).then(Commands.literal("session47").executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    if (!DreamTransition.enterNightmare(player, NightmareDefs.SESSION_47)) {
+                        ctx.getSource().sendFailure(Component.literal("Session 47 unavailable: inspect the dream dimension and build location"));
+                        return 0;
+                    }
+                    return 1;
                 })))
                 .then(Commands.literal("exit").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();

@@ -49,6 +49,7 @@ public final class SleepSceneClientEvents {
                 // После срабатывания антипаузы повторно поставить игру на паузу нельзя до конца ивента.
                 if (SleepSceneState.active()) SleepSceneState.pauseLocked = true;
                 ChaseClient.lockPause();
+                ObserverClient.lockPendingChasePause();
                 // Экран кровати возвращаем только во время сцены; при погоне — обратно в игру.
                 mc.setScreen(SleepSceneState.active() && mc.player != null && mc.player.isSleeping()
                         ? new SceneBedScreen() : null);
@@ -67,11 +68,11 @@ public final class SleepSceneClientEvents {
             if (mc.screen instanceof InBedChatScreen && !(mc.screen instanceof SceneBedScreen)) {
                 mc.setScreen(new SceneBedScreen());
             }
-
-            // После закрытия меню паузы (ESC в нём) возвращаем экран кровати, пока игрок лежит
-            if (SleepSceneState.active() && mc.screen == null && mc.player != null && mc.player.isSleeping()) {
-                mc.setScreen(new SceneBedScreen());
-            }
+        }
+        // Игрок может вручную закрыть паузу на любом тике сцены, не только на первом.
+        // Вернуть экран кровати нужно всегда: иначе ванильная кровать остаётся без блокирующего экрана.
+        if (SleepSceneState.active() && mc.screen == null && mc.player != null && mc.player.isSleeping()) {
+            mc.setScreen(new SceneBedScreen());
         }
     }
 
@@ -87,7 +88,7 @@ public final class SleepSceneClientEvents {
     private static boolean antiPauseActive() {
         Minecraft mc = Minecraft.getInstance();
         return mc.player != null && mc.level != null && mc.player.isAlive()
-                && (SleepSceneState.active() || ChaseClient.active());
+                && (SleepSceneState.active() || ChaseClient.active() || ObserverClient.chaseRequestPending());
     }
 
     /** Тик меню паузы пришёл тогда-то: между тиками глаза двигаются плавно (в паузе partialTick стоит). */
@@ -111,7 +112,7 @@ public final class SleepSceneClientEvents {
     public static void onScreenOpening(ScreenEvent.Opening event) {
         if (event.getNewScreen() instanceof PauseScreen
                 && antiPauseActive()
-                && ((SleepSceneState.active() && SleepSceneState.pauseLocked) || ChaseClient.pauseLocked())) {
+                && ((SleepSceneState.active() && SleepSceneState.pauseLocked) || ChaseClient.pauseLocked() || ObserverClient.pendingChasePauseLocked())) {
             event.setCanceled(true);
             return;
         }

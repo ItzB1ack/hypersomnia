@@ -32,6 +32,15 @@ public final class TraceTuning {
     /** Радиус поиска места вокруг кровати (блоки) и число попыток на один след. Первую половину попыток только в помещении. */
     public static final int RADIUS = 12;
     public static final int ATTEMPTS = 24;
+    // Отложенные персональные надписи, без изменения мира [новое].
+    public static final float WRITING_CHANCE = .35f;
+    public static final int WRITING_DELAY_MIN = 600;
+    public static final int WRITING_DELAY_RANGE = 600;
+    public static final int WRITING_RETRY_TICKS = 600;
+    public static final int WRITING_NEAR_RADIUS = 16;
+    public static final float WRITING_MAX_WIDTH = .82f;
+    public static final float WRITING_MAX_SCALE = .012f;
+    public static final float WRITING_TILT_DEGREES = 3f;
     /** Клиент: дальше этой дистанции не рисуем; отступ «наклейки» от поверхности, чтобы не мерцала. */
     public static final double RENDER_DISTANCE = 48.0;
     public static final float DECAL_OFFSET = 0.015f;

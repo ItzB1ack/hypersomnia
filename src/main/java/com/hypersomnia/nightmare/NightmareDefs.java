@@ -39,6 +39,8 @@ public enum NightmareDefs {
 
     /** Точка появления: середина зоны коридора (период 2), лицом по +X. Для кошмаров №2-4 поправим с их построителями. */
     public BlockPos spawn() {
+        if (this == ROUNDS) return RoundsBuilder.spawn();
+        if (this == SESSION_47) return SessionBuilder.spawn();
         return origin().offset(NightmareTuning.WARD_PERIOD * 2, 1, 1);
     }
 

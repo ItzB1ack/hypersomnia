@@ -113,12 +113,19 @@ public final class ObserverClient {
     private static final int[] rejects = new int[REJECT_NAMES.length];
     /** Отладка: появляется без усталости и при любом свете. */
     private static boolean debugForce;
+    private static boolean deathSceneAttempted;
 
     /** Погоня: номер на сервере (0 — нет), закончил ли её сервер сам, план в ожидании ответа и сколько ждём. */
     private static int chaseRun;
     private static boolean chaseEnded;
     private static Plan chasePending;
     private static int chaseWait;
+    private static boolean pendingChasePauseLocked;
+
+    public static boolean chaseRequestPending() { return chasePending != null; }
+    public static boolean pendingChasePauseLocked() { return chasePending != null && pendingChasePauseLocked; }
+    public static void lockPendingChasePause() { if (chasePending != null) pendingChasePauseLocked = true; }
+    private static void clearPendingChase() { chasePending = null; pendingChasePauseLocked = false; }
     /** Номер погони, которую клиент уже попросил остановить (STOP уходит один раз). */
     private static int chaseStopped;
     private static int chasePhase;
@@ -146,7 +153,7 @@ public final class ObserverClient {
             clearAll();
             return;
         }
-        if (mc.isPaused()) return;
+        if (mc.isPaused() && player.isAlive()) return;
         // Финал: в детской он стоит между кроватью и дверью и не мешает; после финала его нет совсем
         if (FinaleClientState.inside && isDream(mc) && player.isAlive()) {
             tickFinal(mc, player);
@@ -154,7 +161,7 @@ public final class ObserverClient {
         }
         if (mode == Mode.FINAL) clearGhost();
         if (ObserverState.completed()) {
-            if (mode != Mode.NONE || plan != null || ghost != null) clearAll();
+            if (mode != Mode.NONE || plan != null || ghost != null || chasePending != null) clearAll();
             return;
         }
         ObserverScare.tick();
@@ -162,7 +169,7 @@ public final class ObserverClient {
         boolean busy = isBusy(mc);
         boolean scene = SleepSceneState.active() || SleepSceneState.silent();
         boolean tired = isTired(player, dream);
-        ObserverDirector.tick(pressureTarget(), ObserverState.stage(), busy, dream, tired, scene);
+        ObserverDirector.tick(pressureTarget(), ObserverState.stage(), busy || NoraRoomClient.active() || LabPathClient.active(), dream, tired, scene);
 
         boolean away = player.isSleeping() || dream;
         if (wasAway && !away) ObserverDirector.onWake();
@@ -180,7 +187,19 @@ public final class ObserverClient {
 
         // Смерть: фигура остаётся на месте и смотрит на тело до возрождения, потом её нет
         if (!player.isAlive()) {
+            clearPendingChase();
             if (mode == Mode.SIGN) abortSign();
+            if (!deathSceneAttempted) {
+                deathSceneAttempted = true;
+                // Стадия 5: если фигуры рядом не было, ей можно найти место у тела.
+                // Это только клиентское изображение, без сущности, звука и урона.
+                if (ghost == null && ObserverState.stage() >= ObserverTuning.DEATH_WATCH_MIN_STAGE
+                        && !player.isSpectator() && !player.isCreative()
+                        && mc.level.dimension().equals(Level.OVERWORLD)) {
+                    Vec3 feet = findBedSpot(mc, player);
+                    if (feet != null) show(mc, player, feet, false, Mode.DEATH);
+                }
+            }
             if (ghost != null && mode != Mode.DEATH) {
                 if (mode == Mode.CHASE) leaveChase(); // сервер закончит погоню сам
                 finish(Outcome.DONE);
@@ -195,6 +214,7 @@ public final class ObserverClient {
             }
             return;
         }
+        deathSceneAttempted = false;
         if (mode == Mode.DEATH) clearGhost();
 
         // Режиссёр прервал эпизод (сцена в кровати, страховка по времени, отладка)
@@ -772,10 +792,10 @@ public final class ObserverClient {
         }
         if (chasePending != null) {
             // Режиссёр снял предложение (экран, страховка) — ответ сервера, если придёт, будет «чужой погоней»
-            if (ObserverDirector.offered(Kind.CHASE) != chasePending) chasePending = null;
+            if (ObserverDirector.offered(Kind.CHASE) != chasePending) clearPendingChase();
             else if (++chaseWait > ChaseTuning.REQUEST_TIMEOUT) {
                 ObserverDirector.refuse(chasePending, "no answer from server");
-                chasePending = null;
+                clearPendingChase();
             }
             return false;
         }
@@ -790,6 +810,7 @@ public final class ObserverClient {
         chaseForce = 0;
         PacketDistributor.sendToServer(new ChaseRequestPayload(ChaseRequestPayload.START, force));
         chasePending = offer;
+        pendingChasePauseLocked = false;
         chaseWait = 0;
         return false;
     }
@@ -799,7 +820,7 @@ public final class ObserverClient {
         if (ph == ChasePayload.PH_REJECT) {
             if (chasePending != null) {
                 ObserverDirector.refuse(chasePending, "server: " + ChasePayload.reason(pl.info()));
-                chasePending = null;
+                clearPendingChase();
             }
             return;
         }
@@ -817,10 +838,34 @@ public final class ObserverClient {
             if (ph == ChasePayload.PH_CAUGHT) ChaseClient.caught(mc);
             return;
         }
+        // При провале настоящего дверного эпизода используем уже принятый режиссёром план,
+        // не ожидая отдельного запроса погони с клиента.
+        if (ph == ChasePayload.PH_WARN && (pl.info() & ChasePayload.I_DOOR) != 0
+                && mode == Mode.NONE && ghost == null && pl.run() != chaseStopped) {
+            Plan doorPlan = DoorEcho.takeForChase();
+            if (doorPlan != null) {
+                plan = doorPlan;
+                chaseRun = pl.run();
+                chaseEnded = false;
+                show(mc, player, at, false, Mode.CHASE);
+                chasePhase = ph;
+                chaseStare = pl.stare();
+                chaseDark = (pl.info() & ChasePayload.I_DARK) != 0;
+                stepLeft = ChaseTuning.STEP_EVERY;
+                knockIn = 0;
+                hushWorld(mc);
+                BreathClient.triggerNow();
+                ChaseClient.begin();
+                ChaseMusic.begin(mc);
+                ChaseVoice.begin();
+                return;
+            }
+        }
         if (ph == ChasePayload.PH_WARN && chasePending != null && mode == Mode.NONE && ghost == null
                 && pl.run() != chaseStopped) {
             Plan p = chasePending;
-            chasePending = null;
+            boolean preservePauseLock = pendingChasePauseLocked;
+            clearPendingChase();
             if (ObserverDirector.accept(p)) {
                 // Он стоит на твоём следе, за спиной: мир смолкает, сбивается дыхание, начинает стучать сердце
                 plan = p;
@@ -835,6 +880,7 @@ public final class ObserverClient {
                 hushWorld(mc);
                 BreathClient.triggerNow();
                 ChaseClient.begin();
+                if (preservePauseLock) ChaseClient.lockPause();
                 ChaseMusic.begin(mc);
                 ChaseVoice.begin();
                 return;
@@ -1233,12 +1279,14 @@ public final class ObserverClient {
     }
 
     private static void clearAll() {
+        clearPendingChase();
         if (mode == Mode.SIGN) abortSign();
         finish(Outcome.ABORT);
         clearSign();
         clearGhost();
         mode = Mode.NONE;
         bedRolled = false;
+        deathSceneAttempted = false;
     }
 
     /** Облако чёрных частиц на месте, где он стоял. */
@@ -1411,7 +1459,7 @@ public final class ObserverClient {
         // Сервер сам забудет погоню при выходе: STOP не нужен (соединение уже закрывается)
         chaseRun = 0;
         chaseEnded = true;
-        chasePending = null;
+        clearPendingChase();
         chaseForce = 0;
         chaseStopped = 0;
         clearAll();

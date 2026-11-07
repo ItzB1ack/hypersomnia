@@ -42,6 +42,13 @@ public final class ChaseTuning {
     /** «Вне взгляда» при выборе старта: дальше этого угла от направления взгляда (с запасом на широкий FOV). */
     public static final double START_VIEW_HALF_DEG = 75.0;
 
+    // На последней стадии сильнее паника и короткие реплики ярости [новое].
+    public static final float RAGE_MIN_PANIC = .70f;
+    public static final int RAGE_FIRST_TICK = 80;
+    public static final int RAGE_PERIOD_TICKS = 180;
+    public static final int RAGE_TEXT_TICKS = 26;
+    public static final int RAGE_TEXT_VARIANTS = 3;
+
     // ---- Фазы ----
     /** Предупреждение: стоит на старте (тики). Если его заметить и выдержать взгляд — исчезает, погони нет. */
     public static final int WARN_MIN = 60;

@@ -59,6 +59,8 @@ public final class LabSavedData extends SavedData {
 
     // ---- Состояние мира ----
     public boolean built;
+    /** Постройка прервалась: не перезапускаем разрушительную стройку автоматически. */
+    public boolean buildFailed;
     public boolean dream;
     /** Мировые x, z центра кабины '@' и y земли у павильона. */
     public int originX;
@@ -152,6 +154,7 @@ public final class LabSavedData extends SavedData {
 
     public void resetBuild() {
         built = false;
+        buildFailed = false;
         builtMask = 0;
         closedDoor = -1;
         roofPending = false;
@@ -178,6 +181,7 @@ public final class LabSavedData extends SavedData {
         tag.putBoolean("seeded", seeded);
         tag.putLong("cipherSeed", cipherSeed);
         tag.putBoolean("built", built);
+        tag.putBoolean("buildFailed", buildFailed);
         tag.putBoolean("dream", dream);
         tag.putInt("originX", originX);
         tag.putInt("originZ", originZ);
@@ -219,6 +223,7 @@ public final class LabSavedData extends SavedData {
         d.seeded = tag.getBoolean("seeded");
         d.cipherSeed = tag.getLong("cipherSeed");
         d.built = tag.getBoolean("built");
+        d.buildFailed = tag.getBoolean("buildFailed");
         d.dream = tag.getBoolean("dream");
         d.originX = tag.getInt("originX");
         d.originZ = tag.getInt("originZ");

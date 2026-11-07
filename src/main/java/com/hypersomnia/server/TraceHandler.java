@@ -19,6 +19,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -30,6 +31,33 @@ public final class TraceHandler {
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) send(player, player.getData(TraceAttachments.TRACES));
+    }
+
+    /** Отдельное от следов событие: надпись появляется с задержкой, а не в момент сна. */
+    public static void scheduleWriting(ServerPlayer player, ServerLevel level, BlockPos origin) {
+        if (level.dimension() != Level.OVERWORLD || player.getData(ModAttachments.OBSERVER).stage() < 3
+                || player.getRandom().nextFloat() >= TraceTuning.WRITING_CHANCE) return;
+        player.getData(TraceAttachments.TRACES).scheduleWriting(origin,
+                TraceTuning.WRITING_DELAY_MIN + player.getRandom().nextInt(TraceTuning.WRITING_DELAY_RANGE + 1));
+    }
+
+    @SubscribeEvent public static void tickWriting(PlayerTickEvent.Post event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !player.isAlive() || player.isSleeping()
+                || player.serverLevel().dimension() != Level.OVERWORLD) return;
+        TraceData data = player.getData(TraceAttachments.TRACES);
+        BlockPos origin = data.pendingWriting();
+        if (origin == null || !player.serverLevel().isLoaded(origin)
+                || player.blockPosition().distSqr(origin) > TraceTuning.WRITING_NEAR_RADIUS * TraceTuning.WRITING_NEAR_RADIUS) return;
+        if (data.writingDelay() > 0) { data.tickWriting(); return; }
+        int stage = player.getData(ModAttachments.OBSERVER).stage();
+        if (stage < 3) { data.deferWriting(TraceTuning.WRITING_RETRY_TICKS); return; }
+        TraceData.Entry found = tryPlace(player.serverLevel(), data, origin, TraceTuning.RADIUS, origin, TraceType.WRITING, player.getRandom());
+        if (found == null) { data.deferWriting(TraceTuning.WRITING_RETRY_TICKS); return; }
+        int first = stage >= 5 ? 5 : stage >= 4 ? 3 : 0;
+        int count = stage >= 5 ? 3 : stage >= 4 ? 2 : 3;
+        data.add(new TraceData.Entry(TraceType.WRITING.ordinal(), found.pos(), found.face(), first + player.getRandom().nextInt(count), 0, origin));
+        data.clearWriting();
+        send(player, data);
     }
 
     /** Вызывать из DreamTransition.exit() после возврата игрока. origin = где он уснул. */
@@ -118,8 +146,10 @@ public final class TraceHandler {
         for (int[] d : around) {
             for (int y = at.getY() + 1; y >= at.getY() - 3; y--) {
                 BlockPos p = new BlockPos(at.getX() + d[0], y, at.getZ() + d[1]);
-                if (!level.getBlockState(p).isFaceSturdy(level, p, Direction.UP)) continue;
                 BlockPos air = p.above();
+                // Соседняя клетка может оказаться в незагруженном чанке или за высотой мира.
+                if (level.isOutsideBuildHeight(p) || level.isOutsideBuildHeight(air) || !level.isLoaded(p)) continue;
+                if (!level.getBlockState(p).isFaceSturdy(level, p, Direction.UP)) continue;
                 if (!level.isEmptyBlock(air) || !level.getFluidState(air).isEmpty()) break;
                 if (data.has(p, Direction.UP.ordinal())) break;
                 return new TraceData.Entry(TraceType.STEPS.ordinal(), p, Direction.UP.ordinal(), 0, rotToward(p, bed));
@@ -146,9 +176,10 @@ public final class TraceHandler {
         int total = 0;
         BlockPos best = null;
         for (int i = 0; i + 3 < route.size(); i += 4) {
-            int dx = route.get(i) - origin.getX();
-            int dz = route.get(i + 2) - origin.getZ();
-            if (dx * dx + dz * dz > TraceTuning.ROUTE_RADIUS * TraceTuning.ROUTE_RADIUS) continue;
+            long dx = (long) route.get(i) - origin.getX();
+            long dz = (long) route.get(i + 2) - origin.getZ();
+            if (Math.abs(dx) > TraceTuning.ROUTE_RADIUS || Math.abs(dz) > TraceTuning.ROUTE_RADIUS
+                    || dx * dx + dz * dz > (long) TraceTuning.ROUTE_RADIUS * TraceTuning.ROUTE_RADIUS) continue;
             int w = Math.max(1, route.get(i + 3));
             total += w;
             if (r.nextInt(total) < w) best = new BlockPos(route.get(i), route.get(i + 1), route.get(i + 2));
@@ -200,19 +231,19 @@ public final class TraceHandler {
             Direction wallDir = Direction.Plane.HORIZONTAL.getRandomDirection(r);
             for (int y = origin.getY() + 3; y >= origin.getY() - 4; y--) {
                 BlockPos p = new BlockPos(x, y, z);
-                Direction face;
-                if (type.kind == TraceType.Kind.WALL) {
-                    face = wallDir;
-                    BlockPos air = p.relative(face);
+                Direction face = (type.kind == TraceType.Kind.WALL || type.kind == TraceType.Kind.TEXT) ? wallDir : Direction.UP;
+                BlockPos air = p.relative(face);
+                // Поиск не должен загружать соседние чанки: стена и воздух могут быть по разные стороны границы.
+                if (level.isOutsideBuildHeight(p) || level.isOutsideBuildHeight(air)
+                        || !level.isLoaded(p) || !level.isLoaded(air)) continue;
+                if (type.kind == TraceType.Kind.WALL || type.kind == TraceType.Kind.TEXT) {
                     if (!level.getBlockState(p).isFaceSturdy(level, p, face) || !level.isEmptyBlock(air)) continue;
                     // стена комнаты: пол в пределах двух блоков под местом
                     if (!level.getBlockState(air.below()).isFaceSturdy(level, air.below(), Direction.UP)
                             && !level.getBlockState(air.below(2)).isFaceSturdy(level, air.below(2), Direction.UP)) continue;
                 } else {
-                    face = Direction.UP;
                     if (!level.getBlockState(p).isFaceSturdy(level, p, Direction.UP)) continue;
                 }
-                BlockPos air = p.relative(face);
                 if (!level.isEmptyBlock(air) || !level.getFluidState(air).isEmpty()) continue;
                 if (indoorOnly && level.canSeeSky(air)) continue;
                 if (data.has(p, face.ordinal())) continue;

@@ -35,6 +35,10 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * ПКМ по панелям лаборатории: панель лифта, кодовые панели замков, рабочие станции, щит MAIN FEED, запечатанные шкафы,
@@ -44,7 +48,16 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class LabHandler {
+    private static final Map<UUID, Map<Integer, Long>> DENIED_UNTIL = new HashMap<>();
     private LabHandler() {}
+
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        DENIED_UNTIL.remove(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
+    public static void onStop(ServerStoppingEvent event) { DENIED_UNTIL.clear(); }
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
@@ -184,6 +197,9 @@ public final class LabHandler {
         }
         if (keep) data.setIndexDraft(digits);
         String back = keep ? digits : "";
+        long now = player.server.overworld().getGameTime();
+        Map<Integer, Long> denied = DENIED_UNTIL.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
+        if (now < denied.getOrDefault(lock, 0L)) return null;
         if (LabTuning.lockNeedsFeed(lock) && !d.hasFlag(LabSavedData.FLAG_FEED))
             return new LabLockPayload(lock, LabLockPayload.NOPOWER, back);
         if (lock == LabTuning.LOCK_INDEX && !LabLocks.indexComplete(player)) {
@@ -191,9 +207,11 @@ public final class LabHandler {
             return new LabLockPayload(lock, LabLockPayload.INCOMPLETE, back);
         }
         if (!LabLocks.check(level, d, lock, digits)) {
+            denied.put(lock, now + LabTuning.KEYPAD_DENIED_TICKS);
             level.playSound(null, pos, SoundEvents.IRON_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 1.0f, 0.5f);
             return new LabLockPayload(lock, LabLockPayload.DENIED, back);
         }
+        denied.remove(lock);
         LabLocks.grant(level, d, lock);
         if (keep) data.setIndexDraft("");
         if (lock == LabTuning.LOCK_INDEX) data.setRecordReady(true);

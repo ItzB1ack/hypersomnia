@@ -13,7 +13,10 @@ public final class TraceClientState {
     public static volatile List<TraceData.Entry> entries = List.of();
 
     public static void handleSync(TraceSyncPayload payload, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> entries = TraceData.fromFlat(payload.flat()));
+        ctx.enqueueWork(() -> {
+            if (payload.version() < 1 || payload.version() > TraceSyncPayload.FORMAT_VERSION) return;
+            entries = TraceData.fromFlat(payload.version(), payload.flat());
+        });
     }
 
     public static void reset() {

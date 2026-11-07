@@ -16,6 +16,10 @@ public final class FatigueTuning {
     public static final int FATIGUE_AFTER_FORCED_SLEEP = (int) (MAX_FATIGUE * 0.10f);
     /** Сколько тиков длится падение, прежде чем начнётся сон. */
     public static final int COLLAPSE_TICKS = 100;
+    /** Если переход не удался: до пяти повторов с паузой, затем безопасно освободить игрока. */
+    public static final int FORCED_SLEEP_RETRY_TICKS = 20;
+    public static final int FORCED_SLEEP_MAX_ATTEMPTS = 5;
+    public static final float FAILED_SLEEP_FATIGUE = 0.80f;
 
     // ---- Пороги (доля от максимума) ----
     public static final float BLACKOUT_START = 0.45f;   // потемнения в глазах

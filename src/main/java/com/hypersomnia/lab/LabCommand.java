@@ -61,7 +61,7 @@ public final class LabCommand {
                 .then(Commands.literal("status").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     LabSavedData d = LabSavedData.get(p.serverLevel());
-                    ctx.getSource().sendSuccess(() -> Component.literal("built=" + d.built + " dream=" + d.dream
+                    ctx.getSource().sendSuccess(() -> Component.literal("built=" + d.built + " buildFailed=" + d.buildFailed + " dream=" + d.dream
                             + " builtMask=" + Integer.toBinaryString(d.builtMask) + " reached=" + d.reached
                             + " locks=" + Integer.toBinaryString(d.locksOpen) + " flags=" + Integer.toBinaryString(d.flags)
                             + " breakers=" + d.breakerSeq + (d.breakerTripped ? " tripped" : "") + " origin=" + d.originX + "," + d.originZ
@@ -69,6 +69,9 @@ public final class LabCommand {
                     return 1;
                 }))
                 .then(Commands.literal("rebuild").executes(ctx -> {
+                    ctx.getSource().sendFailure(Component.literal("WARNING: this destroys lab blocks, stored items and progress. Back up the world first. To proceed: /hypersomnia_lab rebuild confirm"));
+                    return 0;
+                }).then(Commands.literal("confirm").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     ServerLevel level = p.serverLevel();
                     boolean dream = level.dimension() == DreamDimension.LEVEL;
@@ -84,11 +87,18 @@ public final class LabCommand {
                     for (int n = 0; n < LabTuning.STOPS; n++) LabBuilder.clear(level, d, n);
                     d.resetProgress();
                     LabPlacement.build(level, LabPlacement.site(p.server), dream);
+                    if (d.buildFailed) {
+                        ctx.getSource().sendFailure(Component.literal("Lab rebuild failed; inspect the server log and world before retrying"));
+                        return 0;
+                    }
                     ctx.getSource().sendSuccess(() -> Component.literal("Lab rebuilt (" + (dream ? "dream" : "real")
                             + "), mask=" + Integer.toBinaryString(d.builtMask)), false);
                     return 1;
-                }))
+                })))
                 .then(Commands.literal("resite").executes(ctx -> {
+                    ctx.getSource().sendFailure(Component.literal("WARNING: this destroys lab blocks, stored items and progress. Back up the world first. To proceed: /hypersomnia_lab resite confirm"));
+                    return 0;
+                }).then(Commands.literal("confirm").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     ServerLevel level = p.serverLevel();
                     boolean dream = level.dimension() == DreamDimension.LEVEL;
@@ -111,12 +121,16 @@ public final class LabCommand {
                     ow.setDirty();
                     BlockPos site = LabPlacement.site(p.server);
                     LabPlacement.build(level, site, dream);
+                    if (d.buildFailed) {
+                        ctx.getSource().sendFailure(Component.literal("Lab build at the new site failed; inspect the server log and world before retrying"));
+                        return 0;
+                    }
                     int z = site.getZ() + 12;
                     p.teleportTo(site.getX() + 0.5, LabPlacement.ground(level, site.getX(), z), z + 0.5);
                     ctx.getSource().sendSuccess(() -> Component.literal("New site x=" + site.getX() + " z=" + site.getZ()
-                            + " (try " + ow.siteTry + "). Run rebuild in the other world."), false);
+                            + " (try " + ow.siteTry + "). Back up the other world before rebuilding."), false);
                     return 1;
-                }))
+                })))
                 .then(Commands.literal("unlock")
                         .then(Commands.argument("stop", IntegerArgumentType.integer(0, LabTuning.STOPS - 1)).executes(ctx -> {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();

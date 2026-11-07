@@ -39,6 +39,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
  * Что Фрагмент оставляет игроку. Записки: бросок при входе в сон (стадия, шанс, способ, страница); кровать, контейнер и окно
@@ -64,8 +66,9 @@ public final class ObserverNotesHandler {
     /** Вызывать из DreamTransition.enter() после телепорта игрока в мир снов. */
     public static void onEnterDream(ServerPlayer player, ServerLevel dream) {
         ObserverProgressData data = player.getData(ModAttachments.OBSERVER);
-        data.clearPending();
         data.setNoteThisSleep(false);
+        // Не перезаписываем записку, которую не удалось безопасно выдать после предыдущего сна.
+        if (data.getPendingNote() >= 0) return;
         int stage = data.stage();
         if (stage < ObserverTuning.NOTE_MIN_STAGE) return;
         if (player.getRandom().nextFloat() >= ObserverTuning.NOTE_CHANCE) return;
@@ -93,27 +96,60 @@ public final class ObserverNotesHandler {
     public static boolean onWake(ServerPlayer player, ServerLevel level) {
         ObserverProgressData data = player.getData(ModAttachments.OBSERVER);
         data.countGiftNight();
-        int note = data.getPendingNote();
-        int wayIdx = data.getPendingWay();
         boolean atEntry = data.noteThisSleep();
-        data.clearPending();
         data.setNoteThisSleep(false);
         DreamData dream = player.getData(DreamAttachments.DREAM);
         BlockPos origin = BlockPos.containing(dream.getReturnX(), dream.getReturnY(), dream.getReturnZ());
 
-        if (note >= 0 && note < ObserverTuning.NOTE_PAGES.length && wayIdx >= 0 && !data.hasNote(note)) {
-            Way[] chain = {Way.values()[wayIdx], Way.BED, Way.INVENTORY};
-            for (Way w : chain) {
-                ItemStack stack = DocumentItem.make(ObserverTuning.NOTE_PAGES[note]);
-                if (deliver(player, level, origin, w, stack)) {
-                    data.addNote(note);
-                    return true;
-                }
-            }
+        // Если пока не удалось выдать предмет, оставляем заявку и не создаём другую находку.
+        if (data.getPendingNote() >= 0 && !data.hasNote(data.getPendingNote())) {
+            deliverPending(player, level, origin, data);
+            return true;
         }
+        data.clearPending();
         if (atEntry) return true;
         if (leaveHint(player, level, origin, data) >= 0) return true;
         return giveGift(player, level, origin, data) >= 0;
+    }
+
+    /** Заявка сбрасывается только после успешной выдачи или если записка уже отмечена. */
+    private static boolean deliverPending(ServerPlayer player, ServerLevel level, BlockPos origin, ObserverProgressData data) {
+        int note = data.getPendingNote(), way = data.getPendingWay();
+        if (note < 0 || note >= ObserverTuning.NOTE_PAGES.length || way < 0 || way >= ObserverTuning.NOTE_DEFERRED_WAYS || data.hasNote(note)) {
+            data.clearPending();
+            return false;
+        }
+        for (Way w : new Way[]{Way.values()[way], Way.BED, Way.INVENTORY}) {
+            if (deliver(player, level, origin, w, DocumentItem.make(ObserverTuning.NOTE_PAGES[note]))) {
+                data.addNote(note);
+                data.clearPending();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Временную заявку нельзя переносить на новое тело после смерти. */
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.isEndConquered() || !(event.getEntity() instanceof ServerPlayer player)) return;
+        ObserverProgressData data = player.getData(ModAttachments.OBSERVER);
+        data.clearPending();
+        data.setNoteThisSleep(false);
+    }
+
+    /** После неудачной выдачи повторяем попытку; в другом измерении используем текущее место игрока. */
+    @SubscribeEvent
+    public static void retryPending(PlayerTickEvent.Post event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !player.isAlive() || player.tickCount % ObserverTuning.NOTE_RETRY_TICKS != 0) return;
+        DreamData dream = player.getData(DreamAttachments.DREAM);
+        if (dream.isInDream() || player.level().dimension().equals(com.hypersomnia.dream.DreamDimension.LEVEL)) return;
+        ObserverProgressData data = player.getData(ModAttachments.OBSERVER);
+        if (data.getPendingNote() < 0) return;
+        ServerLevel level = player.serverLevel();
+        BlockPos origin = level.dimension().location().toString().equals(dream.getReturnDim())
+                ? BlockPos.containing(dream.getReturnX(), dream.getReturnY(), dream.getReturnZ()) : player.blockPosition();
+        deliverPending(player, level, origin, data);
     }
 
     // ------------------------------------------------------------------
@@ -232,8 +268,7 @@ public final class ObserverNotesHandler {
     private static boolean placeOnBed(ServerLevel level, BlockPos origin, ItemStack stack) {
         BlockPos best = nearestBed(level, origin);
         if (best == null) return false;
-        spawnItem(level, best.getX() + 0.5, best.getY() + 0.6, best.getZ() + 0.5, stack, ObserverTuning.NOTE_BED_PICKUP_DELAY);
-        return true;
+        return spawnItem(level, best.getX() + 0.5, best.getY() + 0.6, best.getZ() + 0.5, stack, ObserverTuning.NOTE_BED_PICKUP_DELAY);
     }
 
     /** Ближайший к точке сна блок кровати (любая половина) в NOTE_BED_RADIUS, по высоте +-1; null — нет. */
@@ -270,9 +305,8 @@ public final class ObserverNotesHandler {
             for (Direction s : new Direction[]{side, side.getOpposite()}) {
                 BlockPos c = part.relative(s);
                 if (!floorSpot(level, c)) continue;
-                spawnItem(level, c.getX() + 0.5 - s.getStepX() * tuck, c.getY() + 0.05, c.getZ() + 0.5 - s.getStepZ() * tuck,
-                        stack, ObserverTuning.HINT_PICKUP_DELAY);
-                return true;
+                if (spawnItem(level, c.getX() + 0.5 - s.getStepX() * tuck, c.getY() + 0.05, c.getZ() + 0.5 - s.getStepZ() * tuck,
+                        stack, ObserverTuning.HINT_PICKUP_DELAY)) return true;
             }
         }
         return false;
@@ -302,8 +336,7 @@ public final class ObserverNotesHandler {
         BlockPos far = a.distSqr(origin) >= b.distSqr(origin) ? a : b;
         for (BlockPos c : new BlockPos[]{far, far == a ? b : a}) {
             if (!floorSpot(level, c)) continue;
-            spawnItem(level, c.getX() + 0.5, c.getY() + 0.05, c.getZ() + 0.5, stack, ObserverTuning.HINT_PICKUP_DELAY);
-            return true;
+            if (spawnItem(level, c.getX() + 0.5, c.getY() + 0.05, c.getZ() + 0.5, stack, ObserverTuning.HINT_PICKUP_DELAY)) return true;
         }
         return false;
     }
@@ -360,7 +393,8 @@ public final class ObserverNotesHandler {
             for (Direction d : Direction.Plane.HORIZONTAL) {
                 BlockPos inner = g.relative(d).immutable();
                 BlockPos outer = g.relative(d.getOpposite()).immutable();
-                if (!level.getBlockState(inner).isAir() || !level.getBlockState(outer).isAir()) continue;
+                if (!level.hasChunkAt(inner) || !level.hasChunkAt(outer)
+                        || !level.getBlockState(inner).isAir() || !level.getBlockState(outer).isAir()) continue;
                 if (level.canSeeSky(inner) || !level.canSeeSky(outer)) continue;
                 double dist = inner.distSqr(origin);
                 if (dist < bestD) {
@@ -378,8 +412,7 @@ public final class ObserverNotesHandler {
         frame.setItem(stack);
         frame.setInvisible(true);
         frame.addTag(WINDOW_TAG);
-        level.addFreshEntity(frame);
-        return true;
+        return level.addFreshEntity(frame);
     }
 
     /** В свободный слот основного инвентаря (не хотбар): находит позже сам. */
@@ -401,16 +434,16 @@ public final class ObserverNotesHandler {
         double dist = Mth.lerp(rnd.nextFloat(), ObserverTuning.NOTE_DREAM_DIST_MIN, ObserverTuning.NOTE_DREAM_DIST_MAX);
         BlockPos p = DreamTransition.findSafe(level, BlockPos.containing(
                 player.getX() + Math.cos(a) * dist, player.getY(), player.getZ() + Math.sin(a) * dist));
-        spawnItem(level, p.getX() + 0.5, p.getY() + 0.1, p.getZ() + 0.5, stack, ObserverTuning.NOTE_DREAM_PICKUP_DELAY);
-        return true;
+        if (p == null) return false;
+        return spawnItem(level, p.getX() + 0.5, p.getY() + 0.1, p.getZ() + 0.5, stack, ObserverTuning.NOTE_DREAM_PICKUP_DELAY);
     }
 
-    private static void spawnItem(ServerLevel level, double x, double y, double z, ItemStack stack, int pickupDelay) {
+    private static boolean spawnItem(ServerLevel level, double x, double y, double z, ItemStack stack, int pickupDelay) {
         ItemEntity e = new ItemEntity(level, x, y, z, stack);
         e.setDeltaMovement(Vec3.ZERO);
         e.setUnlimitedLifetime();
         e.setPickUpDelay(pickupDelay);
-        level.addFreshEntity(e);
+        return level.addFreshEntity(e);
     }
 
     // ------------------------------------------------------------------

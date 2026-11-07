@@ -19,7 +19,7 @@ public final class ObserverTuning {
     /** Максимальная освещённость места появления (0..15). Ночью/в пещерах/в тени. */
     public static final int MAX_LIGHT = 9;
 
-    // ---- Стадии осколка (формула не менялась): очки = дни + MEMORY_POINTS * воспоминания ----
+    // ---- Стадии осколка: дни + очки воспоминаний + ограниченное давление бодрствования ----
     public static final int TICKS_PER_DAY = 24000;
     public static final int MEMORY_POINTS = 2;
     /** Очки, с которых начинаются стадии 1..5. */
@@ -27,13 +27,73 @@ public final class ObserverTuning {
     /** Стадия 5 требует хотя бы столько воспоминаний, иначе остаётся 4. */
     public static final int STAGE5_MIN_MEMORIES = 4;
 
-    public static int stage(int days, int memories) {
-        int points = days + MEMORY_POINTS * memories;
+    /** Дополнительные очки за искусственное и долгое бодрствование [новое]. */
+    public static final int EXPOSURE_MAX_POINTS = 8;
+    public static final int EXPOSURE_SYRINGE_POINTS = 1;
+    public static final int EXPOSURE_AWAKE_TICKS_PER_POINT = 12000;
+    public static final float EXPOSURE_FATIGUE_THRESHOLD = .75f;
+    public static final int EXPOSURE_REST_REDUCTION = 1;
+
+    public static int stage(int days, int memories) { return stage(days, memories, 0); }
+    public static int stage(int days, int memories, int exposure) {
+        long points = (long) days + (long) MEMORY_POINTS * memories + Math.max(0, Math.min(EXPOSURE_MAX_POINTS, exposure));
         int s = 0;
         for (int i = 0; i < STAGE_POINTS.length; i++) if (points >= STAGE_POINTS[i]) s = i + 1;
         if (s >= 5 && memories < STAGE5_MIN_MEMORIES) s = 4;
         return s;
     }
+
+    // Стадия 5: индивидуальный короткий образ детской; мир и инвентари не меняются [новое].
+    public static final int NORA_ROOM_TRIGGER_RADIUS = 8;
+    public static final int NORA_ROOM_SEARCH_RADIUS = 4;
+    public static final int NORA_ROOM_DURATION = 400;
+    public static final int NORA_ROOM_FADE_TICKS = 36;
+    public static final float NORA_ROOM_FADE_MIN_SCALE = .04f;
+    public static final int NORA_ROOM_ACK_TICKS = 80;
+    public static final int NORA_ROOM_ACK_RETRY_TICKS = 40;
+    public static final double NORA_ROOM_VIEW_DOT = .55;
+    public static final int NORA_ROOM_PICTURE_COUNT = 4;
+    public static final int[] NORA_ROOM_PICTURE_INDICES = {4, 3, 1, 0};
+    public static final int NORA_ROOM_PICTURE_SEARCH = 3;
+    public static final float NORA_ROOM_PICTURE_SIZE = .70f;
+    public static final float NORA_ROOM_PICTURE_OFFSET = .505f;
+    public static final int NORA_ROOM_RETRY_TICKS = 1200;
+    public static final int NORA_ROOM_SCAN_TICKS = 100;
+    public static final int NORA_ROOM_LAYOUT_BED = 1;
+    public static final int NORA_ROOM_LAYOUT_CARPET = 1 << 1;
+    public static final int NORA_ROOM_LAYOUT_TOY = 1 << 2;
+    // Личное краткое перекрытие пути к лаборатории, без изменения блоков [новое].
+    public static final int LAB_PATH_NEAR = 20;
+    public static final int LAB_PATH_FAR = 48;
+    public static final int LAB_PATH_AHEAD = 3;
+    public static final int LAB_PATH_DURATION = 300;
+    public static final int LAB_PATH_RETRY_TICKS = 1200;
+    public static final int LAB_PATH_SCAN_TICKS = 40;
+    public static final int LAB_PATH_ESCAPE_DISTANCE = 12;
+    public static final double LAB_PATH_WIDTH = 1.45;
+    // Личная домашняя композиция в пределах преграды [новое].
+    public static final int LAB_PATH_HOME_APPEAR_TICKS = 32;
+    public static final float LAB_PATH_HOME_MIN_SCALE = .08f;
+    public static final float LAB_PATH_HOME_ITEM_SCALE = .55f;
+
+    // Тихие личные звуки в лаборатории [новое].
+    public static final int LAB_AMBIENT_MIN_STAGE = 3;
+    public static final int LAB_AMBIENT_SCAN_TICKS = 20;
+    public static final int LAB_AMBIENT_DWELL_MIN = 600;
+    public static final int LAB_AMBIENT_DWELL_RANGE = 600;
+    public static final int LAB_AMBIENT_COOLDOWN = 7200;
+    public static final float LAB_AMBIENT_VOLUME = .28f;
+    public static final int LAB_AMBIENT_OFFSET = 4;
+    public static final float LAB_AMBIENT_PITCH_MIN = .70f;
+    public static final float LAB_AMBIENT_PITCH_RANGE = .15f;
+    public static final int LAB_AMBIENT_TAIL_TICKS = 20;
+    /** B1–B5: моменты тихих звуков в тиках; 0 click, 1 dropout, 2 hiss, 3 knock. */
+    public static final int[][] LAB_AMBIENT_SCENE_TICKS = {
+            {8, 28, 58}, {12, 44, 52}, {18, 38, 58}, {20, 30, 40}, {14, 48, 74}
+    };
+    public static final byte[][] LAB_AMBIENT_SCENE_SOUNDS = {
+            {0, 0, 1}, {0, 2, 2}, {2, 2, 2}, {3, 3, 3}, {0, 1, 0}
+    };
 
     // ---- Давление: временная интенсивность внутри стадии (меняет выбор и частоту, не стадию) ----
     public static final float PRESSURE_W_FATIGUE = 0.5f;
@@ -190,6 +250,7 @@ public final class ObserverTuning {
     public static final int BED_MIN_GAP_TICKS = 2400;
     public static final float BED_WATCH_DISTANCE_MIN = 2.6f;
     public static final float BED_WATCH_DISTANCE_MAX = 3.4f;
+    public static final int DEATH_WATCH_MIN_STAGE = 5;
     /** Медленно подкрадывается к кровати (блоков за тик), ближе этой дистанции не идёт. */
     public static final double BED_WATCH_CREEP_SPEED = 0.04;
     public static final double BED_WATCH_STOP_DISTANCE = 1.8;
@@ -219,6 +280,16 @@ public final class ObserverTuning {
 
     // ---- Дверь (стадия 4): зацикленное «открыл-закрыл» за спиной, дверь в мире не меняется ----
     /** Как часто проверять, есть ли рядом дверь (для решения режиссёра), тики. */
+    // Дверь дома: реальное открывание, а не только звук [новое].
+    public static final int DOOR_EPISODE_MIN_CYCLES = 4;
+    public static final int DOOR_EPISODE_MAX_CYCLES = 6;
+    public static final int DOOR_EPISODE_INITIAL_REPLY = 100;
+    public static final int DOOR_EPISODE_MIN_REPLY = 35;
+    public static final int DOOR_EPISODE_REPLY_STEP = 12;
+    public static final int DOOR_EPISODE_GAP = 24;
+    public static final int DOOR_EPISODE_MAX_DISTANCE = 16;
+    public static final int DOOR_EPISODE_REQUEST_COOLDOWN = 1200;
+    public static final int DOOR_EPISODE_ACK_TIMEOUT = 100;
     public static final int DOOR_CHECK_TICKS = 200;
     public static final int DOOR_RADIUS = 10;
     public static final double DOOR_MIN_DIST = 4.0;
@@ -294,6 +365,10 @@ public final class ObserverTuning {
     /** Порядок как в ObserverNotesHandler.Way: BED, CONTAINER, WINDOW, INVENTORY, DREAM. */
     public static final int[] NOTE_WAY_MIN_STAGE = {3, 3, 3, 4, 4};
     public static final int[] NOTE_WAY_WEIGHT = {3, 2, 2, 2, 2};
+    /** Число способов, доступных для отложенной выдачи (BED, CONTAINER, WINDOW). */
+    public static final int NOTE_DEFERRED_WAYS = 3;
+    /** Интервал повторной попытки отложенной выдачи (тики). */
+    public static final int NOTE_RETRY_TICKS = 200;
     public static final int NOTE_BED_RADIUS = 3;
     public static final int NOTE_CONTAINER_RADIUS = 8;
     public static final int NOTE_WINDOW_RADIUS = 10;

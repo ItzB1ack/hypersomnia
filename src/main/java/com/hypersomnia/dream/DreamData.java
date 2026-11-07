@@ -13,11 +13,18 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     private int ticksLeft;
     private String kind = "";
     private int wardLoops;
+    // Прогресс действий и объявлений в текущем сеансе, отдельно для каждого игрока.
+    private int sessionAttempts;
+    private int sessionNextAttemptTicks;
+    private int sessionNotice;
 
     public boolean isInDream() { return inDream; }
     public void setInDream(boolean inDream) {
         this.inDream = inDream;
-        if (!inDream) { this.kind = ""; this.wardLoops = 0; } // любой выход из сна сбрасывает кошмар
+        if (!inDream) {
+            this.kind = ""; this.wardLoops = 0;
+            resetSession();
+        } // любой выход из сна сбрасывает кошмар
     }
 
     /** "" = обычный сон, иначе id из NightmareDefs. Ставить после setInDream(true). */
@@ -27,6 +34,14 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     /** Число проходов вперёд за текущий кошмар; не меняет другие механики. */
     public int getWardLoops() { return wardLoops; }
     public void addWardLoop() { if (wardLoops < Integer.MAX_VALUE) wardLoops++; }
+    public void resetWardLoops() { wardLoops = 0; }
+    public int getSessionAttempts() { return sessionAttempts; }
+    public void addSessionAttempt() { sessionAttempts = Math.min(3, sessionAttempts + 1); }
+    public int getSessionNextAttemptTicks() { return sessionNextAttemptTicks; }
+    public void setSessionNextAttemptTicks(int ticks) { sessionNextAttemptTicks = Math.max(0, ticks); }
+    public int getSessionNotice() { return sessionNotice; }
+    public void setSessionNotice(int notice) { sessionNotice = Math.max(0, Math.min(3, notice)); }
+    public void resetSession() { sessionAttempts = 0; sessionNextAttemptTicks = 0; sessionNotice = 0; }
 
     public int getTicksLeft() { return ticksLeft; }
     public void setTicksLeft(int ticks) { this.ticksLeft = Math.max(0, ticks); }
@@ -60,6 +75,9 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         tag.putInt("ticksLeft", ticksLeft);
         tag.putString("kind", kind);
         tag.putInt("wardLoops", wardLoops);
+        tag.putInt("sessionAttempts", sessionAttempts);
+        tag.putInt("sessionNextAttemptTicks", sessionNextAttemptTicks);
+        tag.putInt("sessionNotice", sessionNotice);
         return tag;
     }
 
@@ -75,5 +93,8 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         ticksLeft = Math.max(0, tag.getInt("ticksLeft"));
         kind = tag.getString("kind");
         wardLoops = inDream ? Math.max(0, tag.getInt("wardLoops")) : 0;
+        sessionAttempts = inDream ? Math.max(0, Math.min(3, tag.getInt("sessionAttempts"))) : 0;
+        sessionNextAttemptTicks = inDream ? Math.max(0, tag.getInt("sessionNextAttemptTicks")) : 0;
+        sessionNotice = inDream ? Math.max(0, Math.min(3, tag.getInt("sessionNotice"))) : 0;
     }
 }

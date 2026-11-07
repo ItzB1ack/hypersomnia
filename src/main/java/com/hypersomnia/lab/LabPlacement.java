@@ -32,7 +32,8 @@ public final class LabPlacement {
             ServerLevel level = p.serverLevel();
             boolean dream = level.dimension() == DreamDimension.LEVEL;
             if (!dream && level.dimension() != Level.OVERWORLD) continue;
-            if (LabSavedData.get(level).built) continue;
+            LabSavedData d = LabSavedData.get(level);
+            if (d.built || d.buildFailed) continue;
             BlockPos site = site(server);
             double dx = p.getX() - site.getX(), dz = p.getZ() - site.getZ();
             if (dx * dx + dz * dz > (double) LabTuning.BUILD_RADIUS * LabTuning.BUILD_RADIUS) continue;
@@ -115,10 +116,13 @@ public final class LabPlacement {
             LabLocks.refreshKeypads(level, d);
             LabBreakers.refresh(level, d);
             LabFixtures.refresh(level, d);
+            d.built = true;
+            d.setDirty();
         } catch (RuntimeException e) {
-            LOGGER.error("Lab build failed", e);
+            // Повторная автоматическая постройка может снова затронуть блоки и контейнеры игрока.
+            d.buildFailed = true;
+            d.setDirty();
+            LOGGER.error("Lab build failed in {}; automatic retries disabled. Inspect the world and logs before /hypersomnia_lab rebuild", level.dimension().location(), e);
         }
-        d.built = true;
-        d.setDirty();
     }
 }

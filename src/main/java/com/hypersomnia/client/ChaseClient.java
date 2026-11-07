@@ -41,11 +41,13 @@ public final class ChaseClient {
     private static float beatIn;
     /** Чёрный кадр поимки: тики с начала, -1 — нет. */
     private static int black = -1;
+    private static int rageTicks;
 
     /** Погоня началась (он стоит на следе): сердце начинает биться сразу. */
     public static void begin() {
         pauseLocked = false;
         active = true;
+        rageTicks = 0;
         target = Math.max(target, ChaseTuning.PANIC_WARN);
         if (panic < ChaseTuning.HEART_MIN_PANIC) panic = ChaseTuning.HEART_MIN_PANIC;
         beatIn = Math.min(beatIn, 1f);
@@ -64,6 +66,15 @@ public final class ChaseClient {
                 yield Math.max(ChaseTuning.PANIC_RUN_MIN, 1f - (float) Mth.clamp(k, 0.0, 1.0));
             }
         };
+        if (ObserverState.stage() >= 5) target = Math.max(target, ChaseTuning.RAGE_MIN_PANIC);
+    }
+
+    /** Индекс краткой реплики ярости или -1. Не меняет урон и не ломает правило взгляда. */
+    public static int rageLine() {
+        if (!active || ObserverState.stage() < 5 || rageTicks < ChaseTuning.RAGE_FIRST_TICK || black >= 0) return -1;
+        int elapsed = rageTicks - ChaseTuning.RAGE_FIRST_TICK;
+        return elapsed % ChaseTuning.RAGE_PERIOD_TICKS < ChaseTuning.RAGE_TEXT_TICKS
+                ? (elapsed / ChaseTuning.RAGE_PERIOD_TICKS) % ChaseTuning.RAGE_TEXT_VARIANTS : -1;
     }
 
     /** Поймал: мир смолкает, один сильный удар и чёрный кадр. */
@@ -117,6 +128,7 @@ public final class ChaseClient {
             return;
         }
         if (mc.isPaused()) return;
+        if (active && rageTicks < Integer.MAX_VALUE) rageTicks++;
         panicO = panic;
         pulseO = pulse;
         pulse *= ChaseTuning.BEAT_DECAY;
@@ -182,6 +194,7 @@ public final class ChaseClient {
         pulseO = 0f;
         beatIn = 0f;
         black = -1;
+        rageTicks = 0;
         ChaseEyes.reset();
     }
 
