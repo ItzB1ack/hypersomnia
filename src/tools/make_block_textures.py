@@ -1,7 +1,10 @@
-"""HYPERSOMNIA block textures.
+"""HYPERSOMNIA block textures, v2.
 
-Перерисовывает все текстуры блоков мода в единой индустриальной палитре.
-16x16 для обычных блоков; анимации сохраняют исходную раскладку кадров
+Стиль исходных текстур мода: спокойные серо-стальные поля, простые формы,
+минимум деталей. Объём добавлен мягкими вертикальными градиентами, фасками,
+внутренними тенями и выпуклыми клавишами/индикаторами. Без грязи и шума.
+
+16x16 для обычных блоков; анимации сохраняют раскладку кадров
 (monitor_screen_on 16x16 x8, ward_ecg 32x16 x24).
 
 Запуск: python src/tools/make_block_textures.py
@@ -15,41 +18,46 @@ OUT = os.path.join(os.path.dirname(__file__), '..', 'main', 'resources',
 OUT = os.path.abspath(OUT)
 
 # ---------------------------------------------------------------------------
-# палитра
+# палитра (снята с исходных текстур)
 # ---------------------------------------------------------------------------
-BLACK = (11, 13, 15)
-INK = (20, 24, 27)
-DARK = (31, 37, 42)
-COAL = (40, 47, 52)
-STEEL_D = (52, 62, 69)
-STEEL = (70, 81, 89)
-STEEL_L = (91, 104, 113)
-STEEL_H = (119, 133, 141)
-SILVER = (156, 168, 174)
-WHITE = (214, 221, 222)
-CREAM = (209, 207, 194)
-CONCRETE_D = (77, 79, 76)
-CONCRETE = (99, 101, 96)
-CONCRETE_L = (124, 126, 119)
-RUST_D = (78, 48, 34)
-RUST = (121, 76, 50)
-AMBER_D = (112, 74, 26)
-AMBER = (218, 164, 72)
-AMBER_L = (246, 205, 128)
-RED_D = (92, 27, 30)
-RED = (205, 66, 62)
-RED_L = (242, 130, 116)
-GREEN_D = (28, 74, 42)
-GREEN = (93, 192, 112)
-GREEN_L = (165, 238, 174)
-CYAN_D = (19, 62, 66)
-CYAN = (93, 191, 187)
-CYAN_L = (170, 230, 224)
+BLACK = (3, 5, 10)
+INK = (18, 24, 30)
+SLATE0 = (30, 38, 46)
+SLATE1 = (41, 49, 57)
+SLATE2 = (62, 70, 78)
+
+BAT_T = (99, 107, 113)
+BAT_B = (83, 91, 97)
+BRK_T = (84, 96, 106)
+BRK_B = (70, 82, 92)
+CAB_T = (97, 109, 118)
+CAB_B = (81, 93, 102)
+CRAC_T = (147, 155, 161)
+CRAC_B = (128, 136, 142)
+CRAC_HI = (172, 179, 184)
+SRV_T = (36, 48, 58)
+SRV_B = (21, 31, 39)
+UPS_T = (69, 77, 85)
+UPS_B = (52, 60, 68)
+WS_T = (147, 156, 163)
+WS_B = (125, 134, 141)
+WARD_T = (130, 143, 145)
+WARD_B = (111, 124, 126)
+DESK_T = (112, 120, 127)
+DESK_B = (92, 100, 107)
+DESK_FRONT = (23, 29, 35)
+WHITE = (214, 221, 223)
+WHITE_HI = (238, 241, 242)
+RED = (126, 29, 44)
+RED_HI = (198, 74, 78)
+GREEN = (40, 166, 114)
+GREEN_HI = (138, 226, 172)
+CYAN = (72, 122, 138)
+CYAN_HI = (146, 198, 208)
 BLUE = (93, 134, 198)
-BLUE_L = (154, 190, 236)
-SCREEN = (9, 20, 22)
-SCREEN_L = (24, 49, 52)
-FABRIC = (53, 64, 66)
+BLUE_HI = (158, 194, 232)
+AMBER = (188, 148, 56)
+AMBER_HI = (232, 202, 122)
 
 
 def rgba(c, a=255):
@@ -64,7 +72,11 @@ def mix(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
 
-def new(w=16, h=16, color=(0, 0, 0)):
+def new16(color=(0, 0, 0)):
+    return Image.new('RGBA', (16, 16), rgba(color))
+
+
+def new(w, h, color=(0, 0, 0)):
     return Image.new('RGBA', (w, h), rgba(color))
 
 
@@ -84,71 +96,127 @@ def rect(px, x0, y0, x1, y1, c, a=255):
 
 
 def hline(px, x0, x1, y, c, a=255):
+    if y < 0:
+        return
     for x in range(x0, x1 + 1):
         put(px, x, y, c, a)
 
 
 def vline(px, x, y0, y1, c, a=255):
+    if x < 0:
+        return
     for y in range(y0, y1 + 1):
         put(px, x, y, c, a)
 
 
-def grain(img, x0, y0, x1, y1, base, amp, seed, gradient=0):
-    rnd = random.Random(seed)
+def vgrad(img, x0, y0, x1, y1, top, bot):
     px = img.load()
     h = max(1, y1 - y0)
     for y in range(y0, y1 + 1):
-        g = int(gradient * ((y - y0) / h - 0.5) * 2)
+        c = mix(top, bot, (y - y0) / h)
         for x in range(x0, x1 + 1):
-            d = rnd.randint(-amp, amp) + g
-            put(px, x, y, sh(base, d))
+            put(px, x, y, c)
 
 
-def bevel(px, x0, y0, x1, y1, light, dark):
-    hline(px, x0, x1, y0, light)
-    vline(px, x0, y0, y1, light)
-    hline(px, x0, x1, y1, dark)
-    vline(px, x1, y0, y1, dark)
-
-
-def frame(px, x0, y0, x1, y1, c):
-    hline(px, x0, x1, y0, c)
-    hline(px, x0, x1, y1, c)
-    vline(px, x0, y0, y1, c)
-    vline(px, x1, y0, y1, c)
-
-
-def screws(px, points, dark=INK, light=STEEL_H):
-    for x, y in points:
-        put(px, x, y, dark)
-        put(px, x + 1, y, light)
-        put(px, x, y + 1, sh(light, -35))
-        put(px, x + 1, y + 1, dark)
-
-
-def metal(img, base, seed, x0=0, y0=0, x1=15, y1=15, amp=4, gradient=-4):
-    grain(img, x0, y0, x1, y1, base, amp, seed, gradient)
-    rnd = random.Random(seed + 99)
+def hgrad(img, x0, y0, x1, y1, left, right):
     px = img.load()
-    for _ in range(5):
-        y = rnd.randint(y0, y1)
-        x0s = rnd.randint(x0, max(x0, x1 - 4))
-        x1s = min(x1, x0s + rnd.randint(2, 7))
-        for x in range(x0s, x1s + 1):
-            put(px, x, y, sh(base, rnd.choice([5, 6, 7])))
+    w = max(1, x1 - x0)
+    for x in range(x0, x1 + 1):
+        c = mix(left, right, (x - x0) / w)
+        for y in range(y0, y1 + 1):
+            put(px, x, y, c)
 
 
-def panel(img, x0, y0, x1, y1, base, seed, border=INK, inset=False, screw=False):
-    metal(img, base, seed, x0, y0, x1, y1, 3, -4)
+def bevel(img, x0, y0, x1, y1, top, bot, inset=False, strength=1.0):
+    """Заливка с фаской: выпуклая или утопленная."""
+    vgrad(img, x0, y0, x1, y1, top, bot)
     px = img.load()
+    hi = 24 * strength
+    lo = 24 * strength
     if inset:
-        frame(px, x0, y0, x1, y1, border)
-        bevel(px, x0 + 1, y0 + 1, x1 - 1, y1 - 1, sh(base, 10), sh(base, -14))
+        hline(px, x0, x1, y0, sh(top, -lo))
+        vline(px, x0, y0, y1, sh(top, -lo * 0.6))
+        hline(px, x0, x1, y1, sh(bot, hi))
+        vline(px, x1, y0, y1, sh(bot, hi * 0.6))
+        if x1 - x0 > 2 and y1 - y0 > 2:
+            hline(px, x0 + 1, x1 - 1, y0 + 1, sh(top, -lo * 0.4))
+            hline(px, x0 + 1, x1 - 1, y1 - 1, sh(bot, hi * 0.4))
     else:
-        frame(px, x0, y0, x1, y1, border)
-        bevel(px, x0 + 1, y0 + 1, x1 - 1, y1 - 1, sh(base, 12), sh(base, -18))
-    if screw:
-        screws(px, [(x0 + 2, y0 + 2), (x1 - 3, y0 + 2), (x0 + 2, y1 - 3), (x1 - 3, y1 - 3)])
+        hline(px, x0, x1, y0, sh(top, hi))
+        vline(px, x0, y0, y1, sh(top, hi * 0.6))
+        hline(px, x0, x1, y1, sh(bot, -lo))
+        vline(px, x1, y0, y1, sh(bot, -lo * 0.6))
+        if x1 - x0 > 2 and y1 - y0 > 2:
+            hline(px, x0 + 1, x1 - 1, y0 + 1, sh(top, hi * 0.35))
+            hline(px, x0 + 1, x1 - 1, y1 - 1, sh(bot, -lo * 0.35))
+
+
+def drop_shadow(img, x0, y0, x1, y1, base, depth=1):
+    px = img.load()
+    for d in range(1, depth + 1):
+        c = sh(base, -15 * d)
+        hline(px, x0 + d, x1 + d, y1 + d, c)
+        vline(px, x1 + d, y0 + d, y1 + d, c)
+
+
+def plate(img, x0, y0, x1, y1, top, bot, base=None, depth=1):
+    if base is not None and depth:
+        drop_shadow(img, x0, y0, x1, y1, base, depth)
+    bevel(img, x0, y0, x1, y1, top, bot)
+
+
+def slot_h(img, x0, y, x1, base, depth=26):
+    """Утопленная горизонтальная щель/жалюзи."""
+    px = img.load()
+    rect(px, x0, y, x1, y + 1, sh(base, -depth))
+    hline(px, x0, x1, y, sh(base, -depth - 12))
+    hline(px, x0, x1, y + 1, sh(base, depth * 0.55))
+
+
+def slot_v(img, x, y0, x1, y1, base, depth=26):
+    """Утопленный вертикальный канал."""
+    px = img.load()
+    rect(px, x, y0, x1, y1, sh(base, -depth))
+    vline(px, x, y0, y1, sh(base, -depth - 12))
+    vline(px, x1, y0, y1, sh(base, depth * 0.55))
+
+
+def key2(px, x, y, base, lit=None):
+    """Выпуклая клавиша 2x2 с бликом и тенью."""
+    c = lit if lit else base
+    put(px, x + 1, y + 1, sh(c, -40))
+    put(px, x, y, sh(c, 24))
+    put(px, x + 1, y, sh(c, 4))
+    put(px, x, y + 1, sh(c, -8))
+    put(px, x + 1, y + 1, sh(c, -24))
+
+
+def screw(img, x, y, base):
+    px = img.load()
+    put(px, x, y, sh(base, -40))
+    put(px, x + 1, y, sh(base, 28))
+    put(px, x, y + 1, sh(base, 20))
+    put(px, x + 1, y + 1, sh(base, -30))
+    put(px, x, y, sh(base, -52))
+
+
+def indicator(img, x, y, color, bright=None):
+    px = img.load()
+    put(px, x, y, bright or color)
+    put(px, x + 1, y, color)
+    put(px, x, y + 1, sh(color, -26))
+    put(px, x + 1, y + 1, sh(color, -44))
+
+
+def dome(img, x0, y0, x1, y1, color):
+    """Выпуклый индикатор/лампа с бликом сверху и тенью снизу."""
+    px = img.load()
+    rect(px, x0, y0, x1, y1, color)
+    hline(px, x0, x1, y0, sh(color, 55))
+    vline(px, x0, y0, y1, sh(color, 25))
+    hline(px, x0, x1, y1, sh(color, -35))
+    vline(px, x1, y0, y1, sh(color, -20))
+    put(px, x0 + 1, y0 + 1, sh(color, 90))
 
 
 # ---------------------------------------------------------------------------
@@ -190,8 +258,6 @@ FONT = {
     'Y': ('101', '101', '010', '010', '010'),
     ' ': ('000', '000', '000', '000', '000'),
     '-': ('000', '000', '111', '000', '000'),
-    ':': ('000', '010', '000', '010', '000'),
-    '.': ('000', '000', '000', '000', '010'),
 }
 
 
@@ -212,817 +278,639 @@ def text(px, x, y, s, color, shadow=None, spacing=1):
 
 
 # ---------------------------------------------------------------------------
-# общие поверхности
+# батарейный шкаф
 # ---------------------------------------------------------------------------
-def cabinet_side():
-    img = new()
-    panel(img, 0, 0, 15, 15, STEEL, 101, screw=False)
-    px = img.load()
-    # вертикальный шов и вентиляция
-    vline(px, 8, 2, 13, sh(STEEL, -18))
-    vline(px, 9, 2, 13, sh(STEEL, 8))
-    for y in (4, 6, 8, 10):
-        hline(px, 3, 6, y, sh(STEEL, -20))
-        hline(px, 3, 6, y + 1, sh(STEEL, 10))
-    # потёртости
-    rnd = random.Random(7)
-    for _ in range(10):
-        x = rnd.randint(2, 13)
-        y = rnd.randint(2, 13)
-        put(px, x, y, sh(STEEL, rnd.choice([-22, -18, 14])))
-    screws(px, [(2, 2), (12, 2), (2, 12), (12, 12)])
-    return img
-
-
-def cabinet_top():
-    img = new()
-    panel(img, 0, 0, 15, 15, sh(STEEL, 8), 102)
-    px = img.load()
-    hline(px, 2, 13, 7, sh(STEEL, -12))
-    hline(px, 2, 13, 8, sh(STEEL, 14))
-    for x in (4, 6, 8, 10, 12):
-        hline(px, x, x + 1, 4, sh(STEEL, -20))
-    screws(px, [(2, 2), (12, 2), (2, 12), (12, 12)])
-    return img
-
-
-def cabinet_front():
-    img = new()
-    panel(img, 0, 0, 15, 15, STEEL, 103)
-    px = img.load()
-    # три ящика
-    for top in (1, 6, 11):
-        rect(px, 1, top, 14, top + 3, sh(STEEL, 4))
-        bevel(px, 1, top, 14, top + 3, sh(STEEL, 16), sh(STEEL, -24))
-        # табличка
-        rect(px, 6, top + 1, 9, top + 1, INK)
-        hline(px, 6, 9, top + 2, CREAM)
-        # ручка-скоба
-        hline(px, 6, 9, top + 3, sh(STEEL, -30))
-        hline(px, 6, 9, top + 2, sh(STEEL, 18))
-    # грязь внизу
-    rnd = random.Random(11)
-    for x in range(2, 14):
-        if rnd.random() < 0.5:
-            put(px, x, 15, sh(STEEL, -16))
-    return img
-
-
-def drawer_inner():
-    img = new()
-    grain(img, 0, 0, 15, 15, (42, 39, 34), 3, 104)
-    px = img.load()
-    # папки
-    for i, x in enumerate((2, 5, 8, 11)):
-        rect(px, x, 1, x + 2, 4, (112, 100, 74))
-        hline(px, x, x + 2, 1, (146, 132, 96))
-        put(px, x, 1, (198, 178, 126))
-        if i % 2 == 0:
-            hline(px, x, x + 1, 0, (96, 86, 64))
-    hline(px, 1, 14, 5, (23, 21, 19))
-    return img
-
-
-def desk_top():
-    img = new()
-    grain(img, 0, 0, 15, 15, (66, 55, 44), 3, 105, 4)
-    px = img.load()
-    # ламинат: прожилки
-    rnd = random.Random(12)
-    for y in range(0, 16, 2):
-        for x in range(16):
-            if rnd.random() < 0.6:
-                put(px, x, y, sh((66, 55, 44), rnd.choice([-10, 9, 14])))
-    frame(px, 0, 0, 15, 15, (40, 33, 27))
-    hline(px, 1, 14, 1, (96, 80, 62))
-    vline(px, 1, 1, 14, (88, 73, 57))
-    # след от кружки
-    for x, y in ((10, 11), (11, 10), (12, 10), (13, 11), (12, 12), (11, 12)):
-        put(px, x, y, (53, 42, 33))
-    put(px, 12, 9, (78, 62, 47))
-    # царапины
-    for x, y in ((3, 5), (4, 5), (5, 5), (6, 6), (2, 9), (3, 9)):
-        put(px, x, y, (94, 79, 62))
-    return img
-
-
-def desk_front():
-    img = new()
-    panel(img, 0, 0, 15, 15, STEEL, 106)
-    px = img.load()
-    # один ящик
-    rect(px, 2, 4, 13, 10, sh(STEEL, 3))
-    bevel(px, 2, 4, 13, 10, sh(STEEL, 17), sh(STEEL, -25))
-    hline(px, 6, 9, 6, INK)
-    hline(px, 6, 9, 7, sh(STEEL, 20))
-    rect(px, 6, 8, 9, 9, CREAM)
-    hline(px, 7, 8, 9, sh(CREAM, -30))
-    # вентиляция снизу
-    for y in (12, 13):
-        for x in (4, 6, 8, 10, 12):
-            put(px, x, y, INK)
-    # потёртости
-    rnd = random.Random(13)
-    for _ in range(8):
-        put(px, rnd.randint(2, 13), rnd.randint(2, 13), sh(STEEL, rnd.choice([-24, 15])))
-    return img
-
-
-def desk_side():
-    img = new()
-    panel(img, 0, 0, 15, 15, STEEL, 107)
-    px = img.load()
-    vline(px, 8, 2, 13, sh(STEEL, -18))
-    hline(px, 2, 13, 8, sh(STEEL, -12))
-    for y in (4, 5, 6):
-        hline(px, 3, 6, y, sh(STEEL, -22))
-    rnd = random.Random(14)
-    for _ in range(6):
-        put(px, rnd.randint(2, 13), rnd.randint(2, 13), sh(STEEL, -20))
-    return img
-
-
-def desk_back():
-    img = new()
-    grain(img, 0, 0, 15, 15, sh(STEEL, -14), 3, 108)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, INK)
-    # вентиляционные щели
-    for y in (3, 5, 7):
-        rect(px, 3, y, 12, y, INK)
-        hline(px, 3, 12, y + 1, sh(STEEL, -3))
-    # кабельный вырез
-    rect(px, 6, 11, 9, 14, INK)
-    hline(px, 6, 9, 11, sh(STEEL, 8))
-    return img
-
-
-def chair_fabric():
-    img = new()
-    grain(img, 0, 0, 15, 15, FABRIC, 3, 109, 2)
-    px = img.load()
-    # плетение (мягкое, без резкой шахматки)
-    for y in range(1, 15, 2):
-        for x in range(1, 15, 2):
-            put(px, x, y, sh(FABRIC, 5))
-            put(px, x + 1, y + 1, sh(FABRIC, -4))
-    # шов
-    hline(px, 2, 13, 8, sh(FABRIC, -12))
-    hline(px, 2, 13, 9, sh(FABRIC, 6))
-    # потёртое пятно
-    for x, y in ((6, 4), (7, 4), (8, 4), (7, 5), (8, 5), (9, 5), (10, 6)):
-        put(px, x, y, sh(FABRIC, 8))
-    return img
-
-
-def chair_metal():
-    img = new()
-    grain(img, 0, 0, 15, 15, COAL, 3, 110)
-    px = img.load()
-    for x in (2, 5, 8, 11, 14):
-        vline(px, x, 0, 15, sh(COAL, 8))
-        vline(px, x + 1, 0, 15, sh(COAL, -10))
-    screws(px, [(2, 2), (12, 2), (2, 12), (12, 12)], INK, STEEL_H)
-    return img
-
-
-# ---------------------------------------------------------------------------
-# панели и индикаторы
-# ---------------------------------------------------------------------------
-def keypad_front():
-    img = new()
-    grain(img, 0, 0, 15, 15, sh(STEEL, -12), 3, 111)
-    px = img.load()
-    # пластина (видимая часть x3..12, y2..13)
-    rect(px, 3, 2, 12, 13, sh(STEEL, 4))
-    bevel(px, 3, 2, 12, 13, sh(STEEL, 20), sh(STEEL, -30))
-    frame(px, 3, 2, 12, 13, INK)
-    # дисплей (видимая часть x4..10, y3..4): статусные штрихи
-    rect(px, 4, 3, 10, 4, SCREEN)
-    hline(px, 4, 10, 3, CYAN_D)
-    hline(px, 4, 10, 4, sh(SCREEN, 5))
-    rect(px, 4, 3, 6, 3, GREEN_D)
-    put(px, 4, 3, GREEN_L)
-    put(px, 5, 3, GREEN)
-    put(px, 8, 3, GREEN)
-    put(px, 10, 3, AMBER)
-    put(px, 8, 4, sh(GREEN_D, -10))
-    rect(px, 11, 3, 11, 4, SCREEN)
-    # клавиши 3x3
-    for row, y in enumerate((6, 9, 12)):
-        for col, x in enumerate((4, 7, 10)):
-            rect(px, x, y, x + 1, y + 1, sh(STEEL, -18))
-            hline(px, x, x + 1, y, sh(STEEL, 18))
-            vline(px, x, y, y + 1, sh(STEEL, 10))
-            # символы/точки
-            put(px, x, y + 1, AMBER if row == 2 and col == 2 else STEEL_H)
-    # нижние отверстия динамика
-    for x in (5, 7, 9):
-        put(px, x, 13, INK)
-    return img
-
-
-def led_texture(color, glow, locked):
-    img = new(16, 16, (0, 0, 0))
-    px = img.load()
-    # прозрачный фон
-    for y in range(16):
-        for x in range(16):
-            px[x, y] = (0, 0, 0, 0)
-    # север (uv 11..12, 3..5)
-    rect(px, 10, 2, 11, 5, glow, 70)
-    rect(px, 11, 3, 11, 4, color)
-    # east (uv 7..7.25) / west (uv 8.75..9)
-    rect(px, 7, 3, 7, 4, glow, 55)
-    rect(px, 8, 3, 8, 4, glow, 55)
-    put(px, 7, 3, color)
-    put(px, 8, 4, color)
-    # up (uv 7..8, 7..7.25) / down (uv 7..8, 8.75..9)
-    put(px, 7, 7, color)
-    put(px, 7, 8, color)
-    if locked:
-        put(px, 11, 4, sh(color, -40))
-    return img
-
-
-def breaker_front():
-    img = new()
-    grain(img, 0, 0, 15, 15, sh(STEEL, -18), 3, 112)
-    px = img.load()
-    frame(px, 2, 1, 13, 14, INK)
-    bevel(px, 2, 1, 13, 14, sh(STEEL, 4), sh(STEEL, -34))
-    # верхний слот
-    rect(px, 4, 3, 11, 4, SCREEN)
-    hline(px, 4, 11, 3, CYAN_D)
-    for x in (5, 7, 9):
-        put(px, x, 3, GREEN)
-    # предупреждающий треугольник
-    tri = [(7, 5), (8, 5),
-           (6, 6), (7, 6), (8, 6), (9, 6),
-           (6, 7), (7, 7), (8, 7), (9, 7),
-           (5, 8), (6, 8), (7, 8), (8, 8), (9, 8), (10, 8),
-           (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9),
-           (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10), (11, 10)]
-    for x, y in tri:
-        put(px, x, y, AMBER)
-    for x, y in [(7, 6), (7, 7), (7, 8)]:
-        put(px, x, y, INK)
-    put(px, 7, 9, INK)
-    hline(px, 4, 11, 12, sh(STEEL, -34))
-    # винты
-    screws(px, [(3, 2), (11, 2), (3, 12), (11, 12)])
-    # царапины
-    rnd = random.Random(15)
-    for _ in range(7):
-        put(px, rnd.randint(3, 12), rnd.randint(2, 13), sh(STEEL, -34))
-    return img
-
-
-def breaker_side():
-    img = new()
-    grain(img, 0, 0, 15, 15, sh(STEEL, -16), 3, 113)
-    px = img.load()
-    vline(px, 8, 0, 15, sh(STEEL, -30))
-    vline(px, 9, 0, 15, sh(STEEL, 8))
-    for y in (2, 5, 8, 11, 14):
-        hline(px, 1, 14, y, sh(STEEL, 4))
-    # ржавая потёк
-    for y in (10, 11, 12):
-        put(px, 4, y, RUST_D)
-    put(px, 5, 12, RUST_D)
-    return img
-
-
-def breaker_lamp(color, glow):
-    img = new(16, 16, (0, 0, 0))
-    px = img.load()
-    for y in range(16):
-        for x in range(16):
-            px[x, y] = (0, 0, 0, 0)
-    # north (7,2.5)-(9,4)
-    rect(px, 7, 2, 8, 3, glow, 80)
-    rect(px, 7, 2, 8, 3, color)
-    # east/west
-    rect(px, 5, 2, 5, 3, color)
-    rect(px, 10, 2, 10, 3, color)
-    # up/down
-    put(px, 7, 10, color)
-    put(px, 8, 10, color)
-    put(px, 7, 5, color)
-    put(px, 8, 5, color)
-    return img
-
-
-def lift_panel(floor):
-    img = new()
-    grain(img, 0, 0, 15, 15, sh(STEEL, -6), 3, 114 + floor)
-    px = img.load()
-    # видимая часть x3..12, y1..14
-    rect(px, 3, 1, 12, 14, sh(STEEL, 4))
-    bevel(px, 3, 1, 12, 14, sh(STEEL, 22), sh(STEEL, -32))
-    frame(px, 3, 1, 12, 14, INK)
-    # дисплей x4..11, y2..8
-    rect(px, 4, 2, 11, 8, SCREEN)
-    frame(px, 4, 2, 11, 8, sh(STEEL, -40))
-    hline(px, 4, 11, 2, CYAN_D)
-    hline(px, 4, 11, 8, sh(CYAN_D, -8))
-    label = 'G' if floor == 0 else 'B' + str(floor)
-    col = AMBER_L if floor == 0 else GREEN_L
-    dim = AMBER_D if floor == 0 else GREEN_D
-    w = len(label) * 4 - 1
-    x = 8 - w // 2
-    text(px, x, 3, label, dim)
-    text(px, x, 2, label, col)
-    # кнопки
-    for i in range(3):
-        x0 = 5 + i * 3
-        rect(px, x0, 10, x0 + 1, 11, sh(STEEL, -20))
-        hline(px, x0, x0 + 1, 10, sh(STEEL, 18))
-        vline(px, x0, 10, 11, sh(STEEL, 12))
-        if i == floor % 3:
-            rect(px, x0, 10, x0, 10, GREEN)
-        else:
-            put(px, x0, 10, sh(STEEL, 24))
-    # динамик
-    for x0 in (5, 7, 9):
-        put(px, x0, 13, INK)
-    return img
-
-
-def sign_front():
-    img = new()
-    grain(img, 0, 0, 15, 15, sh(COAL, -4), 2, 120)
-    px = img.load()
-    # видимая часть x1..14, y4..11
-    rect(px, 1, 4, 14, 11, INK)
-    bevel(px, 1, 4, 14, 11, sh(COAL, 16), BLACK)
-    hline(px, 2, 13, 5, sh(COAL, 5))
-    hline(px, 2, 13, 10, sh(COAL, -10))
-    screws(px, [(3, 6), (11, 6)], BLACK, sh(COAL, 26))
-    return img
-
-
-def crac_front_upper():
-    img = new()
-    panel(img, 0, 0, 15, 15, CREAM, 121, screw=False)
-    px = img.load()
-    # жалюзи
-    for y in (3, 5, 7):
-        rect(px, 3, y, 12, y, sh(CREAM, -38))
-        hline(px, 3, 12, y + 1, sh(CREAM, 14))
-    # панель управления
-    rect(px, 9, 8, 12, 9, sh(CREAM, -20))
-    frame(px, 9, 8, 12, 9, sh(CREAM, -48))
-    put(px, 10, 8, GREEN_L)
-    put(px, 11, 8, GREEN_D)
-    # аварийный светодиод
-    put(px, 3, 9, RED)
-    put(px, 4, 9, RED_D)
-    # шильдик
-    text(px, 1, 10, 'CRAC', (78, 80, 74), spacing=0)
-    screws(px, [(2, 2), (13, 2), (2, 9), (13, 9)], sh(CREAM, -50), CREAM)
-    return img
-
-
-def crac_front_lower():
-    img = new()
-    panel(img, 0, 0, 15, 15, CREAM, 122, screw=False)
-    px = img.load()
-    for y in (2, 4, 6, 8):
-        rect(px, 2, y, 13, y, sh(CREAM, -40))
-        hline(px, 2, 13, y + 1, sh(CREAM, 16))
-    # нижняя крышка
-    rect(px, 3, 10, 12, 14, sh(CREAM, -8))
-    bevel(px, 3, 10, 12, 14, sh(CREAM, 18), sh(CREAM, -30))
-    hline(px, 6, 9, 12, INK)
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], sh(CREAM, -50), CREAM)
-    # грязь
-    for x in (4, 5, 10, 11):
-        put(px, x, 15, sh(CREAM, -35))
-    return img
-
-
-def crac_side():
-    img = new()
-    panel(img, 0, 0, 15, 15, sh(CREAM, -8), 123, screw=False)
-    px = img.load()
-    vline(px, 11, 2, 13, sh(CREAM, -34))
-    vline(px, 12, 2, 13, sh(CREAM, 14))
-    for y in (3, 5, 7, 9):
-        hline(px, 2, 8, y, sh(CREAM, -36))
-        hline(px, 2, 8, y + 1, sh(CREAM, 14))
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], sh(CREAM, -50), CREAM)
-    return img
-
-
-def crac_top():
-    img = new()
-    panel(img, 0, 0, 15, 15, sh(CREAM, 6), 124, screw=False)
-    px = img.load()
-    # круглый вентилятор
-    for y in range(16):
-        for x in range(16):
-            dx, dy = x - 7.5, y - 7.5
-            d = (dx * dx + dy * dy) ** 0.5
-            if 5.0 <= d <= 6.2:
-                put(px, x, y, sh(CREAM, -30))
-            elif d < 1.2:
-                put(px, x, y, sh(CREAM, -42))
-            elif d < 5.0 and (abs(dx) < 0.8 or abs(dy) < 0.8):
-                put(px, x, y, sh(CREAM, -16))
-    screws(px, [(2, 2), (12, 2), (2, 12), (12, 12)], sh(CREAM, -50), CREAM)
-    return img
-
-
-def ups_front_upper():
-    img = new()
-    panel(img, 0, 0, 15, 15, COAL, 125, screw=False)
-    px = img.load()
-    # дисплей
-    rect(px, 3, 4, 10, 8, SCREEN)
-    frame(px, 3, 4, 10, 8, INK)
-    hline(px, 4, 9, 4, CYAN_D)
-    text(px, 4, 4, 'ON', GREEN, spacing=0)
-    # кнопки
-    for x in (12, 14):
-        rect(px, x, 4, x + 1, 5, sh(COAL, -18))
-        hline(px, x, x + 1, 4, sh(COAL, 18))
-    # индикаторы
-    put(px, 3, 9, GREEN)
-    put(px, 5, 9, AMBER)
-    put(px, 7, 9, RED_D)
-    # шильдик
-    text(px, 2, 10, 'UPS', STEEL_H, spacing=0)
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], INK, STEEL_H)
-    return img
-
-
-def ups_front_lower():
-    img = new()
-    panel(img, 0, 0, 15, 15, sh(COAL, -4), 126, screw=False)
-    px = img.load()
-    for y in (2, 4, 6):
-        rect(px, 2, y, 13, y, INK)
-        hline(px, 2, 13, y + 1, sh(COAL, 18))
-    # аккумуляторный отсек
-    rect(px, 3, 9, 12, 14, sh(COAL, -20))
-    bevel(px, 3, 9, 12, 14, sh(COAL, 14), INK)
-    hline(px, 6, 9, 11, sh(COAL, 22))
-    rect(px, 6, 11, 9, 11, INK)
-    # предупреждающая полоса
-    for x in (3, 5, 7, 9, 11):
-        put(px, x, 8, AMBER_D)
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], INK, STEEL_H)
-    return img
-
-
-def ups_side():
-    img = new()
-    panel(img, 0, 0, 15, 15, COAL, 127, screw=False)
-    px = img.load()
-    for y in (3, 5, 7, 9):
-        hline(px, 2, 13, y, INK)
-        hline(px, 2, 13, y + 1, sh(COAL, 16))
-    vline(px, 8, 11, 14, sh(COAL, -20))
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], INK, STEEL_H)
-    return img
-
-
-def ups_top():
-    img = new()
-    panel(img, 0, 0, 15, 15, sh(COAL, 6), 128, screw=False)
-    px = img.load()
-    for y in (4, 6, 8, 10):
-        hline(px, 3, 12, y, INK)
-    hline(px, 3, 12, 5, sh(COAL, 20))
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], INK, STEEL_H)
-    return img
-
-
 def battery_front_upper():
-    img = new()
-    panel(img, 0, 0, 15, 15, (64, 74, 71), 129, screw=False)
-    px = img.load()
-    # жалюзи сверху
-    for y in (2, 4):
-        rect(px, 3, y, 12, y, INK)
-        hline(px, 3, 12, y + 1, sh((64, 74, 71), 18))
-    # знак
-    tri = []
-    for i in range(5):
+    im = new16()
+    bevel(im, 0, 0, 15, 15, BAT_T, BAT_B)
+    px = im.load()
+    for y0 in (2, 4):
+        slot_h(im, 4, y0, 12, BAT_T)
+    # предупреждающий треугольник
+    for i in range(6):
+        y = 6 + i
         for x in range(7 - i, 8 + i + 1):
-            tri.append((x, 5 + i))
-    for x, y in tri:
-        put(px, x, y, AMBER)
-    for x, y in [(7, 6), (7, 7), (7, 8)]:
-        put(px, x, y, INK)
-    put(px, 7, 9, INK)
-    # шильдик
-    rect(px, 3, 10, 12, 14, sh((64, 74, 71), -18))
-    frame(px, 3, 10, 12, 14, INK)
-    text(px, 6, 10, 'DC', CREAM, spacing=0)
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], INK, STEEL_H)
-    return img
+            put(px, x, y, WHITE if x < 7 else sh(WHITE, -14))
+    for x in range(2, 14):
+        put(px, x, 12, sh(BAT_B, -18))
+    for y in (7, 8, 9):
+        put(px, 7, y, SLATE1)
+    put(px, 7, 10, SLATE1)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], BAT_T)
+    return im
 
 
 def battery_front_lower():
-    img = new()
-    panel(img, 0, 0, 15, 15, (64, 74, 71), 130, screw=False)
-    px = img.load()
-    # вертикальные рёбра вентиляции
-    for x in (3, 5, 7, 9, 11):
-        vline(px, x, 2, 8, INK)
-        vline(px, x + 1, 2, 8, sh((64, 74, 71), 16))
-    rect(px, 2, 9, 13, 9, sh((64, 74, 71), -26))
-    # табличка
-    rect(px, 3, 10, 12, 14, sh((64, 74, 71), -18))
-    bevel(px, 3, 10, 12, 14, sh((64, 74, 71), 12), INK)
-    text(px, 5, 10, '48', CREAM, spacing=0)
-    # ржавчина
-    for x, y in ((2, 14), (3, 14), (4, 15), (12, 14), (13, 14)):
-        put(px, x, y, RUST_D)
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], INK, STEEL_H)
-    return img
+    im = new16()
+    bevel(im, 0, 0, 15, 15, BAT_T, BAT_B)
+    px = im.load()
+    for x in (3, 6, 9, 12):
+        for y in (1, 4, 7, 10):
+            slot_h(im, x, y, x + 1, BAT_T)
+    # светлая ручка/шильдик
+    plate(im, 12, 4, 14, 8, (176, 183, 188), (146, 153, 158), BAT_B)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], BAT_T)
+    # цоколь
+    rect(px, 0, 14, 15, 15, sh(BAT_B, -14))
+    hline(px, 0, 15, 14, sh(BAT_B, 16))
+    return im
 
 
 def battery_side():
-    img = new()
-    panel(img, 0, 0, 15, 15, (58, 68, 65), 131, screw=False)
-    px = img.load()
-    vline(px, 8, 2, 13, sh((58, 68, 65), -22))
-    vline(px, 9, 2, 13, sh((58, 68, 65), 12))
-    for y in (4, 6, 8):
-        hline(px, 3, 6, y, INK)
-    # жёлто-чёрная полоса
-    for x in range(2, 14):
-        put(px, x, 13, AMBER_D if (x // 2) % 2 == 0 else INK)
-    screws(px, [(2, 2), (13, 2), (2, 12), (13, 12)], INK, STEEL_H)
-    return img
+    im = new16()
+    bevel(im, 0, 0, 15, 15, BAT_T, BAT_B)
+    bevel(im, 1, 1, 14, 14, BAT_T, BAT_B, inset=True)
+    px = im.load()
+    slot_h(im, 2, 5, 13, BAT_B)
+    slot_h(im, 2, 10, 13, BAT_B)
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], BAT_T)
+    return im
 
 
 def battery_top():
-    img = new()
-    panel(img, 0, 0, 15, 15, sh((64, 74, 71), 8), 132, screw=False)
-    px = img.load()
-    for y in (3, 5, 7):
-        hline(px, 3, 12, y, INK)
-        hline(px, 3, 12, y + 1, sh((64, 74, 71), 14))
-    screws(px, [(2, 2), (13, 2), (2, 13), (13, 13)], INK, STEEL_H)
-    return img
+    im = new16()
+    bevel(im, 0, 0, 15, 15, sh(BAT_T, 6), sh(BAT_B, 2))
+    bevel(im, 1, 1, 14, 14, sh(BAT_T, 4), sh(BAT_B, 2), inset=True)
+    px = im.load()
+    slot_h(im, 3, 7, 12, BAT_T)
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], sh(BAT_T, 4))
+    return im
+
+
+# ---------------------------------------------------------------------------
+# рубильник / панель предохранителей
+# ---------------------------------------------------------------------------
+def breaker_front():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, BRK_T, BRK_B)
+    bevel(im, 2, 1, 13, 14, BRK_T, BRK_B, inset=True)
+    px = im.load()
+    # окно статуса
+    slot_h(im, 4, 3, 11, BRK_B, depth=34)
+    for x in (5, 7, 9):
+        put(px, x, 3, GREEN)
+    # треугольник
+    for i in range(6):
+        y = 5 + i
+        for x in range(7 - i, 8 + i + 1):
+            put(px, x, y, WHITE if x < 7 else sh(WHITE, -14))
+    for x in range(2, 14):
+        put(px, x, 11, sh(BRK_B, -16))
+    for y in (6, 7, 8):
+        put(px, 7, y, SLATE1)
+    put(px, 7, 9, SLATE1)
+    slot_h(im, 3, 12, 12, BRK_B)
+    for p in ((3, 2), (11, 2), (3, 12), (11, 12)):
+        screw(im, p[0], p[1], BRK_T)
+    return im
+
+
+def breaker_side():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, BRK_T, BRK_B)
+    px = im.load()
+    slot_h(im, 0, 1, 15, BRK_B)
+    slot_h(im, 0, 13, 15, BRK_B)
+    slot_v(im, 8, 3, 9, 11, BRK_B)
+    for p in ((2, 4), (13, 4), (2, 10), (13, 10)):
+        screw(im, p[0], p[1], BRK_T)
+    return im
+
+
+def breaker_lamp(color, bright):
+    im = new(16, 16, sh(color, -55))
+    px = im.load()
+    dome(im, 7, 2, 8, 3, color)
+    put(px, 7, 2, bright)
+    dome(im, 5, 2, 5, 3, color)
+    dome(im, 10, 2, 10, 3, color)
+    dome(im, 7, 10, 8, 10, color)
+    dome(im, 7, 5, 8, 5, color)
+    return im
+
+
+# ---------------------------------------------------------------------------
+# шкаф
+# ---------------------------------------------------------------------------
+def cabinet_front():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, CAB_T, CAB_B)
+    px = im.load()
+    for top in (0, 5, 10):
+        plate(im, 1, top, 14, top + 4, CAB_T, CAB_B, CAB_B)
+        # ручка-скоба
+        plate(im, 5, top + 1, 10, top + 1, (170, 177, 182), (140, 147, 152), CAB_B)
+        slot_h(im, 5, top + 3, 10, CAB_B)
+    return im
+
+
+def cabinet_side():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, CAB_T, CAB_B)
+    bevel(im, 2, 2, 13, 13, CAB_T, CAB_B, inset=True)
+    px = im.load()
+    slot_v(im, 7, 4, 8, 11, CAB_B)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], CAB_T)
+    return im
+
+
+def cabinet_top():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, sh(CAB_T, 6), sh(CAB_B, 2))
+    bevel(im, 1, 1, 14, 14, sh(CAB_T, 6), sh(CAB_B, 2), inset=True)
+    px = im.load()
+    slot_h(im, 3, 7, 12, CAB_T)
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], sh(CAB_T, 6))
+    return im
+
+
+def cabinet_drawer_inner():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, (38, 34, 29), (24, 22, 19))
+    px = im.load()
+    papers = ((2, 1, 5, 4), (7, 1, 10, 4), (10, 1, 13, 4),
+              (3, 6, 6, 9), (8, 6, 11, 9))
+    for i, (x0, y0, x1, y1) in enumerate(papers):
+        c = (172, 152, 108) if i % 2 == 0 else (146, 128, 90)
+        plate(im, x0, y0, x1, y1, sh(c, 12), sh(c, -14), (30, 27, 22))
+        hline(px, x0 + 1, x1 - 1, y0 + 1, sh(c, 30))
+    hline(px, 1, 14, 11, (16, 15, 13))
+    return im
+
+
+# ---------------------------------------------------------------------------
+# клавиатура кода
+# ---------------------------------------------------------------------------
+def keypad_front():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, BRK_T, BRK_B)
+    plate(im, 3, 2, 12, 13, BRK_T, BRK_B, BRK_B)
+    px = im.load()
+    # дисплей
+    slot_h(im, 4, 3, 10, BRK_B, depth=36)
+    put(px, 5, 3, CYAN_HI)
+    put(px, 6, 3, CYAN)
+    put(px, 9, 3, GREEN)
+    # клавиши 3x3
+    for ry in (6, 9, 12):
+        for cx in (4, 7, 10):
+            key2(px, cx, ry, (152, 160, 167))
+            put(px, cx, ry + 1, sh(BRK_B, -34))
+    # динамик
+    for x in (5, 7, 9):
+        put(px, x, 13, sh(BRK_B, -30))
+    return im
+
+
+def keypad_led(color, bright):
+    im = new(16, 16, sh(color, -55))
+    dome(im, 11, 3, 11, 4, color)
+    put(im.load(), 11, 3, bright)
+    dome(im, 7, 3, 7, 4, color)
+    put(im.load(), 7, 3, bright)
+    dome(im, 8, 3, 8, 4, color)
+    put(im.load(), 8, 4, bright)
+    dome(im, 7, 7, 7, 7, color)
+    dome(im, 7, 8, 7, 8, color)
+    return im
+
+
+# ---------------------------------------------------------------------------
+# панель лифта
+# ---------------------------------------------------------------------------
+def lift_panel(floor):
+    im = new16()
+    bevel(im, 0, 0, 15, 15, BRK_T, BRK_B)
+    plate(im, 3, 1, 12, 14, BRK_T, BRK_B, BRK_B)
+    px = im.load()
+    # табло
+    bevel(im, 4, 2, 11, 8, sh(BRK_B, -28), sh(BRK_B, -18), inset=True)
+    # текст
+    label = 'G' if floor == 0 else 'B' + str(floor)
+    col = AMBER_HI if floor == 0 else GREEN_HI
+    glow = AMBER if floor == 0 else GREEN
+    w = len(label) * 4 - 1
+    x = 8 - w // 2
+    text(px, x, 4, label, sh(glow, -50))
+    text(px, x, 3, label, col)
+    # кнопки
+    for i in range(3):
+        x0 = 5 + i * 2
+        key2(px, x0, 10, (134, 144, 154),
+             GREEN_HI if i == floor % 3 else None)
+    for x0 in (5, 7, 9):
+        put(px, x0, 13, sh(BRK_B, -30))
+    return im
+
+
+# ---------------------------------------------------------------------------
+# табличка лаборатории (текст рисует LabSignRenderer)
+# ---------------------------------------------------------------------------
+def sign_front():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, sh(SRV_T, 8), SRV_B)
+    bevel(im, 1, 4, 14, 11, sh(SRV_T, 4), SLATE1, inset=True)
+    px = im.load()
+    hline(px, 2, 13, 5, sh(SRV_T, 22))
+    hline(px, 2, 13, 10, sh(SRV_B, -8))
+    for p in ((3, 7), (11, 7)):
+        screw(im, p[0], p[1], sh(SRV_T, 6))
+    return im
+
+
+# ---------------------------------------------------------------------------
+# прецизионный кондиционер (CRAC)
+# ---------------------------------------------------------------------------
+def crac_front_upper():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, CRAC_T, CRAC_B)
+    px = im.load()
+    # панель управления
+    bevel(im, 3, 2, 9, 4, sh(CRAC_B, -8), sh(CRAC_B, -20), inset=True)
+    for x in (4, 5, 6):
+        put(px, x, 3, CYAN_HI if x == 4 else CYAN)
+    put(px, 8, 3, BLUE)
+    # жалюзи
+    for y in (7, 9, 11, 13):
+        slot_h(im, 3, y, 12, CRAC_T)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], CRAC_T)
+    return im
+
+
+def crac_front_lower():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, CRAC_T, CRAC_B)
+    px = im.load()
+    for y in (2, 4, 6, 8):
+        slot_h(im, 3, y, 12, CRAC_T)
+    plate(im, 3, 10, 12, 14, sh(CRAC_T, 4), sh(CRAC_B, -2), CRAC_B)
+    slot_h(im, 6, 12, 9, CRAC_B)
+    rect(px, 0, 15, 15, 15, sh(CRAC_B, -18))
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], CRAC_T)
+    return im
+
+
+def crac_side():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, CRAC_T, CRAC_B)
+    bevel(im, 1, 1, 14, 14, CRAC_T, CRAC_B, inset=True)
+    px = im.load()
+    for y in (3, 5, 7, 9):
+        slot_h(im, 2, y, 8, CRAC_T)
+    slot_v(im, 11, 3, 12, 12, CRAC_B)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], CRAC_T)
+    return im
+
+
+def crac_top():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, sh(CRAC_T, 4), sh(CRAC_B, -2))
+    bevel(im, 1, 1, 14, 14, sh(CRAC_T, 2), sh(CRAC_B, -2), inset=True)
+    px = im.load()
+    for x0 in (2, 6, 10):
+        for y0 in (2, 6, 10):
+            bevel(im, x0, y0, x0 + 2, y0 + 2,
+                  sh(CRAC_T, 8), sh(CRAC_B, -10), inset=True)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        put(px, p[0], p[1], sh(CRAC_B, -10))
+    return im
 
 
 # ---------------------------------------------------------------------------
 # серверная стойка
 # ---------------------------------------------------------------------------
 def server_front_lower():
-    img = new()
-    grain(img, 0, 0, 15, 15, (28, 33, 37), 3, 133)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, INK)
-    bevel(px, 1, 1, 14, 14, (55, 64, 70), (16, 20, 23))
-    # четыре юнита
-    for i, y in enumerate((2, 5, 8, 11)):
-        rect(px, 1, y, 14, y + 2, (38, 45, 50))
-        bevel(px, 1, y, 14, y + 2, (62, 72, 78), (20, 24, 27))
-        # вентиляция
-        for x in (3, 5, 7, 9):
-            put(px, x, y + 1, (14, 17, 19))
-        # индикаторы
-        put(px, 12, y + 1, GREEN if i % 2 == 0 else AMBER)
-        put(px, 13, y + 1, GREEN_D if i % 3 else RED)
-    # кабели
-    for x, col in ((14, BLUE), (15, AMBER)):
-        for y in range(2, 14, 2):
-            put(px, x, y, col)
-    return img
+    im = new16()
+    bevel(im, 0, 0, 15, 15, SRV_T, SRV_B)
+    px = im.load()
+    hline(px, 1, 14, 0, sh(SRV_T, 26))
+    hline(px, 1, 14, 1, sh(SRV_T, 12))
+    for x in (3, 6, 9, 12):
+        slot_v(im, x, 2, x + 1, 12, SRV_B)
+    for y in (6, 10):
+        slot_h(im, 1, y, 14, SRV_B)
+    for y in (3, 5, 8, 11):
+        put(px, 13, y, sh(SRV_T, 60) if y % 2 else sh(SRV_T, 25))
+    plate(im, 5, 13, 10, 13, (140, 148, 155), (108, 116, 123), SRV_B)
+    return im
 
 
 def server_front_upper():
-    img = new()
-    grain(img, 0, 0, 15, 15, (28, 33, 37), 3, 134)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, INK)
-    bevel(px, 1, 1, 14, 14, (55, 64, 70), (16, 20, 23))
-    # верхний юнит с массивом ламп
-    rect(px, 1, 2, 14, 6, (38, 45, 50))
-    bevel(px, 1, 2, 14, 6, (62, 72, 78), (20, 24, 27))
-    for row in (3, 5):
-        for x in (3, 5, 7, 9, 11):
-            on = random.Random(135 + x * 7 + row).random() > 0.4
-            put(px, x, row, GREEN_L if on else GREEN_D)
-    # ручка
-    rect(px, 3, 8, 12, 8, (18, 22, 25))
-    hline(px, 3, 12, 9, (55, 64, 70))
-    # шильдик юнита
-    rect(px, 3, 10, 12, 14, (30, 36, 40))
-    frame(px, 3, 10, 12, 14, INK)
-    text(px, 5, 10, 'U3', AMBER_L, spacing=0)
-    # кабели
-    for x, col in ((14, BLUE), (15, AMBER)):
-        for y in range(2, 14, 2):
-            put(px, x, y, col)
-    return img
+    im = new16()
+    bevel(im, 0, 0, 15, 15, SRV_T, SRV_B)
+    px = im.load()
+    hline(px, 1, 14, 0, sh(SRV_T, 26))
+    hline(px, 1, 14, 1, sh(SRV_T, 12))
+    for ry in (2, 5, 8, 11, 14):
+        for cx in (3, 6, 9, 12):
+            slot_h(im, cx, ry, cx + 1, SRV_B)
+        put(px, 14, ry, sh(SRV_T, 70) if ry % 2 else sh(SRV_T, 30))
+    return im
 
 
 def server_side():
-    img = new()
-    grain(img, 0, 0, 15, 15, (31, 37, 42), 3, 136)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, INK)
-    vline(px, 8, 1, 14, (18, 22, 25))
-    vline(px, 9, 1, 14, (49, 57, 63))
-    # вентиляция
-    for y in (3, 5, 7, 9, 11):
-        hline(px, 2, 6, y, (16, 20, 23))
-        hline(px, 2, 6, y + 1, (52, 61, 67))
-    screws(px, [(2, 2), (12, 2), (2, 12), (12, 12)], INK, (98, 110, 118))
-    return img
+    im = new16()
+    bevel(im, 0, 0, 15, 15, SRV_T, SRV_B)
+    px = im.load()
+    hline(px, 1, 14, 0, sh(SRV_T, 24))
+    hline(px, 1, 14, 1, sh(SRV_T, 10))
+    for x in (3, 6, 9, 12):
+        slot_v(im, x, 2, x + 1, 14, SRV_B)
+    return im
 
 
 def server_top():
-    img = new()
-    grain(img, 0, 0, 15, 15, (34, 40, 45), 3, 137)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, INK)
-    for y in (4, 6, 8):
-        hline(px, 3, 12, y, (18, 22, 25))
-        hline(px, 3, 12, y + 1, (52, 61, 67))
-    # кабельный ввод
-    rect(px, 6, 10, 9, 13, (14, 17, 19))
-    hline(px, 6, 9, 10, (58, 68, 74))
-    screws(px, [(2, 2), (12, 2), (2, 12), (12, 12)], INK, (98, 110, 118))
-    return img
+    im = new16()
+    bevel(im, 0, 0, 15, 15, sh(SRV_T, 4), SRV_B)
+    bevel(im, 1, 1, 14, 14, sh(SRV_T, 2), SRV_B, inset=True)
+    px = im.load()
+    slot_h(im, 3, 7, 12, SRV_B)
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], sh(SRV_T, 2))
+    return im
 
 
-def rack_lamp(base, bright, accent=None):
-    img = new(16, 16, (0, 0, 0))
-    px = img.load()
-    for y in range(16):
-        for x in range(16):
-            px[x, y] = (0, 0, 0, 0)
-    # видимая часть x4..11, y4..11
-    rect(px, 4, 4, 11, 11, (18, 22, 24))
-    bevel(px, 4, 4, 11, 11, (55, 64, 70), (8, 10, 12))
-    rect(px, 5, 5, 10, 10, base)
+def rack_lamp(color, bright, accent=None):
+    im = new(16, 16, sh(color, -50))
+    dome(im, 4, 4, 11, 11, color)
+    px = im.load()
+    rect(px, 5, 5, 10, 10, sh(color, 6))
     hline(px, 5, 10, 5, bright)
-    hline(px, 5, 10, 6, sh(bright, -20))
-    for x in (6, 8):
-        put(px, x, 8, accent or bright)
-    put(px, 6, 9, sh(base, -25))
-    put(px, 7, 9, sh(base, -25))
-    return img
+    hline(px, 5, 10, 6, sh(bright, -25))
+    if accent:
+        put(px, 6, 8, accent)
+        put(px, 8, 8, accent)
+    else:
+        put(px, 6, 8, bright)
+        put(px, 8, 8, bright)
+    hline(px, 6, 9, 10, sh(color, -35))
+    return im
+
+
+# ---------------------------------------------------------------------------
+# ИБП
+# ---------------------------------------------------------------------------
+def ups_front_upper():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, UPS_T, UPS_B)
+    px = im.load()
+    bevel(im, 2, 1, 8, 5, sh(UPS_B, -24), sh(UPS_B, -12), inset=True)
+    for x in (3, 4, 5):
+        put(px, x, 2, CYAN if x > 3 else CYAN_HI)
+    put(px, 7, 3, BLUE)
+    # кнопки
+    for x in (3, 5, 7, 9):
+        key2(px, x, 7, sh(UPS_T, -4), WHITE if x == 3 else None)
+    # жалюзи
+    for y in (10, 12, 14):
+        slot_h(im, 2, y, 13, UPS_T)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], UPS_T)
+    return im
+
+
+def ups_front_lower():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, UPS_T, UPS_B)
+    px = im.load()
+    for y in (2, 4, 6, 8):
+        for x in (3, 5, 7, 9, 11):
+            put(px, x, y, sh(UPS_B, -28))
+            put(px, x + 1, y + 1, sh(UPS_T, 20))
+    plate(im, 4, 11, 11, 11, (150, 158, 165), (118, 126, 133), UPS_B)
+    slot_h(im, 2, 13, 13, UPS_T)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], UPS_T)
+    return im
+
+
+def ups_side():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, UPS_T, UPS_B)
+    px = im.load()
+    for y in (2, 5, 8, 11):
+        slot_h(im, 1, y, 14, UPS_T)
+    slot_v(im, 7, 13, 8, 15, UPS_B)
+    for p in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        screw(im, p[0], p[1], UPS_T)
+    return im
+
+
+def ups_top():
+    im = new16()
+    bevel(im, 0, 0, 15, 15, sh(UPS_T, 6), sh(UPS_B, 2))
+    bevel(im, 1, 1, 14, 14, sh(UPS_T, 4), sh(UPS_B, 2), inset=True)
+    px = im.load()
+    for y in (4, 7, 10):
+        slot_h(im, 3, y, 12, sh(UPS_T, 2))
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], sh(UPS_T, 4))
+    return im
+
+
+# ---------------------------------------------------------------------------
+# стол и стул
+# ---------------------------------------------------------------------------
+def desk_top():
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, sh(DESK_T, 8), sh(DESK_B, 2))
+    bevel(im, 0, 0, 15, 15, sh(DESK_T, 8), sh(DESK_B, 2))
+    bevel(im, 1, 1, 14, 14, sh(DESK_T, 6), sh(DESK_B, 2), inset=True)
+    px = im.load()
+    for y in (4, 7, 10, 13):
+        hline(px, 2, 13, y, sh(DESK_T, 16))
+        hline(px, 2, 13, y + 1, sh(DESK_B, -8))
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], DESK_T)
+    return im
+
+
+def desk_front():
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, DESK_FRONT, sh(DESK_FRONT, -8))
+    px = im.load()
+    # верхняя кромка столешницы
+    vgrad(im, 0, 0, 15, 2, sh(DESK_T, 8), sh(DESK_T, -4))
+    hline(px, 0, 15, 0, sh(DESK_T, 28))
+    hline(px, 0, 15, 2, sh(DESK_T, -18))
+    # правая стойка
+    vgrad(im, 10, 3, 14, 14, sh(DESK_B, 6), DESK_B)
+    bevel(im, 10, 3, 14, 14, sh(DESK_B, 6), DESK_B, inset=True)
+    # ящик
+    bevel(im, 1, 4, 9, 14, sh(DESK_FRONT, 8), sh(DESK_FRONT, -4), inset=True)
+    # ручки
+    plate(im, 11, 5, 12, 6, (170, 177, 182), (138, 145, 150), DESK_B)
+    plate(im, 11, 11, 12, 12, (170, 177, 182), (138, 145, 150), DESK_B)
+    return im
+
+
+def desk_side():
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, sh(DESK_B, 4), sh(DESK_B, -6))
+    px = im.load()
+    vgrad(im, 0, 0, 15, 2, sh(DESK_T, 4), sh(DESK_T, -8))
+    hline(px, 0, 15, 0, sh(DESK_T, 22))
+    bevel(im, 1, 3, 14, 14, sh(DESK_B, 2), sh(DESK_B, -6), inset=True)
+    hline(px, 2, 13, 10, sh(DESK_B, -14))
+    hline(px, 2, 13, 11, sh(DESK_B, 10))
+    return im
+
+
+def desk_back():
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, sh(DESK_B, 4), sh(DESK_B, -8))
+    px = im.load()
+    vgrad(im, 0, 0, 15, 2, sh(DESK_T, 4), sh(DESK_T, -10))
+    hline(px, 0, 15, 0, sh(DESK_T, 20))
+    slot_v(im, 7, 3, 8, 14, sh(DESK_B, -8))
+    bevel(im, 1, 3, 6, 14, sh(DESK_B, 2), sh(DESK_B, -8), inset=True)
+    return im
+
+
+def chair_fabric():
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (34, 44, 54), (25, 34, 43))
+    px = im.load()
+    for y in range(1, 15, 2):
+        for x in range(1, 15, 2):
+            put(px, x, y, sh((37, 47, 57), 6))
+            put(px, x + 1, y + 1, sh((29, 38, 47), -4))
+    hline(px, 1, 14, 7, sh((29, 38, 47), -12))
+    hline(px, 1, 14, 8, sh((40, 50, 60), 10))
+    hline(px, 0, 15, 0, sh((44, 55, 66), 10))
+    hline(px, 0, 15, 15, (18, 25, 32))
+    return im
+
+
+def chair_metal():
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (54, 62, 70), (42, 50, 58))
+    px = im.load()
+    hline(px, 0, 15, 0, (92, 103, 112))
+    hline(px, 0, 15, 1, (68, 78, 86))
+    for x in (2, 6, 10, 14):
+        vline(px, x, 2, 15, (59, 68, 76))
+        vline(px, x + 1, 2, 15, (34, 41, 48))
+    for p in ((3, 3), (12, 3), (3, 12), (12, 12)):
+        screw(im, p[0], p[1], (54, 62, 70))
+    return im
 
 
 # ---------------------------------------------------------------------------
 # рабочая станция / монитор
 # ---------------------------------------------------------------------------
 def workstation_case():
-    img = new()
-    metal(img, (74, 82, 86), 138, 0, 0, 15, 15, 3, -3)
-    px = img.load()
-    # передняя панель (0,0)-(9,6)
-    rect(px, 0, 0, 9, 6, sh((74, 82, 86), 6))
-    bevel(px, 0, 0, 9, 6, sh((74, 82, 86), 20), sh((74, 82, 86), -26))
-    put(px, 8, 5, GREEN)
-    put(px, 9, 5, GREEN_D)
-    rect(px, 1, 1, 6, 1, sh((74, 82, 86), -18))
-    # задняя/верхняя часть (0,9)-(9,15)
-    for y in (9, 11, 13, 15):
-        hline(px, 1, 8, y, INK)
-        hline(px, 1, 8, y + 1, sh((74, 82, 86), 14))
-    rect(px, 2, 14, 4, 15, INK)
-    # правые боковины (10,0)-(13,9)
-    vline(px, 12, 0, 15, sh((74, 82, 86), -18))
-    vline(px, 13, 0, 15, sh((74, 82, 86), 9))
-    # нога (10,8)-(15,13)
-    rect(px, 10, 8, 15, 13, sh((74, 82, 86), -10))
-    bevel(px, 10, 8, 15, 13, sh((74, 82, 86), 12), sh((74, 82, 86), -24))
-    # трубка (10,7)-(14,11) и (1,10)-(7,14)
-    rect(px, 1, 10, 7, 14, sh((74, 82, 86), -4))
-    rect(px, 10, 7, 14, 11, sh((74, 82, 86), -4))
-    return img
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, WS_T, WS_B)
+    px = im.load()
+    # передняя панель (uv 0..10, 0..7)
+    bevel(im, 0, 0, 9, 6, sh(WS_T, 8), sh(WS_B, 2))
+    slot_h(im, 1, 2, 7, WS_B)
+    put(px, 8, 5, GREEN_HI)
+    put(px, 9, 5, GREEN)
+    # задняя часть с вентиляцией (uv 0..10, 9..16)
+    for y in (10, 12, 14):
+        slot_h(im, 1, y, 8, WS_B)
+    # правая боковина (uv 10..14, 0..9)
+    bevel(im, 10, 0, 13, 9, sh(WS_T, 2), sh(WS_B, -2))
+    vline(px, 12, 1, 8, sh(WS_B, -12))
+    vline(px, 13, 1, 8, sh(WS_T, 14))
+    # нога / трубки (uv 10..16, 8..14 и 1..7, 10..14)
+    bevel(im, 10, 8, 15, 13, sh(WS_T, -4), sh(WS_B, -6))
+    bevel(im, 1, 10, 7, 14, sh(WS_T, -2), sh(WS_B, -4))
+    hline(px, 0, 15, 15, sh(WS_B, -20))
+    return im
 
 
 def workstation_screen():
-    img = new()
-    rect(img.load(), 0, 0, 15, 15, SCREEN)
-    px = img.load()
-    # экран (0,0)-(15,9), лёгкие скан-линии
-    grain(img, 0, 0, 15, 9, SCREEN, 2, 139)
-    for y in (1, 3, 5, 7, 9):
-        for x in range(16):
-            put(px, x, y, sh(SCREEN, 4))
-    # верхняя строка состояния
-    hline(px, 0, 15, 0, CYAN_D)
-    put(px, 1, 0, CYAN)
-    put(px, 4, 0, GREEN)
-    put(px, 7, 0, GREEN_D)
-    # строки "текста" из коротких штрихов
-    rnd = random.Random(139)
-    lines = ((2, 1, 7), (4, 1, 12), (6, 3, 8), (8, 1, 6))
-    for y, x0, x1 in lines:
-        x = x0
-        while x <= x1:
-            seg = rnd.randint(1, 3)
-            for i in range(seg):
-                if x + i <= x1:
-                    put(px, x + i, y, GREEN if rnd.random() > 0.25 else GREEN_L)
-            x += seg + rnd.randint(1, 2)
-    # курсор и полоса прогресса
-    rect(px, 9, 8, 10, 8, GREEN_L)
-    rect(px, 12, 6, 15, 6, GREEN_D)
-    put(px, 12, 6, GREEN)
-    put(px, 13, 6, GREEN)
-    # блик
-    for x, y in ((13, 1), (14, 2), (14, 3), (15, 4)):
-        put(px, x, y, sh(SCREEN, 12))
-    # нижняя кромка (10..15) тёмная
-    rect(px, 0, 10, 15, 15, sh(SCREEN, 4))
-    hline(px, 0, 15, 10, sh(SCREEN, 12))
-    vline(px, 0, 10, 15, sh(SCREEN, 7))
-    return img
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (32, 42, 52), (18, 25, 33))
+    px = im.load()
+    # тёмная нижняя кромка (uv 10..15)
+    rect(px, 0, 10, 15, 15, (8, 11, 16))
+    hline(px, 0, 15, 9, (48, 64, 78))
+    hline(px, 0, 15, 10, (20, 27, 34))
+    # скан-линии
+    for y in (1, 3, 5, 7):
+        hline(px, 0, 15, y, (28, 38, 48))
+    # два «значка» как в исходнике, с объёмом
+    for (x, y) in ((1, 1), (1, 4)):
+        plate(im, x, y, x + 2, y + 1, (224, 230, 232), (176, 184, 188), (32, 42, 52))
+    put(px, 2, 2, (250, 252, 252))
+    put(px, 2, 5, (250, 252, 252))
+    return im
 
 
 def workstation_keys():
-    img = new()
-    rect(img.load(), 0, 0, 15, 15, (24, 28, 31))
-    px = img.load()
-    # клавиатура (0,0)-(15,5)
-    rect(px, 0, 0, 15, 5, (31, 36, 40))
-    for row, y in enumerate((1, 3)):
-        for x in range(1, 15, 2):
-            put(px, x, y, (86, 96, 102))
-            put(px, x, y + 1, (49, 57, 62))
-    rect(px, 4, 5, 11, 5, (49, 57, 62))
-    # мышь (0,8)-(3,11)
-    rect(px, 0, 8, 3, 11, (31, 36, 40))
-    rect(px, 1, 8, 2, 10, (78, 88, 94))
-    hline(px, 1, 2, 8, (124, 136, 142))
-    put(px, 1, 9, (37, 43, 47))
-    return img
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (50, 56, 62), (38, 44, 50))
+    px = im.load()
+    # клавиши
+    for x in (1, 3, 5, 7, 9, 11, 13):
+        key2(px, x, 1, (146, 154, 160))
+    for x in (2, 4, 6, 8, 10, 12, 14):
+        key2(px, x, 3, (140, 148, 154))
+    for x in range(0, 16, 2):
+        key2(px, x, 5, (132, 140, 146))
+    # мышь
+    plate(im, 0, 8, 3, 11, (148, 156, 162), (108, 116, 122), (40, 46, 52))
+    hline(px, 1, 2, 9, (60, 67, 74))
+    put(px, 1, 8, (186, 193, 198))
+    return im
 
 
 def monitor_off():
-    img = new()
-    rect(img.load(), 0, 0, 15, 15, sh(SCREEN, 2))
-    px = img.load()
-    grain(img, 0, 0, 15, 9, sh(SCREEN, 2), 2, 140)
-    # слабый блик
-    for x, y, d in ((12, 1, 10), (13, 2, 10), (14, 3, 8), (11, 1, 6)):
-        put(px, x, y, sh(SCREEN, d))
-    # рамка экрана
-    frame(px, 0, 0, 15, 9, BLACK)
-    # дежурный светодиод
-    put(px, 14, 9, RED_D)
-    # нижняя кромка
-    rect(px, 0, 10, 15, 15, sh(SCREEN, 5))
-    hline(px, 0, 15, 10, sh(SCREEN, 13))
-    return img
+    im = new16()
+    vgrad(im, 0, 0, 15, 9, (4, 6, 11), (2, 3, 7))
+    px = im.load()
+    hline(px, 0, 15, 9, (18, 24, 30))
+    # лёгкий блик
+    for x, y in ((12, 1), (13, 2), (14, 3)):
+        put(px, x, y, (14, 18, 23))
+    rect(px, 0, 10, 15, 15, (3, 4, 8))
+    return im
 
 
 def monitor_on_frames():
     frames = []
+    shades = [(20, 28, 36), (28, 36, 44), (36, 44, 52), (44, 52, 60),
+              (52, 60, 68), (62, 70, 78), (72, 80, 88)]
     for f in range(8):
-        img = new()
-        px = img.load()
-        rect(px, 0, 0, 15, 15, sh(SCREEN, 2))
-        rnd = random.Random(200 + f * 17)
-        # снег: строки разной плотности
+        im = new16()
+        px = im.load()
+        rect(px, 0, 0, 15, 9, (19, 27, 35))
+        rnd = random.Random(400 + f * 31)
+        # статика в исходной сине-серой гамме
         for y in range(10):
             for x in range(16):
-                r = rnd.random()
-                if y % 2 == 0 and r < 0.55:
-                    v = rnd.choice([30, 42, 56, 72])
-                elif r < 0.38:
-                    v = rnd.choice([22, 34, 48, 64])
-                else:
-                    v = rnd.choice([12, 18, 24])
-                put(px, x, y, (v, v + 5, v + 7))
-        # бегущая вниз полоса развёртки (2 строки)
+                c = shades[rnd.randrange(len(shades))]
+                if y % 2 == 0:
+                    c = sh(c, 6)
+                put(px, x, y, c)
+        # бегущая полоса
         band = f % 8
-        for y in range(band, min(10, band + 2)):
-            for x in range(16):
-                b = px[x, y]
-                put(px, x, y, sh((b[0], b[1], b[2]), 40))
-        # горизонтальный сбой
-        gy = (f * 3 + 2) % 10
-        for x in range(0, 16, 2):
-            if rnd.random() < 0.6:
-                put(px, x, gy, (92, 104, 110))
-        # выпавшие блоки
-        for _ in range(3):
-            bx = rnd.randint(0, 12)
-            by = rnd.randint(1, 7)
-            rect(px, bx, by, bx + rnd.randint(1, 3), by + 1, (8, 11, 13))
-        # рамка и REC
-        frame(px, 0, 0, 15, 9, BLACK)
-        put(px, 1, 1, RED)
-        put(px, 2, 1, sh(RED, -70))
-        # нижняя кромка
-        rect(px, 0, 10, 15, 15, sh(SCREEN, 5))
-        hline(px, 0, 15, 10, sh(SCREEN, 14))
-        vline(px, 0, 10, 15, sh(SCREEN, 8))
-        frames.append(img)
+        for y in (band, band + 1):
+            if y < 10:
+                for x in range(16):
+                    b = px[x, y]
+                    put(px, x, y, sh((b[0], b[1], b[2]), 26))
+        # редкие тёмные провалы
+        for _ in range(4):
+            bx = rnd.randint(0, 13)
+            by = rnd.randint(1, 8)
+            rect(px, bx, by, bx + rnd.randint(1, 2), by + 1, (12, 17, 22))
+        rect(px, 0, 10, 15, 15, (3, 4, 8))
+        hline(px, 0, 15, 9, (18, 24, 30))
+        frames.append(im)
     return frames
 
 
@@ -1030,135 +918,125 @@ def monitor_on_frames():
 # палата
 # ---------------------------------------------------------------------------
 def ward_frame():
-    img = new()
-    grain(img, 0, 0, 15, 15, (150, 158, 159), 3, 141, 2)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, (92, 99, 101))
-    hline(px, 1, 14, 1, (188, 195, 195))
-    vline(px, 1, 1, 14, (180, 187, 188))
-    # сварные швы и царапины
-    for x, y in ((4, 6), (5, 6), (6, 7), (9, 11), (10, 11), (11, 12)):
-        put(px, x, y, (120, 127, 128))
-    for x, y in ((3, 13), (4, 13), (12, 3)):
-        put(px, x, y, RUST_D)
-    return img
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, WARD_T, WARD_B)
+    bevel(im, 0, 0, 15, 15, WARD_T, WARD_B)
+    bevel(im, 1, 1, 14, 14, WARD_T, WARD_B, inset=True)
+    px = im.load()
+    hline(px, 2, 13, 10, sh(WARD_B, -14))
+    hline(px, 2, 13, 11, sh(WARD_T, 14))
+    hline(px, 2, 13, 2, sh(WARD_T, 16))
+    return im
 
 
 def ward_sheet():
-    img = new()
-    grain(img, 0, 0, 15, 15, (219, 219, 209), 2, 142)
-    px = img.load()
-    # ткань
-    for y in range(1, 15, 2):
-        for x in range(1, 15, 2):
-            put(px, x, y, (228, 228, 219))
-            put(px, x + 1, y + 1, (205, 205, 196))
-    # складки
-    for x, y in ((3, 2), (4, 3), (5, 4), (11, 10), (12, 11), (10, 12)):
-        put(px, x, y, (190, 191, 183))
-    # бледное пятно
-    for x, y in ((7, 6), (8, 6), (7, 7), (8, 7), (9, 8)):
-        put(px, x, y, (203, 201, 189))
-    return img
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (218, 225, 221), (198, 206, 201))
+    px = im.load()
+    for y in (3, 7, 11):
+        hline(px, 1, 14, y, (206, 213, 209))
+        hline(px, 1, 14, y + 1, (226, 232, 228))
+    hline(px, 0, 15, 0, (232, 238, 234))
+    hline(px, 0, 15, 15, (184, 192, 188))
+    vline(px, 0, 0, 15, (224, 230, 226))
+    vline(px, 15, 0, 15, (188, 196, 192))
+    return im
 
 
 def ward_pillow():
-    img = new()
-    grain(img, 0, 0, 15, 15, (224, 222, 211), 2, 143)
-    px = img.load()
-    # шов по краю
-    frame(px, 2, 2, 13, 13, (198, 196, 185))
-    hline(px, 3, 12, 3, (238, 236, 226))
-    vline(px, 3, 3, 12, (235, 233, 223))
-    # мягкая тень
-    hline(px, 3, 12, 12, (205, 202, 192))
-    vline(px, 12, 3, 12, (208, 205, 195))
-    # пятнышко
-    for x, y in ((9, 8), (10, 8), (10, 9)):
-        put(px, x, y, (204, 201, 189))
-    return img
+    im = new16()
+    px = im.load()
+    for y in range(16):
+        for x in range(16):
+            dx = (x - 7.5) / 8.0
+            dy = (y - 7.5) / 8.0
+            d = min(1.0, (dx * dx + dy * dy) ** 0.5)
+            c = mix((246, 248, 243), (214, 218, 211), d * 0.9)
+            put(px, x, y, c)
+    bevel(im, 1, 1, 14, 14, (246, 248, 243), (214, 218, 211), inset=True)
+    hline(px, 2, 13, 3, (250, 251, 247))
+    hline(px, 2, 13, 12, (206, 211, 204))
+    return im
 
 
 def ward_blanket():
-    img = new()
-    grain(img, 0, 0, 15, 15, (81, 101, 111), 2, 144)
-    px = img.load()
-    # плетение
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (98, 145, 150), (78, 122, 127))
+    px = im.load()
     for y in range(1, 15, 2):
         for x in range(1, 15, 2):
-            put(px, x, y, (96, 118, 128))
-            put(px, x + 1, y + 1, (69, 87, 97))
-    # тёмная кайма
-    hline(px, 0, 15, 0, (56, 72, 81))
-    hline(px, 0, 15, 15, (56, 72, 81))
-    vline(px, 0, 0, 15, (56, 72, 81))
-    vline(px, 15, 0, 15, (56, 72, 81))
-    hline(px, 2, 13, 7, (62, 79, 88))
-    # застарелое пятно
-    for x, y in ((5, 10), (6, 10), (6, 11), (7, 11)):
-        put(px, x, y, (67, 77, 81))
-    return img
+            put(px, x, y, (104, 151, 156))
+            put(px, x + 1, y + 1, (76, 119, 124))
+    hline(px, 0, 15, 0, (66, 104, 109))
+    hline(px, 0, 15, 15, (62, 100, 105))
+    vline(px, 0, 0, 15, (58, 96, 101))
+    vline(px, 15, 0, 15, (58, 96, 101))
+    hline(px, 2, 13, 7, (72, 114, 119))
+    hline(px, 2, 13, 8, (92, 138, 143))
+    return im
 
 
 def ward_bezel():
-    img = new()
-    grain(img, 0, 0, 15, 15, (45, 50, 52), 2, 145)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, INK)
-    bevel(px, 1, 1, 14, 14, (78, 85, 87), (24, 27, 29))
-    frame(px, 3, 3, 12, 12, (17, 19, 20))
-    screws(px, [(2, 2), (12, 2), (2, 12), (12, 12)], INK, (112, 120, 122))
-    return img
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (38, 50, 52), (27, 37, 39))
+    bevel(im, 0, 0, 15, 15, (38, 50, 52), (27, 37, 39))
+    bevel(im, 3, 3, 12, 12, (20, 29, 31), (14, 22, 24), inset=True)
+    for p in ((2, 2), (12, 2), (2, 12), (12, 12)):
+        screw(im, p[0], p[1], (44, 57, 59))
+    return im
 
 
 def ward_machine_case():
-    img = new()
-    grain(img, 0, 0, 15, 15, (200, 200, 189), 2, 146)
-    px = img.load()
-    frame(px, 0, 0, 15, 15, (150, 150, 141))
-    bevel(px, 1, 1, 14, 14, (224, 224, 214), (168, 168, 158))
-    # вентиляция
+    im = new16()
+    vgrad(im, 0, 0, 15, 15, (200, 210, 205), (176, 187, 181))
+    bevel(im, 0, 0, 15, 15, (200, 210, 205), (176, 187, 181))
+    px = im.load()
     for y in (3, 5):
         for x in (3, 5, 7, 9, 11):
-            put(px, x, y, (160, 160, 150))
-    # шильдик
-    rect(px, 2, 9, 13, 14, (176, 176, 166))
-    frame(px, 2, 9, 13, 14, (150, 150, 141))
-    text(px, 3, 9, 'ECG', (96, 96, 90), spacing=0)
-    # царапины
-    for x, y in ((4, 12), (5, 12), (12, 4), (13, 5)):
-        put(px, x, y, (176, 176, 166))
-    return img
+            put(px, x, y, (150, 161, 155))
+            put(px, x, y + 1, (214, 222, 218))
+    plate(im, 3, 9, 12, 13, (186, 197, 191), (158, 169, 163), (180, 190, 184))
+    put(px, 4, 11, GREEN_HI)
+    put(px, 5, 11, GREEN)
+    hline(px, 6, 9, 11, (146, 156, 150))
+    return im
 
 
+# ---------------------------------------------------------------------------
+# анимация ЭКГ
+# ---------------------------------------------------------------------------
 def ecg_frames():
     frames = []
-    # форма одного удара: смещение вверх от базовой линии (y=12)
-    beat = [0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 2, 0, 0, -2, 5, 6, 5, -4, -2,
-            0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    # один удар: смещение вверх от базовой линии y=6
+    beat = [0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 1, 0, 0, 2, -2,
+            4, 1, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]
     for f in range(24):
-        img = new(32, 16, (4, 14, 9))
-        px = img.load()
+        im = new(32, 16, (6, 16, 22))
+        px = im.load()
         # сетка
         for x in range(0, 32, 4):
-            vline(px, x, 0, 15, (11, 36, 23))
+            vline(px, x, 0, 15, (10, 30, 26))
         for y in range(0, 16, 4):
-            hline(px, 0, 31, y, (11, 36, 23))
-        hline(px, 0, 31, 12, (24, 66, 40))
-        # волна; сдвиг 4 px за кадр, 24 кадра = точный цикл 32
+            hline(px, 0, 31, y, (10, 30, 26))
+        hline(px, 0, 31, 6, (18, 54, 44))
         shift = (f * 4) % 32
+        ys = [6 - beat[(x + shift) % 32] for x in range(32)]
         for x in range(32):
-            v = beat[(x + shift) % 32]
-            y = 12 - v
-            if v == 0:
-                put(px, x, y, sh(GREEN_D, -4))
-            else:
-                put(px, x, y, GREEN_L)
-                put(px, x, y + 1, GREEN_D)
-        # подписи поверх волны
-        text(px, 1, 1, 'HR', GREEN, spacing=0)
-        text(px, 7, 1, '72', GREEN_L, spacing=0)
-        frames.append(img)
+            y0 = ys[x - 1] if x > 0 else ys[0]
+            y1 = ys[x]
+            hi = (60, 200, 142) if ys[x] != 6 else (28, 132, 96)
+            for y in range(min(y0, y1), max(y0, y1) + 1):
+                put(px, x, y, hi)
+            put(px, x, y1 + 1, (16, 78, 60))
+        # скан-головка
+        put(px, 31, ys[31] - 1, (210, 240, 228))
+        put(px, 31, ys[31], (236, 250, 242))
+        # подписи внизу, как в исходнике
+        text(px, 1, 9, 'HR', (60, 200, 150))
+        text(px, 10, 9, '72', (130, 226, 176))
+        text(px, 19, 9, '98', (120, 170, 220))
+        hline(px, 0, 31, 14, (8, 24, 28))
+        frames.append(im)
     return frames
 
 
@@ -1166,8 +1044,7 @@ def ecg_frames():
 # запись
 # ---------------------------------------------------------------------------
 def save(img, name):
-    path = os.path.join(OUT, name)
-    img.save(path)
+    img.save(os.path.join(OUT, name))
     print('wrote', name, img.size, img.mode)
 
 
@@ -1175,7 +1052,7 @@ def main():
     save(cabinet_side(), 'cabinet_side.png')
     save(cabinet_top(), 'cabinet_top.png')
     save(cabinet_front(), 'cabinet_front.png')
-    save(drawer_inner(), 'cabinet_drawer_inner.png')
+    save(cabinet_drawer_inner(), 'cabinet_drawer_inner.png')
     save(desk_top(), 'desk_top.png')
     save(desk_front(), 'desk_front.png')
     save(desk_side(), 'desk_side.png')
@@ -1183,13 +1060,13 @@ def main():
     save(chair_fabric(), 'chair_fabric.png')
     save(chair_metal(), 'chair_metal.png')
     save(keypad_front(), 'keypad_front.png')
-    save(led_texture(RED_L, RED_D, True), 'keypad_led_locked.png')
-    save(led_texture(GREEN_L, GREEN_D, False), 'keypad_led_open.png')
+    save(keypad_led(RED, RED_HI), 'keypad_led_locked.png')
+    save(keypad_led((203, 211, 217), (248, 250, 252)), 'keypad_led_open.png')
     save(breaker_front(), 'breaker_panel_front.png')
     save(breaker_side(), 'breaker_panel_side.png')
-    save(breaker_lamp(GREEN_L, GREEN_D), 'breaker_panel_lamp_on.png')
-    save(breaker_lamp(STEEL_D, INK), 'breaker_panel_lamp_off.png')
-    save(breaker_lamp(RED_L, RED_D), 'breaker_panel_lamp_tripped.png')
+    save(breaker_lamp(GREEN, GREEN_HI), 'breaker_panel_lamp_on.png')
+    save(breaker_lamp(SLATE0, sh(SLATE0, 30)), 'breaker_panel_lamp_off.png')
+    save(breaker_lamp(RED, RED_HI), 'breaker_panel_lamp_tripped.png')
     for floor in range(6):
         save(lift_panel(floor), 'lift_panel_front_%d.png' % floor)
     save(sign_front(), 'lab_sign_front.png')
@@ -1209,8 +1086,8 @@ def main():
     save(server_front_upper(), 'server_rack_front_upper.png')
     save(server_side(), 'server_rack_side.png')
     save(server_top(), 'server_rack_top.png')
-    save(rack_lamp(GREEN_D, GREEN_L), 'server_rack_lamp.png')
-    save(rack_lamp(AMBER_D, AMBER_L, RED), 'server_rack_lamp_hold.png')
+    save(rack_lamp(GREEN, GREEN_HI), 'server_rack_lamp.png')
+    save(rack_lamp(RED, RED_HI, RED_HI), 'server_rack_lamp_hold.png')
     save(workstation_case(), 'workstation_case.png')
     save(workstation_screen(), 'workstation_screen.png')
     save(workstation_keys(), 'workstation_keys.png')
