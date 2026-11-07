@@ -16,6 +16,19 @@ public final class NightmareTuning {
     public static final int SHAFT_LANE_STRIDE = 16;
     public static final int SHAFT_STOP_STRIDE = 16;
     public static final int SHAFT_TRIP_TICKS = 80;
+    /** [новое] Этаж 0 отвечает только после стольких поездок; раньше панель уводит глубже. */
+    public static final int SHAFT_TRIPS_TO_ZERO = 3;
+    public static final int SHAFT_TRIP_EXTRA_TICKS = 20;
+    public static final int SHAFT_TRIP_EXTRA_MAX = 160;
+    /** [новое] Обход: штраф за прикосновение к шприцу, без урона. */
+    public static final int ROUNDS_TOUCH_BLIND_TICKS = 60;
+    public static final int ROUNDS_TOUCH_BACK_CAPSULES = 6;
+    public static final int ROUNDS_WALK_SLOW_AMPLIFIER = 0;
+    public static final int ROUNDS_MILESTONE_EVERY = 10;
+    /** [новое] Сеанс 47: пауза между попытками растёт, затем канал закрывается. */
+    public static final int[] SESSION_RETRY_BY_ATTEMPT = {40, 80, 140, 220};
+    public static final int SESSION_BLACKOUT_TICKS = 40;
+    public static final int SESSION_TICK_SOUND_EVERY = 40;
     /** Время после шахты, чтобы игрок мог найти обычный сон, прежде чем снова упасть. */
     public static final int SHAFT_COLLAPSE_GRACE_TICKS = 600;
     public static final int ROUNDS_Y = 240;

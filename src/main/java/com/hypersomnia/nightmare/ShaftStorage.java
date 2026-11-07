@@ -13,6 +13,7 @@ public final class ShaftStorage extends SavedData {
     private static final String NAME = "hypersomnia_shaft";
     private int builtMask, failedMask;
     private final Map<UUID, Integer> lanes = new HashMap<>();
+    private final Map<UUID, Integer> trips = new HashMap<>();
 
     public static ShaftStorage get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(new SavedData.Factory<>(ShaftStorage::new, ShaftStorage::load, null), NAME);
@@ -26,7 +27,9 @@ public final class ShaftStorage extends SavedData {
         }
         return -1;
     }
-    public void release(UUID id) { if (lanes.remove(id) != null) setDirty(); }
+    public void release(UUID id) { boolean a = lanes.remove(id) != null, b = trips.remove(id) != null; if (a || b) setDirty(); }
+    public int trips(UUID id) { return trips.getOrDefault(id, 0); }
+    public void addTrip(UUID id) { trips.merge(id, 1, (a, b) -> Math.min(999, a + b)); setDirty(); }
     public boolean built(int lane) { return (builtMask & (1 << lane)) != 0; }
     public boolean failed(int lane) { return (failedMask & (1 << lane)) != 0; }
     public void setBuilt(int lane) { builtMask |= 1 << lane; failedMask &= ~(1 << lane); setDirty(); }
@@ -37,6 +40,9 @@ public final class ShaftStorage extends SavedData {
         CompoundTag entries = new CompoundTag();
         lanes.forEach((id, lane) -> entries.putInt(id.toString(), lane));
         tag.put("lanes", entries);
+        CompoundTag tripTag = new CompoundTag();
+        trips.forEach((id, n) -> tripTag.putInt(id.toString(), n));
+        tag.put("trips", tripTag);
         return tag;
     }
     private static ShaftStorage load(CompoundTag tag, HolderLookup.Provider provider) {
@@ -49,6 +55,11 @@ public final class ShaftStorage extends SavedData {
                 if (lane >= 0 && lane < NightmareTuning.SHAFT_LANES && !result.lanes.containsValue(lane))
                     result.lanes.put(UUID.fromString(key), lane);
             } catch (IllegalArgumentException ignored) { }
+        }
+        CompoundTag tripTag = tag.getCompound("trips");
+        for (String key : tripTag.getAllKeys()) {
+            try { result.trips.put(UUID.fromString(key), Math.max(0, tripTag.getInt(key))); }
+            catch (IllegalArgumentException ignored) { }
         }
         return result;
     }

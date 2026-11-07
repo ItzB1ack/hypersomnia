@@ -37,7 +37,7 @@ public final class ShaftHandler {
     private static final class Trip {
         final int lane, from, target;
         int ticks;
-        Trip(int lane, int from, int target) { this.lane = lane; this.from = from; this.target = target; this.ticks = NightmareTuning.SHAFT_TRIP_TICKS; }
+        Trip(int lane, int from, int target, int ticks) { this.lane = lane; this.from = from; this.target = target; this.ticks = ticks; }
     }
     private static final Map<UUID, Trip> TRIPS = new HashMap<>();
     private static boolean active(ServerPlayer p) {
@@ -62,9 +62,18 @@ public final class ShaftHandler {
         int lane = ShaftStorage.get(p.serverLevel()).lane(p.getUUID());
         if (lane < 0) return false;
         int from = ShaftBuilder.stopOf(lane, p.position());
-        if (from < 0 || from == target || !ShaftBuilder.setDoor(p.serverLevel(), lane, from, true)) return false;
-        TRIPS.put(p.getUUID(), new Trip(lane, from, target));
-        p.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, NightmareTuning.SHAFT_TRIP_TICKS + 20, 0, false, false, false));
+        if (from < 0 || from == target) return false;
+        int done = ShaftStorage.get(p.serverLevel()).trips(p.getUUID());
+        if (target == 0 && done < NightmareTuning.SHAFT_TRIPS_TO_ZERO) {
+            // [новое] Панель принимает запрос, но кабина идёт глубже: 6 -> 7 -> 8 -> 6.
+            target = from == 6 ? 7 : from == 7 ? 8 : 6;
+            p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.mismatch"), true);
+        }
+        if (!ShaftBuilder.setDoor(p.serverLevel(), lane, from, true)) return false;
+        int ticks = NightmareTuning.SHAFT_TRIP_TICKS + Math.min(NightmareTuning.SHAFT_TRIP_EXTRA_MAX,
+                done * NightmareTuning.SHAFT_TRIP_EXTRA_TICKS);
+        TRIPS.put(p.getUUID(), new Trip(lane, from, target, ticks));
+        p.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, ticks + 20, 0, false, false, false));
         return true;
     }
     @SubscribeEvent public static void tick(ServerTickEvent.Post event) {
@@ -86,6 +95,7 @@ public final class ShaftHandler {
             BlockPos destination = ShaftBuilder.spawn(t.lane, t.target);
             p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
             p.resetFallDistance(); p.removeEffect(MobEffects.BLINDNESS);
+            ShaftStorage.get(world).addTrip(p.getUUID());
             ShaftBuilder.setDoor(world, t.lane, t.from, false);
             ShaftBuilder.setDoor(world, t.lane, t.target, false);
             if (t.target == 0) DreamTransition.exit(p);

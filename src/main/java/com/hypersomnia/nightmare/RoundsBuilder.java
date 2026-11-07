@@ -29,6 +29,12 @@ public final class RoundsBuilder {
     private static int capsuleX(int index) { return x() + 2 + index * NightmareTuning.ROUNDS_CAPSULE_STRIDE; }
     public static BlockPos spawn() { return new BlockPos(x(), y() + 1, z() + 1); }
     public static BlockPos exitFoot() { return new BlockPos(capsuleX(NightmareTuning.ROUNDS_CAPSULES - 1), y() + 1, z() + 4); }
+    /** Индекс капсулы 0..46 по X игрока; вне ряда зажимается в границы. */
+    public static int indexAt(double px) {
+        int i = (int) Math.floor((px - (x() + 2)) / NightmareTuning.ROUNDS_CAPSULE_STRIDE);
+        return Math.max(0, Math.min(NightmareTuning.ROUNDS_CAPSULES - 1, i));
+    }
+    public static BlockPos aisle(int index) { return new BlockPos(capsuleX(index), y() + 1, z() + 1); }
     public static boolean isExit(BlockPos p) { return p.equals(exitFoot()) || p.equals(exitFoot().east()); }
     public static boolean containsBuilt(ServerLevel level, BlockPos p) {
         int length = NightmareTuning.ROUNDS_CAPSULES * NightmareTuning.ROUNDS_CAPSULE_STRIDE + 3;

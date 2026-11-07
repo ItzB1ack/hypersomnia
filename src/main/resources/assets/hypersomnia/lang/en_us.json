@@ -243,5 +243,9 @@
   "hypersomnia.nightmare.session47.attempt.3": "Retrying. The request remains unanswered.",
   "hypersomnia.nightmare.session47.notice.1": "Vital signs unstable. Emergency response required.",
   "hypersomnia.nightmare.session47.notice.2": "No response from the session room.",
-  "hypersomnia.nightmare.session47.notice.3": "Session protocol continues."
+  "hypersomnia.nightmare.session47.notice.3": "Session protocol continues.",
+  "hypersomnia.nightmare.shaft.mismatch": "Floor accepted. The car does not match it.",
+  "hypersomnia.nightmare.rounds.milestone": "Capsule %s. Continue the round.",
+  "hypersomnia.nightmare.rounds.touch": "Do not handle. Return to the round.",
+  "hypersomnia.nightmare.session47.closed": "Channel closed."
 }

@@ -35,6 +35,13 @@ public final class SessionHandler {
                 : elapsed < NightmareTuning.SESSION_CLOCK_0312_AT ? "03:07"
                 : elapsed < NightmareTuning.SESSION_CLOCK_0313_AT ? "03:12" : "03:13";
         p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.clock", clock), true);
+        // [новое] Тихий счёт последних минут и обрыв: затемнение перед концом (звук — ванильный запасной).
+        if (elapsed >= NightmareTuning.SESSION_CLOCK_0312_AT && p.tickCount % NightmareTuning.SESSION_TICK_SOUND_EVERY == 0)
+            p.playNotifySound(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_HAT.value(),
+                    net.minecraft.sounds.SoundSource.AMBIENT, 0.4f, 0.6f);
+        if (elapsed >= NightmareTuning.SESSION_CLOCK_0313_AT && !p.hasEffect(net.minecraft.world.effect.MobEffects.BLINDNESS))
+            p.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.BLINDNESS,
+                    NightmareTuning.SESSION_BLACKOUT_TICKS, 0, false, false, false));
         int notice = elapsed < NightmareTuning.SESSION_CLOCK_0307_AT ? 0
                 : elapsed < NightmareTuning.SESSION_CLOCK_0312_AT ? 1
                 : elapsed < NightmareTuning.SESSION_CLOCK_0313_AT ? 2 : 3;
@@ -51,7 +58,9 @@ public final class SessionHandler {
         DreamData data = p.getData(DreamAttachments.DREAM);
         int left = data.getTicksLeft();
         if (data.getSessionNextAttemptTicks() > 0 && left > data.getSessionNextAttemptTicks()) return;
-        data.setSessionNextAttemptTicks(Math.max(0, left - NightmareTuning.SESSION_CONSOLE_RETRY_TICKS));
+        int tries = data.getSessionAttempts();
+        int[] waits = NightmareTuning.SESSION_RETRY_BY_ATTEMPT;
+        data.setSessionNextAttemptTicks(Math.max(0, left - waits[Math.min(tries, waits.length - 1)]));
         int elapsed = NightmareTuning.SESSION_DURATION_TICKS - left;
         if (elapsed >= NightmareTuning.SESSION_CLOCK_0313_AT) {
             p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.expired"), false);
@@ -59,7 +68,8 @@ public final class SessionHandler {
         }
         int attempt = data.getSessionAttempts();
         data.addSessionAttempt();
-        p.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.attempt." + attempt), false);
+        p.displayClientMessage(Component.translatable(attempt >= 3 && data.getSessionAttempts() >= 3 && left < NightmareTuning.SESSION_DURATION_TICKS - NightmareTuning.SESSION_CLOCK_0312_AT
+                ? "hypersomnia.nightmare.session47.closed" : "hypersomnia.nightmare.session47.attempt." + attempt), false);
     }
     @SubscribeEvent public static void breakBlock(BlockEvent.BreakEvent event) {
         if (event.getLevel() instanceof ServerLevel level && level.dimension().equals(DreamDimension.LEVEL)

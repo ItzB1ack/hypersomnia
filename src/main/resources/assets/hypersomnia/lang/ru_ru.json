@@ -907,5 +907,9 @@
   "hypersomnia.nightmare.session47.attempt.3": "Повторный вызов. Ответа по-прежнему нет.",
   "hypersomnia.nightmare.session47.notice.1": "Показатели нестабильны. Нужна срочная помощь.",
   "hypersomnia.nightmare.session47.notice.2": "Из зала сеанса нет ответа.",
-  "hypersomnia.nightmare.session47.notice.3": "Протокол сеанса продолжается."
+  "hypersomnia.nightmare.session47.notice.3": "Протокол сеанса продолжается.",
+  "hypersomnia.nightmare.shaft.mismatch": "Этаж принят. Кабина с ним не совпадает.",
+  "hypersomnia.nightmare.rounds.milestone": "Капсула %s. Продолжайте обход.",
+  "hypersomnia.nightmare.rounds.touch": "Не трогать. Вернитесь к обходу.",
+  "hypersomnia.nightmare.session47.closed": "Канал закрыт."
 }
