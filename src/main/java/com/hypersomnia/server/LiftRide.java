@@ -31,6 +31,7 @@ import java.util.UUID;
 
 /**
  * [новое] Плавный подъём/спуск кабины: копия оболочки кабины из блочных дисплеев и невидимое «сиденье»
+<<<<<<< HEAD
  * игрока плавно едут вместе. Настоящие блоки не двигаются.
  *
  * <p>Два режима очистки пути:
@@ -48,6 +49,17 @@ import java.util.UUID;
  *
  * <p>Все скрытые блоки пишутся в {@link LiftRideStorage}: если сервер упадёт посреди рейса, они вернутся при
  * следующем запуске.
+=======
+ * игрока плавно едут вместе. Настоящие блоки переставляются только временно: внутренние плиты пола/потолка
+ * у входа и выхода убираются на время проезда, иначе камера проходит сквозь них. Игрок сидит на
+ * дисплее-носителе, поэтому клиент интерполирует движение, а не получает телепорт каждый тик; посадка на
+ * блок выше пола (RIDER_LIFT) и плавно возвращается к полу в конце.
+ *
+ * Профиль движения — quintic smootherstep: скорость и ускорение равны нулю в начале и в конце, поэтому нет
+ * рывка на старте и «щелчка» при остановке. После прибытия оболочка держится ещё несколько тиков, чтобы клиент
+ * догнал последнюю позицию, и только потом убирается (иначе кабина исчезает на 2–3 тика раньше, чем игрок
+ * визуально доехал).
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class LiftRide {
@@ -64,8 +76,11 @@ public final class LiftRide {
     public static final double RIDER_LIFT = 1.0;
     /** Доля пути, за которую подъём/спуск посадки плавно входит и выходит. */
     private static final double LIFT_EDGE = 0.15;
+<<<<<<< HEAD
     /** Насколько блок должен отойти от кабины, прежде чем его вернут на место. */
     private static final double RESTORE_MARGIN = 1.5;
+=======
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
 
     private static final class Rider {
         final ServerPlayer player; final Entity seat; final double x, y, z;
@@ -78,13 +93,17 @@ public final class LiftRide {
     }
 
     private final ServerLevel level;
+<<<<<<< HEAD
     private final BlockPos min, max;
+=======
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
     private final double dx, dy, dz, dip;
     private final int moveTicks;
     private final boolean volume;
     private int t, calib;
     private final List<Part> shell = new ArrayList<>();
     private final List<Rider> riders = new ArrayList<>();
+<<<<<<< HEAD
     /** Блоки, скрытые этим рейсом: позиция -> точное состояние. */
     private final Map<Long, BlockState> hidden = new HashMap<>();
     /** Кандидаты объёмного режима: непустые блоки в развёртке пути кабины. */
@@ -102,28 +121,53 @@ public final class LiftRide {
         this.dx = dx; this.dy = dy; this.dz = dz; this.dip = dip;
         this.moveTicks = Math.max(1, moveTicks);
         this.volume = volume;
+=======
+    /** Позиции реальных плит у входа/выхода кабины, которые на время рейса убираются из-под камеры. */
+    private final List<BlockPos> srcCover = new ArrayList<>();
+    private final List<BlockPos> tgtCover = new ArrayList<>();
+    private final List<BlockPos> hiddenPos = new ArrayList<>();
+    private final List<BlockState> hiddenState = new ArrayList<>();
+    private AABB targetBox;
+    private boolean srcHidden, tgtHidden;
+
+    private LiftRide(ServerLevel level, double dx, double dy, double dz, double dip, int moveTicks) {
+        this.level = level;
+        this.dx = dx; this.dy = dy; this.dz = dz; this.dip = dip;
+        this.moveTicks = Math.max(1, moveTicks);
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
     }
 
     /** Копирует непустые блоки коробки min..max (включительно) в дисплеи и сажает игроков; dy — полный сдвиг по вертикали. */
     public static LiftRide start(ServerLevel level, BlockPos min, BlockPos max, List<ServerPlayer> players, double dy, int moveTicks) {
+<<<<<<< HEAD
         return start(level, min, max, players, 0.0, dy, 0.0, 0.0, moveTicks, true);
     }
 
     public static LiftRide start(ServerLevel level, BlockPos min, BlockPos max, List<ServerPlayer> players,
                                  double dx, double dy, double dz, double dip, int moveTicks) {
         return start(level, min, max, players, dx, dy, dz, dip, moveTicks, true);
+=======
+        return start(level, min, max, players, 0.0, dy, 0.0, 0.0, moveTicks);
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
     }
 
     /**
      * Полный 3D-рейс. dx/dz — сдвиг по горизонтали, dy — итоговый сдвиг по вертикали, dip — дополнительная
      * вертикальная «дуга» вниз (для шахты: кабина уходит в шахту и возвращается на уровень целевой кабины).
      * dip задаётся положительным числом, внутри он вычитается.
+<<<<<<< HEAD
      *
      * @param volume true — прятать весь объём, в который входит кабина (шахта); false — только плиты входа/выхода.
      */
     public static LiftRide start(ServerLevel level, BlockPos min, BlockPos max, List<ServerPlayer> players,
                                  double dx, double dy, double dz, double dip, int moveTicks, boolean volume) {
         LiftRide ride = new LiftRide(level, min, max, dx, dy, dz, dip, moveTicks, volume);
+=======
+     */
+    public static LiftRide start(ServerLevel level, BlockPos min, BlockPos max, List<ServerPlayer> players,
+                                 double dx, double dy, double dz, double dip, int moveTicks) {
+        LiftRide ride = new LiftRide(level, dx, dy, dz, dip, moveTicks);
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
         for (int x = min.getX(); x <= max.getX(); x++) for (int y = min.getY(); y <= max.getY(); y++)
             for (int z = min.getZ(); z <= max.getZ(); z++) {
                 BlockState state = level.getBlockState(new BlockPos(x, y, z));
@@ -138,12 +182,19 @@ public final class LiftRide {
             ride.riders.add(new Rider(p, seat));
             RIDING.add(p.getUUID());
         }
+<<<<<<< HEAD
         if (volume) ride.prepareVolume(); else ride.prepareCovers();
+=======
+        // Реальные пол/потолок кабины остаются в мире: при проезде камера проходит сквозь них. На время
+        // рейса убираем только внутренние 3x3 плиты у входа и выхода, а затем возвращаем точные состояния.
+        ride.prepareCovers(min, max, dx, dy, dz);
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
         ALL.add(ride);
         return ride;
     }
 
     /**
+<<<<<<< HEAD
      * [новое] Объёмный режим: собирает непустые блоки в развёртке оболочки. Это и полы/потолки промежуточных
      * этажей, и стены, мимо которых проходит кабина. Блоки с block entity не трогаем: у них есть данные.
      */
@@ -166,6 +217,13 @@ public final class LiftRide {
      * потолок (едем вверх), на финише — потолок (вниз) или пол (вверх).
      */
     private void prepareCovers() {
+=======
+     * Выбирает реальные плиты, через которые пройдёт камера: на старте — пол (едем вниз) или потолок
+     * (едем вверх), на финише — потолок (вниз) или пол (вверх). Середину кабины не трогаем, чтобы
+     * снаружи дырка была минимальной. Если в целевой кабине стоит другой игрок, её плиту не скрываем.
+     */
+    private void prepareCovers(BlockPos min, BlockPos max, double dx, double dy, double dz) {
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
         boolean down = dy < 0 || (dy == 0 && dip > 0);
         boolean up = dy > 0 || (dy == 0 && dip > 0);
         if (!down && !up) return;
@@ -200,6 +258,7 @@ public final class LiftRide {
 
     private void hide(BlockPos p) {
         BlockState state = level.getBlockState(p);
+<<<<<<< HEAD
         if (state.isAir() || state.hasBlockEntity()) return;
         if (level.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS)) {
             hidden.put(p.asLong(), state);
@@ -218,11 +277,25 @@ public final class LiftRide {
         if (!srcHidden) return;
         srcHidden = false;
         for (BlockPos p : srcCover) restore(p);
+=======
+        if (state.isAir()) return;
+        if (level.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS)) {
+            hiddenPos.add(p);
+            hiddenState.add(state);
+        }
+    }
+
+    private void restoreSourceCover() {
+        if (!srcHidden) return;
+        srcHidden = false;
+        restoreHidden(srcCover);
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
     }
 
     private void restoreTargetCover() {
         if (!tgtHidden) return;
         tgtHidden = false;
+<<<<<<< HEAD
         for (BlockPos p : tgtCover) restore(p);
     }
 
@@ -260,6 +333,18 @@ public final class LiftRide {
                 hide(p);
             }
         }
+=======
+        restoreHidden(tgtCover);
+    }
+
+    private void restoreHidden(List<BlockPos> only) {
+        for (int i = hiddenPos.size() - 1; i >= 0; i--)
+            if (only.contains(hiddenPos.get(i))) {
+                level.setBlock(hiddenPos.get(i), hiddenState.get(i), Block.UPDATE_CLIENTS);
+                hiddenPos.remove(i);
+                hiddenState.remove(i);
+            }
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
     }
 
     private static Entity display(ServerLevel level, BlockState state, double x, double y, double z, int light) {
@@ -288,18 +373,28 @@ public final class LiftRide {
             }
             return;
         }
+<<<<<<< HEAD
         // Старый режим: скрываем плиту только когда клиент уже посадил игрока на сиденье (после калибровки).
         if (!volume && !srcHidden) hideSourceCover();
+=======
+        // Скрываем плиту только когда клиент уже посадил игрока на сиденье (после калибровки).
+        if (!srcHidden) hideSourceCover();
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
         if (t < moveTicks + SETTLE_TICKS) t++;
         double k = (double) Math.min(t, moveTicks) / moveTicks;
         double s = k * k * k * (k * (k * 6 - 15) + 10); // smootherstep: без рывка на концах
         double arc = -dip * Math.sin(Math.PI * s) * Math.sin(Math.PI * s);
+<<<<<<< HEAD
         if (volume) {
             updateVolume(s, arc);
         } else {
             if (srcHidden && s > 0.5) restoreSourceCover();
             if (!tgtHidden && s > 0.55) hideTargetCover();
         }
+=======
+        if (srcHidden && s > 0.5) restoreSourceCover();
+        if (!tgtHidden && s > 0.55) hideTargetCover();
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
         double edge = Math.min(1.0, Math.min(s, 1.0 - s) / LIFT_EDGE);
         double lift = RIDER_LIFT * edge * edge * (3.0 - 2.0 * edge);
         for (Rider r : riders) {
@@ -321,7 +416,12 @@ public final class LiftRide {
     /** Снимает игроков с сидений и удаляет все дисплеи; безопасно вызывать повторно. */
     public void end() {
         if (!ALL.remove(this)) return;
+<<<<<<< HEAD
         restoreAll();
+=======
+        restoreSourceCover();
+        restoreTargetCover();
+>>>>>>> 37c944c9288395d32dba995f3c559947f5d4478e
         for (Rider r : riders) {
             r.player.stopRiding();
             r.player.resetFallDistance();
