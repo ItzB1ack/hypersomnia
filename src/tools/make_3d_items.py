@@ -116,9 +116,11 @@ SYRINGE_DISPLAY = {
                               "scale": [0.5, 0.5, 0.5]},
     "thirdperson_lefthand": {"rotation": [0, 0, 45], "translation": [0, 4, 2],
                              "scale": [0.5, 0.5, 0.5]},
-    "firstperson_righthand": {"rotation": [0, 0, 35], "translation": [0, 3, 2],
+    # В руке шприц стоит вертикально иглой вниз, как в анимации укола (кулак
+    # держит заднюю часть корпуса, поршень торчит вверх над кистью).
+    "firstperson_righthand": {"rotation": [0, -20, -100], "translation": [0, 0, 2],
                               "scale": [0.55, 0.55, 0.55]},
-    "firstperson_lefthand": {"rotation": [0, 0, 35], "translation": [0, 3, 2],
+    "firstperson_lefthand": {"rotation": [0, -20, -100], "translation": [0, 0, 2],
                              "scale": [0.55, 0.55, 0.55]},
     "head": {"rotation": [0, 0, 45], "translation": [0, 0, 0],
              "scale": [0.6, 0.6, 0.6]},
