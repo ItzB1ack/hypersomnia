@@ -604,7 +604,7 @@ for name, fn in (("crac_front_upper", crac_front_upper), ("crac_front_lower", cr
                  ("battery_side", battery_side), ("battery_top", battery_top)):
     fn().save(os.path.join(OUT, name + ".png"))
 
-# ---- капсула сна B5 (CapsuleBlock): светлый корпус и тёмное стекло крышки ----
+# ---- капсула сна B5 (CapsuleBlock): светлый корпус, тёмное стекло и непрозрачный опалубок крышки ----
 CAPSULE_FRAME = (116, 126, 135)
 CAPSULE_EDGE = (138, 147, 155)
 CAPSULE_SHADE = (86, 96, 105)
@@ -642,6 +642,22 @@ def capsule_lid():
     return im
 
 
+def capsule_lid_inner():
+    # Опалубок крышки изнутри: тот же тёмный лист, но непрозрачный — лежащий не видит зал сквозь стекло.
+    im = img(CAPSULE_GLASS, 2)
+    px = im.load()
+    for y in range(16):                            # мягкий отсвет ложа на потолке
+        for x in range(16):
+            v = max(0, 5 - abs((x + y) - 12))
+            px[x, y] = noisy((CAPSULE_GLASS[0] + v, CAPSULE_GLASS[1] + v, CAPSULE_GLASS[2] + v), 2)
+    for i in range(16):                            # тёмная кромка
+        px[i, 0] = px[i, 15] = noisy((5, 8, 12), 1)
+        px[0, i] = px[15, i] = noisy((5, 8, 12), 1)
+    for x in range(2, 14):                         # стяжка, как на стекле
+        px[x, 7] = noisy((34, 44, 55), 1)
+    return im
+
+
 def capsule_pad():
     # Ложе капсулы: светлая ткань с поперечным швом и мягким краем.
     im = img((188, 192, 195), 2)
@@ -656,6 +672,8 @@ def capsule_pad():
     return im
 
 
-for name, fn in (("capsule_frame", capsule_frame), ("capsule_lid", capsule_lid), ("capsule_pad", capsule_pad)):
+# capsule_lid_inner — последним: не сдвигать общий rnd у уже существующих текстур.
+for name, fn in (("capsule_frame", capsule_frame), ("capsule_lid", capsule_lid),
+                 ("capsule_pad", capsule_pad), ("capsule_lid_inner", capsule_lid_inner)):
     fn().save(os.path.join(OUT, name + ".png"))
 print("furniture ok")

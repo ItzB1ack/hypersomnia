@@ -5,6 +5,7 @@
     "particle": "hypersomnia:block/capsule_frame",
     "frame": "hypersomnia:block/capsule_frame",
     "lid": "hypersomnia:block/capsule_lid",
+    "lid_inner": "hypersomnia:block/capsule_lid_inner",
     "pad": "hypersomnia:block/capsule_pad"
   },
   "elements": [
@@ -240,36 +241,34 @@
       }
     },
     {
-      "name": "glass",
-      "from": [
-        3.02,
-        12.02,
-        3.02
-      ],
-      "to": [
-        12.98,
-        15.98,
-        15.98
-      ],
+      "name": "lid_top",
+      "from": [1, 14, 3.02],
+      "to": [15, 16, 16],
       "faces": {
-        "north": {
-          "texture": "#lid"
-        },
-        "south": {
-          "texture": "#lid"
-        },
-        "east": {
-          "texture": "#lid"
-        },
-        "west": {
-          "texture": "#lid"
-        },
-        "up": {
-          "texture": "#lid"
-        },
-        "down": {
-          "texture": "#lid"
-        }
+        "up": { "texture": "#lid" },
+        "down": { "texture": "#lid_inner" },
+        "east": { "texture": "#lid" },
+        "west": { "texture": "#lid" }
+      }
+    },
+    {
+      "name": "lid_wall_west",
+      "from": [1, 12, 3.02],
+      "to": [3, 14, 16],
+      "faces": {
+        "west": { "texture": "#lid" },
+        "east": { "texture": "#lid_inner" },
+        "north": { "texture": "#lid" }
+      }
+    },
+    {
+      "name": "lid_wall_east",
+      "from": [13, 12, 3.02],
+      "to": [15, 14, 16],
+      "faces": {
+        "east": { "texture": "#lid" },
+        "west": { "texture": "#lid_inner" },
+        "north": { "texture": "#lid" }
       }
     }
   ]

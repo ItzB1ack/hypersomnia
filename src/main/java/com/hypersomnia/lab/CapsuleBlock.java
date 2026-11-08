@@ -56,9 +56,10 @@ public final class CapsuleBlock extends HorizontalDirectionalBlock {
     private static final double PLINTH_Y = 2;      // низ корпуса
     private static final double PAD_Y = 6;         // верх ложа: на нём спина лежащего (SeatEntity)
     private static final double RAIL_Y = 12;       // борта до уровня макушки; выше — стекло
-    private static final double[] GLASS = {3, RAIL_Y, 0, 13, 16, 16};
-    /** Стекло изголовья начинается после консоли, иначе купол пересекается с ней. */
-    private static final double[] HEAD_GLASS = {3, RAIL_Y, 3, 13, 16, 16};
+    /** Закрытая крышка — полая П-образная скорлупа: борта на рейлингах и потолок, изнутри непрозрачный опалубок. */
+    private static final double[] GLASS = {1, RAIL_Y, 0, 15, 16, 16};
+    /** Крышка изголовья начинается после консоли, иначе купол пересекается с ней. */
+    private static final double[] HEAD_GLASS = {1, RAIL_Y, 3, 15, 16, 16};
 
     /** Общие коробки: цоколь, ложе между бортами, два борта. */
     private static double[][] body() {
