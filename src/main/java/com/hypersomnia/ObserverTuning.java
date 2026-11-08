@@ -88,7 +88,8 @@ public final class ObserverTuning {
     public static final int LAB_AMBIENT_TAIL_TICKS = 20;
     /**
      * Сцены тихих звуков. Моменты — в тиках от начала; коды звуков: 0 click, 1 dropout, 2 hiss, 3 knock,
-     * 4 шаг по камню, 5 железная дверь, 6 поршень, 7 железный люк, 8 капель. [новое]
+     * 4 шаг по камню, 5 железная дверь, 6 поршень, 7 железный люк, 8 капель, 9 стекло, 10 металлическая защёлка.
+     * [новое]
      */
     public static final int[][] LAB_AMBIENT_SCENE_TICKS = {
             {8, 28, 58},              // 0: щелчки мёртвого динамика
@@ -100,26 +101,32 @@ public final class ObserverTuning {
             {14, 50},                 // 6: металлический скрип
             {8, 26, 64},              // 7: интерком просыпается и глохнет
             {24, 78},                 // 8: капель
-            {12, 20, 28, 36, 44, 96}  // 9: те же шаги, слишком длинная пауза, ещё один
+            {12, 20, 28, 36, 44, 96}, // 9: те же шаги, слишком длинная пауза, ещё один
+            {14, 86}                  // 10: стекло капсулы оседает, затем защёлка
     };
     public static final byte[][] LAB_AMBIENT_SCENE_SOUNDS = {
             {0, 0, 1}, {0, 2, 2}, {2, 2, 2}, {3, 3, 3},
-            {4, 4, 4, 4, 4, 4}, {5, 6, 6}, {7, 7}, {0, 2, 1}, {8, 8}, {4, 4, 4, 4, 4, 4}
+            {4, 4, 4, 4, 4, 4}, {5, 6, 6}, {7, 7}, {0, 2, 1}, {8, 8}, {4, 4, 4, 4, 4, 4},
+            {9, 10}
     };
     /** Стадия, с которой доступна сцена: шаги — присутствие (3), обрыв ритма и интерком — адресные (4–5). */
-    public static final int[] LAB_AMBIENT_SCENE_MIN_STAGE = {3, 3, 3, 3, 3, 3, 3, 5, 3, 4};
+    public static final int[] LAB_AMBIENT_SCENE_MIN_STAGE = {3, 3, 3, 3, 3, 3, 3, 5, 3, 4, 3};
     /** Сцена требует питания: во время «обесточено» лифт не играет. */
-    public static final boolean[] LAB_AMBIENT_SCENE_POWER = {false, false, false, false, false, true, false, false, false, false};
+    public static final boolean[] LAB_AMBIENT_SCENE_POWER = {false, false, false, false, false, true, false, false, false, false, false};
     /** Множитель громкости и высоты тона сцены. */
-    public static final float[] LAB_AMBIENT_SCENE_VOLUME = {1f, 1f, 1f, .9f, .7f, .9f, .7f, .8f, .7f, .65f};
-    public static final float[] LAB_AMBIENT_SCENE_PITCH = {1f, 1f, 1f, .9f, .95f, .8f, .85f, .95f, 1.2f, .95f};
+    public static final float[] LAB_AMBIENT_SCENE_VOLUME = {1f, 1f, 1f, .9f, .7f, .9f, .7f, .8f, .7f, .65f, .55f};
+    public static final float[] LAB_AMBIENT_SCENE_PITCH = {1f, 1f, 1f, .9f, .95f, .8f, .85f, .95f, 1.2f, .95f, .8f};
     /** Точка звука: смещение от игрока назад по взгляду и по высоте (блоки); 0 — над головой/под ногами. */
-    public static final int[] LAB_AMBIENT_SCENE_DISTANCE = {4, 4, 4, 4, 0, 12, 5, 4, 6, 0};
-    public static final int[] LAB_AMBIENT_SCENE_Y = {0, 0, 0, 0, 4, 0, 2, 0, 0, 4};
+    public static final int[] LAB_AMBIENT_SCENE_DISTANCE = {4, 4, 4, 4, 0, 12, 5, 4, 6, 0, 4};
+    public static final int[] LAB_AMBIENT_SCENE_Y = {0, 0, 0, 0, 4, 0, 2, 0, 0, 4, 0};
     /** Варианты сцен по этажам 1..5; недоступные по стадии и питанию отбрасываются, прошлая сцена не повторяется. */
     public static final int[][] LAB_AMBIENT_FLOOR_SCENES = {
-            {0, 6, 8}, {1, 4, 6, 8}, {2, 5, 8}, {3, 4, 9, 1}, {7, 5, 0, 2}
+            {0, 6, 8}, {1, 4, 6, 8}, {2, 5, 8}, {3, 4, 9, 1}, {7, 5, 10, 0, 2}
     };
+    /** Сцена 10: оседает стеклянная крышка закрытой капсулы B5; звук идёт от ближайшей такой капсулы. */
+    public static final int LAB_AMBIENT_CAPSULE_SCENE = 10;
+    /** Радиус поиска закрытой капсулы для сцены 10 (блоки, по горизонтали и ±1 по высоте). */
+    public static final int LAB_AMBIENT_CAPSULE_RADIUS = 12;
 
     // ---- Давление: временная интенсивность внутри стадии (меняет выбор и частоту, не стадию) ----
     public static final float PRESSURE_W_FATIGUE = 0.5f;

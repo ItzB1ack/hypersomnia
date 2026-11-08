@@ -11,6 +11,7 @@ import com.hypersomnia.lab.LabProtection;
 import com.hypersomnia.lab.LabLift;
 import com.hypersomnia.lab.LabSavedData;
 import com.hypersomnia.lab.LabTuning;
+import com.hypersomnia.lab.CapsuleBlock;
 import com.hypersomnia.network.LabAmbientPayload;
 import com.hypersomnia.scene.SceneAttachments;
 import net.minecraft.core.BlockPos;
@@ -18,6 +19,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -94,6 +96,11 @@ public final class LabAmbientHandler {
 
     /** Точка звука сцены: назад по взгляду и/или выше головы (шаги над потолком, лифт за стеной). */
     private static BlockPos soundAt(ServerPlayer p, int kind) {
+        if (kind == ObserverTuning.LAB_AMBIENT_CAPSULE_SCENE) {
+            // Сцена 10: звук идёт от ближайшей закрытой капсулы, а не из пустого места за спиной.
+            BlockPos capsule = closedCapsule(p);
+            if (capsule != null) return capsule;
+        }
         int distance = ObserverTuning.LAB_AMBIENT_SCENE_DISTANCE[kind];
         double dx = -p.getViewVector(1f).x, dz = -p.getViewVector(1f).z;
         double len = Math.sqrt(dx * dx + dz * dz);
@@ -101,6 +108,30 @@ public final class LabAmbientHandler {
         return BlockPos.containing(p.getX() + dx / len * distance,
                 p.getY() + ObserverTuning.LAB_AMBIENT_SCENE_Y[kind],
                 p.getZ() + dz / len * distance);
+    }
+
+    /** Ближайшее изголовье закрытой капсулы в пределах 12 блоков по горизонтали; null — капсул рядом нет. */
+    private static BlockPos closedCapsule(ServerPlayer p) {
+        ServerLevel level = p.serverLevel();
+        BlockPos base = p.blockPosition();
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        int radius = ObserverTuning.LAB_AMBIENT_CAPSULE_RADIUS;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    BlockPos pos = base.offset(dx, dy, dz);
+                    if (!level.hasChunkAt(pos)) continue;
+                    BlockState state = level.getBlockState(pos);
+                    if (!(state.getBlock() instanceof CapsuleBlock)
+                            || state.getValue(CapsuleBlock.PART) != CapsuleBlock.Part.HEAD
+                            || state.getValue(CapsuleBlock.OPEN)) continue;
+                    double d = pos.distSqr(base);
+                    if (d < bestDistance) { bestDistance = d; best = pos; }
+                }
+            }
+        }
+        return best;
     }
 
     /** Отладка: состояние ожидания и кулдауна для этого игрока. */
