@@ -58,15 +58,10 @@ public final class SyringeViewModel {
 
     /** Поза «готов»: кисть поднята правее центра, игла смотрит вверх-вперёд. */
     private static final Vector3f READY_GRIP = new Vector3f(0.30F, -0.02F, -0.85F);
-    private static final float READY_SWING = 25.0F, READY_TILT = -15.0F;
-    private static final Vector3f READY_AIM = new Vector3f(0.0F, 0.55F, -0.85F).normalize();
+    private static final float READY_SWING = 20.0F, READY_TILT = -15.0F;
     /** Поза «к торсу»: кисть внизу у центра, игла вниз и к телу. */
     private static final Vector3f TORSO_GRIP = new Vector3f(0.14F, -0.20F, -0.66F);
     private static final float TORSO_SWING = 60.0F, TORSO_TILT = -30.0F;
-    private static final Vector3f TORSO_AIM = new Vector3f(-0.30F, -0.80F, -0.25F).normalize();
-    /** Куда смотрит шприц в покое. */
-    private static final Vector3f NEUTRAL_AIM = new Vector3f(0.10F, 0.18F, -0.98F).normalize();
-    private static final Vector3f NEEDLE_AXIS = new Vector3f(1.0F, 0.0F, 0.0F);
 
     // ---- фазы укола (доля прогресса 0..1; соседние фазы перекрываются) ----
     private static final float RAISE_END = 0.40F;
@@ -236,17 +231,18 @@ public final class SyringeViewModel {
         float swing = lerp(lerp(0.0F, READY_SWING, raise), TORSO_SWING, aim);
         float tilt = lerp(lerp(0.0F, READY_TILT, raise), TORSO_TILT, aim);
 
-        Vector3f aimView = new Vector3f(NEUTRAL_AIM)
-                .lerp(mirror(READY_AIM, side), raise)
-                .lerp(mirror(TORSO_AIM, side), aim)
-                .normalize();
+        // Шприц зажат в кулаке поперёк кисти: игла смотрит вдоль оси X части руки
+        // (для левой руки зеркально). Куда она указывает, определяет только поза руки:
+        // от «вперёд-вниз» в покое до «вниз к торсу» при взмахе.
+        Vector3f needleView = handChain(model, arm, equip, swing, tilt)
+                .transformDirection(new Vector3f(side, 0.0F, 0.0F)).normalize();
 
         Vector3f restGrip = gripAtZeroOffset(model, arm, equip, 0.0F, 0.0F);
         Vector3f goal = new Vector3f(restGrip)
                 .lerp(mirror(READY_GRIP, side), raise)
                 .lerp(mirror(TORSO_GRIP, side), aim);
         // Прокол: кисть вместе со шприцем идёт вдоль иглы.
-        goal.fma(INJECT_TRAVEL * inject, aimView);
+        goal.fma(INJECT_TRAVEL * inject, needleView);
         Vector3f offset = goal.sub(gripAtZeroOffset(model, arm, equip, swing, tilt));
         offset.y -= DROP_DISTANCE * drop;
 
@@ -263,18 +259,12 @@ public final class SyringeViewModel {
         }
 
         // Шприц продолжает позу руки, поэтому всегда в кисти.
-        Matrix4f rootInverse = new Matrix4f(pose.last().pose()).invert();
-        Matrix4f handView = new Matrix4f(viewMatrix(pose, rootInverse))
-                .mul(partMatrix(partOf(model, arm)));
-        Vector3f aimLocal = handView.invert(new Matrix4f())
-                .transformDirection(new Vector3f(aimView)).normalize();
-        Vector3f grip = new Vector3f(handX(arm), 10.0F / 16.0F, 0.0F);
-
         ModelPart part = partOf(model, arm);
         pose.translate(part.x / 16.0F, part.y / 16.0F, part.z / 16.0F);
         pose.mulPose(new Quaternionf().rotationZYX(part.zRot, part.yRot, part.xRot));
-        pose.translate(grip.x, grip.y, grip.z);
-        pose.mulPose(new Quaternionf().rotationTo(NEEDLE_AXIS, aimLocal));
+        pose.translate(handX(arm), 10.0F / 16.0F, 0.0F);
+        // Модель иглой по +X; у левой руки ось кулака зеркальна.
+        if (arm == HumanoidArm.LEFT) pose.mulPose(Axis.YP.rotationDegrees(180.0F));
         pose.translate(GRIP_SHIFT, 0.0F, 0.0F);
         pose.scale(SCALE, SCALE, SCALE);
 
@@ -293,9 +283,9 @@ public final class SyringeViewModel {
         pose.popPose();
     }
 
-    /** Положение кисти в видовом пространстве при нулевом сдвиге руки. */
-    private static Vector3f gripAtZeroOffset(PlayerModel<AbstractClientPlayer> model, HumanoidArm arm,
-                                             float equip, float swing, float tilt) {
+    /** Матрица части руки в видовом пространстве при нулевом сдвиге (без поворота замаха). */
+    private static Matrix4f handChain(PlayerModel<AbstractClientPlayer> model, HumanoidArm arm,
+                                      float equip, float swing, float tilt) {
         float f = arm == HumanoidArm.RIGHT ? 1.0F : -1.0F;
         Matrix4f m = new Matrix4f();
         m.translate(f * 0.64000005F, -0.6F + equip * -0.6F, -0.71999997F);
@@ -311,7 +301,14 @@ public final class SyringeViewModel {
         // третьего лица (renderRightHand обнуляет его позже), и он сдвигал бы кисть.
         ModelPart part = partOf(model, arm);
         m.translate(part.x / 16.0F, part.y / 16.0F, part.z / 16.0F);
-        return m.transformPosition(new Vector3f(handX(arm), 10.0F / 16.0F, 0.0F));
+        return m;
+    }
+
+    /** Положение кисти в видовом пространстве при нулевом сдвиге руки. */
+    private static Vector3f gripAtZeroOffset(PlayerModel<AbstractClientPlayer> model, HumanoidArm arm,
+                                             float equip, float swing, float tilt) {
+        return handChain(model, arm, equip, swing, tilt)
+                .transformPosition(new Vector3f(handX(arm), 10.0F / 16.0F, 0.0F));
     }
 
     private static Vector3f mirror(Vector3f v, float side) {
