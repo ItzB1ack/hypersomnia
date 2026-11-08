@@ -310,6 +310,10 @@ public final class LabTuning {
     public static final float CAPSULE_RENDER_SHIFT = 1.52f;
     /** Предел поворота головы лежащего от оси капсулы, градусы. */
     public static final float CAPSULE_HEAD_LIMIT = 60f;
+    /** Звук крышки капсулы B5 (железный люк) при закрытии/открытии. [проверить на слух] */
+    public static final float CAPSULE_LID_VOLUME = 0.55f;
+    public static final float CAPSULE_LID_CLOSE_PITCH = 0.85f;
+    public static final float CAPSULE_LID_OPEN_PITCH = 1.15f;
     /**
      * Открыта ли капсула по клетке изножья в чертеже (x, z — координаты сетки). Из двенадцати коек зала B5
      * открыты три: (4,13), (12,16), (20,19) в обоих мирах. Иначе крышка закрыта.

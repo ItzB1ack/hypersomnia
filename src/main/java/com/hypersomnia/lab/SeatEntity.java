@@ -30,7 +30,7 @@ import net.minecraft.world.phys.Vec3;
  * Тем же сиденьем пользуется открытая капсула B5 (lie): якорь — изножье тройки CCC, сиденье стоит в центре
  * клетки изголовья на высоте ложа, игрок лежит лицом к изголовью в позе кровати (Pose.SLEEPING, как в
  * ванильной кровати; клиентский рендер — LabCapsuleRender). Сон при этом не начинается: startSleeping не зовётся.
- * Закрылась/исчезла капсула — сиденье исчезает и выпускает игрока.
+ * Лёг — крышка закрывается сама; встал (Shift), капсулу разбили или сущность исчезла — крышка снова открыта.
  */
 public final class SeatEntity extends Entity {
     /** Лежит в капсуле (синхронизируется: клиенту нужен вид и поза). */
@@ -82,7 +82,10 @@ public final class SeatEntity extends Entity {
         seat.moveTo(head.getX() + 0.5, foot.getY() + LabTuning.CAPSULE_LIE_Y, head.getZ() + 0.5,
                 facing.toYRot(), 0.0f);
         if (!level.addFreshEntity(seat)) return false;
-        if (player.startRiding(seat, true)) return true;
+        if (player.startRiding(seat, true)) {
+            CapsuleBlock.setOpen(level, foot, facing, false); // лёг — крышка закрылась
+            return true;
+        }
         seat.discard();
         return false;
     }
@@ -111,13 +114,20 @@ public final class SeatEntity extends Entity {
         }
         if (level().isClientSide) return;
         if (!isVehicle()) {
+            reopen(); // игрок вышел/исчез — не оставляем капсулу запертой
             discard();
             return;
         }
         boolean ok = isLying()
-                ? CapsuleBlock.canLie(level(), anchor, lieFacing)
+                ? CapsuleBlock.isIntact(level(), anchor, lieFacing)
                 : level().getBlockState(blockPosition()).getBlock() instanceof ChairBlock;
         if (!ok) discard();
+    }
+
+    /** Вернуть крышку капсулы в открытое положение (сервер): тройка цела — все три клетки OPEN. */
+    private void reopen() {
+        if (level().isClientSide || anchor == null) return;
+        CapsuleBlock.setOpen(level(), anchor, lieFacing, true);
     }
 
     /** Точка посадки — сама сущность: высоту задаёт CHAIR_SEAT_Y или CAPSULE_LIE_Y. */
@@ -156,7 +166,10 @@ public final class SeatEntity extends Entity {
     @Override
     protected void removePassenger(Entity passenger) {
         super.removePassenger(passenger);
-        if (isLying() && passenger instanceof Player player) player.setForcedPose(null);
+        if (isLying()) {
+            if (passenger instanceof Player player) player.setForcedPose(null);
+            reopen(); // встал — капсула открывается, её можно занять снова
+        }
     }
 
     @Override
@@ -206,8 +219,23 @@ public final class SeatEntity extends Entity {
     }
 
     @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {}
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        if (tag.contains("CapsuleFoot")) anchor = BlockPos.of(tag.getLong("CapsuleFoot"));
+        if (tag.contains("CapsuleFacing")) {
+            Direction d = Direction.byName(tag.getString("CapsuleFacing"));
+            if (d != null && d.getAxis().isHorizontal()) lieFacing = d;
+        }
+        if (tag.getBoolean("Lying")) {
+            entityData.set(DATA_LYING, true);
+            entityData.set(DATA_LIE_FACING, (byte) lieFacing.get2DDataValue());
+        }
+    }
 
     @Override
-    protected void addAdditionalSaveData(CompoundTag tag) {}
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        if (anchor == null) return;
+        tag.putLong("CapsuleFoot", anchor.asLong());
+        tag.putString("CapsuleFacing", lieFacing.getSerializedName());
+        tag.putBoolean("Lying", isLying());
+    }
 }

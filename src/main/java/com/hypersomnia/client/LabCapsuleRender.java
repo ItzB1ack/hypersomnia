@@ -16,7 +16,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderPlayerEvent;
 
 /**
- * Лежащий в открытой капсуле B5 рисуется как на ванильной кровати: та же поза (Pose.SLEEPING),
+ * Лежащий в капсуле B5 рисуется как на ванильной кровати: та же поза (Pose.SLEEPING),
  * тот же сдвиг тела на 1.52 блока к изножью и тот же разворот. Своя поправка нужна потому, что
  * getBedOrientation у игрока без кровати даёт UP (поворот 0), а не FACING капсулы.
  * Голова поворачивается за взглядом не больше CAPSULE_HEAD_LIMIT градусов от оси капсулы.
