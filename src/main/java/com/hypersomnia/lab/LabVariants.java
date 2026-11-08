@@ -345,19 +345,17 @@ public final class LabVariants {
         return (antennaStart(seed) + 180) % 360;
     }
 
-    // ---------------- Шифр 9: стук за заложенной дверью 2D (B4) ----------------
+    // ---------------- Шифр 9: код директора для B5 (записка 2D, группы счёта) ----------------
 
-    /** Код LIFT ACCESS B4 (код директора): четыре разные цифры. */
-    public static String knockCode(long seed) {
-        int[] o = WorldVariant.order(seed, LabTuning.KNOCK_KEY, 10);
+    /**
+     * Код LIFT ACCESS B4 (код директора): четыре разные цифры 1..9. Ноль не используется: цифра рисуется группой
+     * чёрточек, а пустую группу не прочитать. Рендер — DocumentDefs.Tally (записка 2D).
+     */
+    public static String wardCode(long seed) {
+        int[] o = WorldVariant.order(seed, LabTuning.WARD_KEY, 9);
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < LabTuning.CODE_DIGITS; i++) sb.append(o[i]);
+        for (int i = 0; i < LabTuning.CODE_DIGITS; i++) sb.append(o[i] + 1);
         return sb.toString();
-    }
-
-    /** Ряд и столбец цифры на кодовой панели (1 2 3 / 4 5 6 / 7 8 9 / C 0 <): {ряд, столбец}, оба с 1. */
-    public static int[] keyCell(int digit) {
-        return digit == 0 ? new int[]{4, 2} : new int[]{(digit - 1) / 3 + 1, (digit - 1) % 3 + 1};
     }
 
     private static boolean identity(int[] o) {

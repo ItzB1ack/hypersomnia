@@ -33,7 +33,7 @@ public final class LabLocks {
         if (id == LabTuning.LOCK_SESSION) return digits.equals(com.hypersomnia.finale.FinaleTuning.SESSION_CODE);
         if (id == LabTuning.LOCK_STACKS) return digits.equals(LabVariants.stacksCode(seed));
         if (id == LabTuning.LOCK_BUFFER) return false; // шифр 8 без кода: открывает несущая ANT-1 (LabAntenna)
-        if (id == LabTuning.LOCK_WARD) return digits.equals(LabVariants.knockCode(seed));
+        if (id == LabTuning.LOCK_WARD) return digits.equals(LabVariants.wardCode(seed));
         return false;
     }
 

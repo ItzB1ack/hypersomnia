@@ -38,6 +38,11 @@ public final class DocumentDefs {
     public record Glyphs(String text) implements El {}
     /** Фрагмент ключа алфавита черт: знаки для перечисленных букв (тоже из lang). */
     public record GlyphKey(String letters) implements El {}
+    /**
+     * Шифр 9: код директора (B5) группами счёта — цифра = число чёрточек, группы слева направо.
+     * Цифры из LabVariants.wardCode (1..9, четыре разные), поэтому страница своя в каждом мире.
+     */
+    public record Tally() implements El {}
     public record Gap() implements El {}
     /** Моноширинная строка (журналы, бланки): каждый символ в ячейке одной ширины. Пока рисует только архив терминала. */
     public record Mono(String text) implements El {}
@@ -372,11 +377,11 @@ public final class DocumentDefs {
                 new Para("One digit for each place in the store. For the nightly copy only."), // 1
                 new CheckGrid("ROW|PLACE"),                                        // 2
                 new Stamp("RECORDS B2"))));                                        // 3
-        // Шифр 9: стук слышен в реальном B4 у заложенной двери 2D (LabKnocks); сон — необязательная копия.
+        // Шифр 9: код директора для B5. Стук убран: цифры нацарапаны группами счёта (Tally = LabVariants.wardCode).
         add(new Doc("note_2d_knock", "Note: Ward 2D", Style.NOTE, List.of(
-                new Para("2D knocked on the wall again tonight."),                 // 0
-                new Para("The knocking comes from the sealed door in the corridor, right by the lift."), // 1
-                new Para("Row, then column, like the buttons on the lift panel outside her window. Always the same four."), // 2
-                new Para("She says she watched the Director press them."))));      // 3
+                new Para("They bricked the door in the corridor shut, so she stopped knocking."), // 0
+                new Para("Now she scratches the count on paper: four groups, left to right. Count the marks; a bar across four marks is five."), // 1
+                new Tally(),                                                        // 2
+                new Para("The same four the Director presses. The panel is across the corridor from her window.")))); // 3
     }
 }

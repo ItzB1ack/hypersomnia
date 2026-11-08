@@ -29,7 +29,7 @@ public final class LabSavedData extends SavedData {
     public static final int KIND_RACK = 9;
     /** Место в ряду хранилища (строка stack): kind * 1000 + ряд * 100 + место * 10 + сторона полок (Direction 2D), оба блока. */
     public static final int KIND_STACK = 10;
-    /** Заложенная дверь, за которой стучат (строка knock): kind * 1000 + замок, чей код выстукивают (LabKnocks). */
+    /** Заложенная дверь (строка knock): kind * 1000 + 8; только осмотр, код больше не выстукивается. */
     public static final int KIND_KNOCK = 11;
     /** Поворотная каретка антенны ANT-1 на крыше реального павильона (AntennaDriveBlock): kind * 1000. ПКМ — LabAntenna.use. */
     public static final int KIND_ANTENNA = 12;

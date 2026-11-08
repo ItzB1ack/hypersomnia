@@ -145,7 +145,7 @@ public final class LabTuning {
      * открывается сама (LabAntenna). Без MAIN FEED несущей нет.
      */
     public static final int LOCK_BUFFER = 7;
-    /** B4 -> B5. Шифр 9: код директора, который выстукивают за заложенной дверью 2D в реальном B4 (LabKnocks). */
+    /** B4 -> B5. Шифр 9: код директора, группы счёта в записке палаты 2D (LabVariants.wardCode). */
     public static final int LOCK_WARD = 8;
     /** Замки доступа по этажам: ACCESS_LOCKS[i] открывает остановку FEED_REACHED + 1 + i (LabLocks.accessTop). */
     public static final int[] ACCESS_LOCKS = {LOCK_STACKS, LOCK_BUFFER, LOCK_WARD};
@@ -201,22 +201,9 @@ public final class LabTuning {
     public static final float ANTENNA_SOUND_PITCH = 0.55f;
     public static final float ANTENNA_CARRIER_PITCH = 0.7f;
 
-    // ---- Шифр 9: стук за заложенной дверью 2D (B4; реальный мир и необязательная копия во сне; LabKnocks) ----
-    public static final String KNOCK_KEY = "ward_knock";
-    /** Стук слышен, пока игрок ближе этого к заложенной двери (блоки). */
-    public static final int KNOCK_RADIUS = 7;
-    /** Раз в столько тиков проверяется, есть ли кто-то рядом. */
-    public static final int KNOCK_SCAN_TICKS = 10;
-    /** Тишина после того, как игрок подошёл, перед первым ударом. */
-    public static final int KNOCK_START_TICKS = 40;
-    /** Между ударами одного числа; между рядом и столбцом; между цифрами; после четырёх цифр до повтора. */
-    public static final int KNOCK_GAP_TICKS = 8;
-    public static final int KNOCK_PAUSE_TICKS = 22;
-    public static final int KNOCK_DIGIT_TICKS = 56;
-    public static final int KNOCK_REPEAT_TICKS = 240;
-    /** Громкость и высота удара (lab_knock: ванильный звук дерева, ниже обычного). [проверить на слух] */
-    public static final float KNOCK_VOLUME = 0.9f;
-    public static final float KNOCK_PITCH = 0.6f;
+    // ---- Шифр 9: код директора для B5 (группы счёта в записке 2D) ----
+    /** Зерно мира: код директора (LabVariants.wardCode). */
+    public static final String WARD_KEY = "ward_code";
 
     // ---- Защита постройки (LabProtection) ----
     /** Стены, пол и потолок лаборатории нельзя сломать и взорвать (кроме творческого режима): шифры не обходятся киркой. */

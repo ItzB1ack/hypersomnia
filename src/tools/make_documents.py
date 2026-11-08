@@ -167,13 +167,11 @@ def note(ink=INK, style="text"):
         put(px, x, y, PAPER_DK)
     # почерк
     if style == "knock":
-        for x, y in [(5, 5), (6, 5), (8, 5), (9, 5), (11, 5), (12, 5)]:
-            put(px, x, y, ink)
-        for x, y in [(5, 7), (6, 7), (8, 7), (9, 7), (11, 7), (12, 7)]:
-            put(px, x, y, ink)
-        for x, y in [(6, 11), (8, 11), (10, 11)]:
-            put(px, x, y, ink)
-        put(px, 8, 11, ink)
+        # группы счёта: цифра = число чёрточек (иконка условная, не настоящий код)
+        for gx, n in ((3, 1), (5, 2), (8, 1), (10, 2)):
+            for k in range(n):
+                for y in range(5, 11):
+                    put(px, gx + k, y, ink)
     else:
         for y, xs in ((5, (5, 6, 8, 9, 10)), (7, (5, 7, 8, 10, 11)),
                       (9, (4, 5, 7, 9, 10)), (11, (6, 8, 9))):

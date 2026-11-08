@@ -447,6 +447,14 @@ public final class DocumentScreen extends Screen {
                     col++;
                 }
                 y += 30;
+            } else if (el instanceof Tally) {
+                // Шифр 9: код директора группами счёта — цифра = число чёрточек, группы слева направо
+                String code = LabVariants.wardCode(signSeed());
+                int x = PAD + 8;
+                for (int k = 0; k < code.length(); k++) {
+                    if (draw) x = SignGlyphs.tally(g, x, y + 2, code.charAt(k) - '0', 14, ink) + 16;
+                }
+                y += 28;
             } else if (el instanceof Dirs e) {
                 float x = PAD;
                 for (char ch : e.dirs().toUpperCase().toCharArray()) {

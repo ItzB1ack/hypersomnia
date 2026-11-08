@@ -1,6 +1,5 @@
 package com.hypersomnia.lab;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -48,9 +47,9 @@ public final class LabVariantsSelfTest {
         for (int rack : racks) { unique.add(rack); check(LabVariants.rackHeld(seed, rack), "rack hold " + seed); }
         check(unique.size() == racks.length, "unique racks " + seed);
         check(LabVariants.antennaTarget(seed) == (LabVariants.antennaStart(seed) + 180) % 360, "antenna " + seed);
-        String knock = LabVariants.knockCode(seed); Set<Character> knockDigits = new HashSet<>();
-        for (char digit : knock.toCharArray()) knockDigits.add(digit);
-        check(knock.length() == LabTuning.CODE_DIGITS && knockDigits.size() == LabTuning.CODE_DIGITS, "knock " + seed);
-        check(Arrays.equals(LabVariants.keyCell(0), new int[]{4, 2}), "zero keypad cell");
+        String ward = LabVariants.wardCode(seed); Set<Character> wardDigits = new HashSet<>();
+        for (char digit : ward.toCharArray()) wardDigits.add(digit);
+        check(ward.length() == LabTuning.CODE_DIGITS && wardDigits.size() == LabTuning.CODE_DIGITS, "ward " + seed);
+        check(ward.indexOf('0') < 0, "ward has no zero " + seed);
     }
 }

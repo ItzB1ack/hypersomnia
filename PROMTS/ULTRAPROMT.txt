@@ -275,7 +275,7 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   секунду смотрят инвентарь, отмечают находки; найденное не теряется.
 - Лаборатория: lab/* (LabBuilder, LabFloors, LabPlacement, LabLift,
   LabSavedData, LabTuning, LabFloorTuning, LabSiteTuning, LabSigns, LabCommand,
-  LabPlacementCommand, LabProtection, LabFixtures, LabKnocks, LabAntenna,
+  LabPlacementCommand, LabProtection, LabFixtures, LabAntenna,
   LabOutage, LabVariants, ArchiveDefs, ArchiveAccess), server/LabHandler,
   LabAmbientHandler, LabPathHandler; network/LabNetwork, LabKeypad*,
   LabTerminal*, LabPath*; client/LabKeypad*, LabTerminal*, LabAmbientClient,
@@ -321,23 +321,25 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   Валидатор: python3 tools/lab_check.py.
 - Цепочка: G (люк, замок 1 HATCH) → B1 (MAIN FEED, LabBreakers) → B2 →
   [замок 6 STACKS] → B3 → [7 BUFFER: антенна ANT-1 на крыше] → B4 →
-  [8 WARD: стук за заложенной дверью 2D, слышен в РЕАЛЬНОМ B4] → B5.
+  [8 WARD: группы счёта в записке 2D] → B5.
 - B4 [новое]: центральный коридор x=14..16 z=5..22; запад — 2A (север),
   аптека (середина), 2B (юг); восток — 2D (север, x=18..29 z=5..11),
   2C (середина), пост медсестры (юг). Двери только в стенах x=13 и x=17.
-  Заложенная дверь 2D — (17,5) сразу у лифта, окно 2D — (17,7),
-  панель K — (14,8) напротив окна через коридор, щит & — (14,11).
-  Табличка 9 «КОД: ПАЛАТА 2D» — (16,5); записка j (note_2d_knock) — в 2D.
+  Заложенная дверь 2D — (17,5) сразу у лифта (только осмотр, стук убран),
+  окно 2D — (17,7), панель K — (14,8) напротив окна через коридор,
+  щит & — (14,11). Табличка 9 «КОД: ПАЛАТА 2D» — (16,5); записка j
+  (note_2d_knock) — в 2D.
 - B5 [новое]: кабинет директора (запад), холл лифта (центр), управление
   сеансом (восток) за стенами x=11/x=19 z=5..10; стена z=11 с тремя
   дверями (5,11), (15,11), (25,11) ведёт в зал сеанса z=12..22 на всю
   ширину (колонны C, койки b). Щит & — (18,9).
-- Шифр 9 (замок 8 LOCK_WARD): код = LabVariants.knockCode(seed), четыре
-  разные цифры. LabKnocks тикает и Верхний мир, и DreamDimension.LEVEL
-  (RUNNING по измерению), поэтому стук слышен в реальном B4 у (17,5) и
-  необязательной копией во сне. Ряд, пауза, столбец (keyCell), длинная
-  пауза; отошёл — счёт с начала. Подсказки: табличка 9, записка 2D,
-  почта m_panel на посте медсестры (ST_MED_B4).
+- Шифр 9 (замок 8 LOCK_WARD): код = LabVariants.wardCode(seed), четыре
+  разные цифры 1..9 (ноль не используется). Стука больше нет (LabKnocks
+  удалён): записка 2D царапает код группами счёта (DocumentDefs.Tally,
+  цифра = число чёрточек, четыре группы слева направо; перечёркнутые
+  четыре = пять). Подсказки: табличка 9, записка 2D, почта m_panel и
+  m_knock на посте медсестры (ST_MED_B4). KIND_KNOCK в чертежах остался
+  как заложенная дверь для осмотра; разметку не выстукивает.
 - Остальные замки: 2 INDEX (шифр 6, B1 яви), 3 BAY (шифр 4, B1 сна),
   4 NURSERY (шифр 5), 5 SESSION (секрет 48).
 - Варианты шифров — из LabSavedData.cipherSeed. LabSavedData.DATA_VERSION = 4
@@ -392,7 +394,7 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
     когда игрок подходит к лаборатории; /hypersomnia_lab rebuild не нужен.
 - Лаборатория: этажи B1–B5 перестроены; лифт 3×3; замки 1–8; шифры 1–6;
   секрет 48; архивная станция CRADLE WORKSTATION; антенна ANT-1; «обесточено»;
-  LabProtection, LabFixtures, LabKnocks, LabAmbient, LabPath.
+  LabProtection, LabFixtures, LabAmbient, LabPath.
 - Хоррор: стадии 0–5, пороги ObserverTuning.STAGE_POINTS {5,10,16,22,28},
   стадия 5 требует 4+ воспоминаний; давление (усталость, безумие, шприц)
   меняет частоту, но не стадию. ObserverDirector с бюджетом, кулдаунами,

@@ -27,7 +27,7 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> TAPE_CLICK = tape("tape_click");
     public static final DeferredHolder<SoundEvent, SoundEvent> TAPE_DROPOUT = tape("tape_dropout");
 
-    /** Стук за заложенной дверью палаты 2D (LabKnocks). Файлы — ванильные удары по дереву, см. sounds.json. */
+    /** Стук за заложенной дверью палаты 2D и эпизоды лаборатории (LabAmbient): ванильные удары по дереву, см. sounds.json. */
     public static final DeferredHolder<SoundEvent, SoundEvent> LAB_KNOCK = tape("lab_knock");
 
     /** [новое] Напольные часы в мире снов (DreamClock): тиканье (ванильный click) и бой

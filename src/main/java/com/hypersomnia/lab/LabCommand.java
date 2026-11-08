@@ -266,7 +266,7 @@ public final class LabCommand {
         p.sendSystemMessage(Component.literal("Lift access: B2->B3 " + LabVariants.stacksCode(seed) + " (empty places " + places
                 + ")  B3->B4 ANT-1 " + LabAntenna.azimuth(LabVariants.antennaStart(seed)) + " -> " + LabAntenna.azimuth(LabVariants.antennaTarget(seed))
                 + " (relay azimuth in BUFFER.LOG; held racks " + racks + ", copy " + hold[LabTuning.RACK_HELD]
-                + ")  B4->B5 " + LabVariants.knockCode(seed) + " (knocked in the dream, B4 ward 2D)"));
+                + ")  B4->B5 " + LabVariants.wardCode(seed) + " (tally groups in the 2D note, B4)"));
         return 1;
     }
 
