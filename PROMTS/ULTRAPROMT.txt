@@ -1,5 +1,5 @@
 HYPERSOMNIA — ЕДИНЫЙ УЛЬТРАПРОМТ
-Обновлено: 2026-11-07. Сверено с кодом ветки main на коммите 1c98557.
+Обновлено: 2026-11-08. Сверено с кодом ветки main (сессия: часы сна, зеркало, фикс IP).
 
 Этот файл заменяет все остальные промты в PROMTS/ (PROMT.txt, COMMONPROMT.txt,
 PROMT_handoff.txt, PROMT_NEXT_CHAT.txt, PROMT_nightmares.txt, PROMT_cutscenes.txt,
@@ -232,8 +232,14 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
 - Усталость: FatigueData, FatigueTuning, server/FatigueHandler, client/Fatigue*,
   network/FatigueSyncPayload, SleepPenalty, MadnessSync.
 - Мир снов: dream/* (DreamDimension, DreamTransition, DreamHandler, DreamData,
-  DreamTuning, DreamCommand), client/DreamOverlay, DreamClientEvents,
-  DreamClientState, DreamSkyEye.
+  DreamTuning, DreamClock, DreamClockBlock, DreamClockTuning, DreamCommand),
+  client/DreamOverlay, DreamClientEvents, DreamClientState, DreamSkyEye.
+- Зеркало дома: dream/DreamMirror, DreamMirrorLoop, DreamMirrorTuning (стадии
+  3–5; захват 3x3 чанков вокруг кровати, портал-петля с тегом
+  hypersomnia:dream_mirror_loop).
+- Совместимость: client/ImmersivePortalsCompat — ClientWorldLoader.initializeIfNeeded()
+  на ClientPlayerNetworkEvent.Clone после смены измерения (обход вылета IP 6.0.7
+  на ClientboundBlockChangedAckPacket).
 - Наблюдатель: client/ObserverClient, ObserverGhost, ObserverState, ObserverScare,
   ObserverScareOverlay, DoorEcho; ObserverTuning (в корне пакета, включая
   stage(days, memories)); network/ObserverNetwork, ObserverStagePayload;
@@ -382,6 +388,11 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   LabProtection; клиент погони (фигура, бег, поворот тела, сердце, музыка,
   шёпот, виньетка); антенна/«обесточено» на вид и слух; сценарии кошмаров;
   стадия 5 (комната, путь, ярость); лес; катсцены.
+- Не проверено из последнего: часы сна (слышимость тиканья с точки входа и с
+  кольца 14–34, удары, переход в погоню, поимка с 50% усталости и запиской,
+  модель в игре, очистка блока); зеркало дома (захват, петля, стадии 4–5);
+  фикс client/ImmersivePortalsCompat — нужен реальный вход в сон и выход из
+  него, чтобы убедиться, что «Ошибка сетевого протокола» не повторяется.
 
 ======================================================================================================================
 7. ЧТО ОСТАЛОСЬ
@@ -719,10 +730,12 @@ D.3. Точки входа
 - DreamTransition.enter(player): сохраняет возврат, ставит DreamData.inDream,
   ticksLeft=DreamTuning.DURATION_TICKS, телепортирует в измерение по тем же
   координатам (findSafe). Для кошмара — версия с целевым местом и kind.
+  После телепорта в обычный сон DreamClock.start ставит напольные часы.
 - DreamTransition.exit(player): возврат, пропуск ночи, SleepPenalty.restFatigue,
-  ChaseHandler.onWake, следы/записки.
+  ChaseHandler.onWake, следы/записки, DreamClock.clear.
 - DreamHandler: тик сна (кровать → enter, таймер → exit,
-  adoptUnexpectedArrival).
+  adoptUnexpectedArrival), тик DreamClock (тиканье, удары, погоня),
+  урон/смерть в обычном сне будят (кроме hypersomnia:fragment).
 - ChaseHandler: фаза CAUGHT (CAUGHT_TICKS=34) → end(O_CAUGHT) →
   DreamTransition.enter. caught() добавляет усталость +25% и безумие +1.
 - FatigueHandler.finishForcedSleep → DreamTransition.enter.
