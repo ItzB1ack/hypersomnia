@@ -345,7 +345,7 @@ public final class LabVariants {
         return (antennaStart(seed) + 180) % 360;
     }
 
-    // ---------------- Шифр 9: стук из палаты 2D (мир снов, B4) ----------------
+    // ---------------- Шифр 9: стук за заложенной дверью 2D (B4) ----------------
 
     /** Код LIFT ACCESS B4 (код директора): четыре разные цифры. */
     public static String knockCode(long seed) {

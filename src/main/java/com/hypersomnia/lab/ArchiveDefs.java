@@ -128,7 +128,7 @@ public final class ArchiveDefs {
     public static final int ST_ARC_B2 = 4;
     /** Пульт серверной B3: почта, журнал буферов. Шифр 8. */
     public static final int ST_SRV_B3 = 5;
-    /** Пост медсестры B4: почта. Шифр 9 (подсказка, сам стук — во сне). */
+    /** Пост медсестры B4: почта. Шифр 9 (стук слышен в реальном B4; сон — необязательная копия). */
     public static final int ST_MED_B4 = 6;
 
     /** Журнал буферов B3 (шифр 8): номера стоек в строках BUFFER_ROWS терминал подставляет по зерну мира (LabVariants.rackHold). */
@@ -473,8 +473,9 @@ public final class ArchiveDefs {
         // ================= Пост медсестры B4 (шифр 9: подсказка; правило — записка в палате 2D) =================
         mail(ST_MED_B4, "m_panel", Folder.INBOX, 10, "sec.office", "nurse.b4", "28.08 09:10", "Lift panel B4", REAL, List.of(
                 new Para("The lift to B5 is released only with the Director's code. Only the Director enters it."), // 0
-                new Para("The panel by the lift can be seen from the window of 2D. Keep the blind down when the Director goes down."), // 1
-                new Para("Security Office")));                                                        // 2
+                new Para("The panel is on the corridor wall by 2D; the girl in 2D can see it from her window."), // 1
+                new Para("At night she taps the same four digits behind the sealed door. Listen in the corridor."), // 2
+                new Para("Security Office")));                                                        // 3
         mail(ST_MED_B4, "m_knock", Folder.SENT, 10, "nurse.b4", "h.voss", "01.09 05:40", "2D at night", REAL, List.of(
                 new Para("She knocks on the wall again at night. Always the same: a few knocks, a pause, a few more. Four times."), // 0
                 new Para("I asked her what it is. She says it is the door."),                        // 1

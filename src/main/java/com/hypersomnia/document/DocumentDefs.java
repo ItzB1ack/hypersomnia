@@ -372,10 +372,11 @@ public final class DocumentDefs {
                 new Para("One digit for each place in the store. For the nightly copy only."), // 1
                 new CheckGrid("ROW|PLACE"),                                        // 2
                 new Stamp("RECORDS B2"))));                                        // 3
-        // Шифр 9: правило стука (палата 2D реального B4); сам стук — во сне, за заложенной дверью 2D (LabKnocks).
+        // Шифр 9: стук слышен в реальном B4 у заложенной двери 2D (LabKnocks); сон — необязательная копия.
         add(new Doc("note_2d_knock", "Note: Ward 2D", Style.NOTE, List.of(
                 new Para("2D knocked on the wall again tonight."),                 // 0
-                new Para("Row, then column, like the buttons on the lift panel outside her window. Always the same four."), // 1
-                new Para("She says she watched the Director press them."))));      // 2
+                new Para("The knocking comes from the sealed door in the corridor, right by the lift."), // 1
+                new Para("Row, then column, like the buttons on the lift panel outside her window. Always the same four."), // 2
+                new Para("She says she watched the Director press them."))));      // 3
     }
 }

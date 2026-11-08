@@ -145,7 +145,7 @@ public final class LabTuning {
      * открывается сама (LabAntenna). Без MAIN FEED несущей нет.
      */
     public static final int LOCK_BUFFER = 7;
-    /** B4 -> B5. Шифр 9: код директора, который выстукивают из палаты 2D во сне (LabVariants.knockCode). */
+    /** B4 -> B5. Шифр 9: код директора, который выстукивают за заложенной дверью 2D в реальном B4 (LabKnocks). */
     public static final int LOCK_WARD = 8;
     /** Замки доступа по этажам: ACCESS_LOCKS[i] открывает остановку FEED_REACHED + 1 + i (LabLocks.accessTop). */
     public static final int[] ACCESS_LOCKS = {LOCK_STACKS, LOCK_BUFFER, LOCK_WARD};
@@ -201,7 +201,7 @@ public final class LabTuning {
     public static final float ANTENNA_SOUND_PITCH = 0.55f;
     public static final float ANTENNA_CARRIER_PITCH = 0.7f;
 
-    // ---- Шифр 9: стук из палаты 2D (мир снов, B4; LabKnocks) ----
+    // ---- Шифр 9: стук за заложенной дверью 2D (B4; реальный мир и необязательная копия во сне; LabKnocks) ----
     public static final String KNOCK_KEY = "ward_knock";
     /** Стук слышен, пока игрок ближе этого к заложенной двери (блоки). */
     public static final int KNOCK_RADIUS = 7;
