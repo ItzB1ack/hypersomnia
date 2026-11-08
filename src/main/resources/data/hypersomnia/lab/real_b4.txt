@@ -36,12 +36,12 @@ sign 7 = NURSE POST||
 sign 9 = LIFT ACCESS B4|TO LEVEL B5|CODE: WARD 2D
 panel & = 14
 knock k = 8
-; шифр 9 (замок 8): код директора — группы счёта в записке j (палата 2D), панель K — в коридоре напротив окна 2D,
-; дверь k заложена (только осмотр): стук больше не выстукивает код
+; шифр 9 (замок 8): здесь записка j глифами — ведёт в ту же палату 2D во сне, код там (note_2d_knock);
+; панель K — в коридоре напротив окна 2D, дверь k заложена (только осмотр): стук больше не выстукивает код
 lock K = 8
 station P = med_b4
 cabinet c = cab_b4_roster
-cabinet j = note_2d_knock
+cabinet j = note_2d_glyphs
 cabinet m = mem_2_discharge
 cabinet n = drawing_blank
 bed b = white

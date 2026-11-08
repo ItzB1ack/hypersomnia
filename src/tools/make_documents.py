@@ -172,6 +172,17 @@ def note(ink=INK, style="text"):
             for k in range(n):
                 for y in range(5, 11):
                     put(px, gx + k, y, ink)
+    elif style == "glyphs":
+        # знаки алфавита черт: черта, перечёрк, подставка, точка
+        for gx in (4, 7, 10):
+            for y in range(5, 10):
+                put(px, gx, y, ink)
+            put(px, gx - 1, 7, ink)
+            put(px, gx + 1, 7, ink)
+            put(px, gx, 10, ink)
+            put(px, gx, 4, ink)
+        for x in (5, 6, 8, 9, 11):
+            put(px, x, 12, PAPER_DK)
     else:
         for y, xs in ((5, (5, 6, 8, 9, 10)), (7, (5, 7, 8, 10, 11)),
                       (9, (4, 5, 7, 9, 10)), (11, (6, 8, 9))):
@@ -465,6 +476,7 @@ PAGES = [
     ("cab_b5_session", lambda: official(PURPLE, PURPLE_HI)),
     ("b2_check", lambda: official(GREEN, GREEN_HI, style="check")),
     ("note_2d_knock", lambda: note(style="knock")),
+    ("note_2d_glyphs", lambda: note(style="glyphs")),
 ]
 
 

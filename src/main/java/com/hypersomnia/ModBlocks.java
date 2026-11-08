@@ -4,6 +4,7 @@ import com.hypersomnia.dream.DreamClockBlock;
 import com.hypersomnia.lab.AntennaDriveBlock;
 import com.hypersomnia.lab.BreakerPanelBlock;
 import com.hypersomnia.lab.CabinetBlock;
+import com.hypersomnia.lab.CapsuleBlock;
 import com.hypersomnia.lab.ChairBlock;
 import com.hypersomnia.lab.FurnitureBlock;
 import com.hypersomnia.lab.KeypadBlock;
@@ -66,6 +67,14 @@ public final class ModBlocks {
     /** Офисный стул: сиденье на газлифте и спинка, FACING = куда смотрит сиденье. На стул можно сесть (SeatEntity). */
     public static final DeferredBlock<ChairBlock> CHAIR = BLOCKS.register("chair", () -> new ChairBlock(
             lab(MapColor.COLOR_BLACK, SoundType.METAL)
+                    .noOcclusion()));
+
+    /**
+     * Капсула сна зала сеанса B5 (2 блока CC): ложе с бортами и крышкой. OPEN = крышка поднята:
+     * в открытой можно лежать (SeatEntity.lie), но сон не начинается; закрытая — только осмотр.
+     */
+    public static final DeferredBlock<CapsuleBlock> CAPSULE = BLOCKS.register("capsule", () -> new CapsuleBlock(
+            lab(MapColor.COLOR_LIGHT_GRAY, SoundType.METAL)
                     .noOcclusion()));
 
     /** Монитор наблюдения: погасший или со «снегом» (LIT, свет LabTuning.MONITOR_LIGHT). */

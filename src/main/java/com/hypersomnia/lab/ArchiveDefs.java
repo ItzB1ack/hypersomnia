@@ -128,7 +128,7 @@ public final class ArchiveDefs {
     public static final int ST_ARC_B2 = 4;
     /** Пульт серверной B3: почта, журнал буферов. Шифр 8. */
     public static final int ST_SRV_B3 = 5;
-    /** Пост медсестры B4: почта. Шифр 9 (группы счёта в записке палаты 2D). */
+    /** Пост медсестры B4: почта. Шифр 9 (записка глифами в реальном 2D ведёт в сон, счёт — в записке сна). */
     public static final int ST_MED_B4 = 6;
 
     /** Журнал буферов B3 (шифр 8): номера стоек в строках BUFFER_ROWS терминал подставляет по зерну мира (LabVariants.rackHold). */
@@ -470,15 +470,15 @@ public final class ArchiveDefs {
                 new Para("Set the dish on the relay azimuth from the buffer log and leave it until the carrier comes. Nothing goes out without the main feed."), // 3
                 new Para("T. Brandt, Chief Engineer")));                                              // 4
 
-        // ================= Пост медсестры B4 (шифр 9: подсказка; сам код — записка в палате 2D) =================
+        // ================= Пост медсестры B4 (шифр 9: подсказка; код — записка в палате 2D во сне) =================
         mail(ST_MED_B4, "m_panel", Folder.INBOX, 10, "sec.office", "nurse.b4", "28.08 09:10", "Lift panel B4", REAL, List.of(
                 new Para("The lift to B5 is released only with the Director's code. Only the Director enters it."), // 0
-                new Para("2D can see the panel from her window. She used to knock the digits; now she scratches them on paper."), // 1
-                new Para("The note is in her room: four groups of marks, left to right. Count the marks in each group."), // 2
+                new Para("2D can see the panel from her window. She used to knock the digits; now she counts them in her sleep."), // 1
+                new Para("Her room here is empty. Read the chalk note in it, then find the same room where she sleeps: the count is on the paper there."), // 2
                 new Para("Security Office")));                                                        // 3
         mail(ST_MED_B4, "m_knock", Folder.SENT, 10, "nurse.b4", "h.voss", "01.09 05:40", "2D at night", REAL, List.of(
-                new Para("Since they bricked the door up she stopped knocking. Now she scratches groups of marks on paper: four groups, left to right."), // 0
-                new Para("I asked her what it is. She says it is the door."),                        // 1
+                new Para("Since they bricked the door up she stopped knocking. She says she counts in her sleep now, and the marks are on paper, in her room. Not this one."), // 0
+                new Para("I asked her what the count is for. She says: the door."),                 // 1
                 new Para("Night nurse, B4")));                                                        // 2
     }
 }

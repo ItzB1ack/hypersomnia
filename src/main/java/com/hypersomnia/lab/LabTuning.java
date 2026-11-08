@@ -298,9 +298,21 @@ public final class LabTuning {
     /** Стол без своего стула, без ряда и без стены смотрит на ближайший стул не дальше стольких клеток (по осям). */
     public static final int DESK_CHAIR_REACH = 3;
 
-    // ---- Стул и шкаф ----
+    // ---- Стул, капсула и шкаф ----
     /** Точка сиденья (SeatEntity) над низом блока стула: верх подушки модели 8.5/16. */
     public static final double CHAIR_SEAT_Y = 0.53;
+    /**
+     * Лежит ли игрок в открытой капсуле B5 (SeatEntity.lie): высота над низом блока изножья.
+     * Поза принудительная (SWIMMING), сон не начинается.
+     */
+    public static final double CAPSULE_LIE_Y = 0.2;
+    /**
+     * Открыта ли капсула по клетке изножья в чертеже (x, z — координаты сетки). Из двенадцати коек зала B5
+     * открыты три: (11,13), (7,21), (27,21) в обоих мирах. Иначе крышка закрыта.
+     */
+    public static boolean capsuleOpen(int x, int z) {
+        return Math.floorMod(x * 7 + z, 5) == 0;
+    }
     /** Ящиков в картотечном шкафу: ряд экрана = ящик на 9 ячеек. */
     public static final int CABINET_ROWS = 3;
     /** Бумага в шкафу: 1..CABINET_PAPER_STACKS пачек по 1..CABINET_PAPER_MAX листов. */

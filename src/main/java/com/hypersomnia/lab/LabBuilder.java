@@ -46,10 +46,10 @@ import java.util.Arrays;
  * o (шкаф из строк cabinet + seal)  запечатанный ящик: только документ, открывается вместе с замком (KIND_SEAL)
  * T  низкий столик (плита)        R  стеллаж (2 высотой)
  * e (любой символ из строк equip в чертеже)  оборудование серверной LabEquipmentBlock (2 высотой): кондиционер, ИБП, батареи
- * C  секция капсулы: белое ложе и тёмное стекло крышки (капсула = несколько C подряд)
+ * C  капсула сна: пара соседних клеток CC (западная — изножье, восточная — изголовье); OPEN по LabTuning.capsuleOpen
  * h  стул                         H  стул, развёрнутый наоборот (мир снов)
  * v  решётка вентиляции на стене под потолком
- * A, U (любой символ из строк capsule в чертеже)  капсула с номером, как C (KIND_CAPSULE * 1000 + номер, ложе и крышка)
+ * A, U (любой символ из строк capsule в чертеже)  капсула с номером: белое ложе и крышка (KIND_CAPSULE * 1000 + номер)
  * Детская финала (символы из строк finale в чертеже, KIND_FINALE * 1000 + часть FinaleTuning.PART_*):
  * S (bed)  кровать: изголовье на клетке у стены, изножье на соседней клетке пола в сторону комнаты (обе половины в inter)
  * O (door) дверь в стене: клетка стены с проёмом 2 высотой и деревянной дверью лицом в комнату (обе половины в inter)
@@ -705,8 +705,18 @@ public final class LabBuilder {
             case 'h', 'H' -> set(lv, wx, fy, wz, ModBlocks.CHAIR.get().defaultBlockState()
                     .setValue(ChairBlock.FACING, chairFront(bp, x, z, c == 'H')));
             case 'C' -> {
-                set(lv, wx, fy, wz, Blocks.SMOOTH_QUARTZ.defaultBlockState());
-                set(lv, wx, fy + 1, wz, Blocks.TINTED_GLASS.defaultBlockState());
+                if (bp.at(x - 1, z) == 'C') return true; // вторая половина пары уже поставлена
+                if (bp.at(x + 1, z) != 'C') return true; // капсула не пара CC: чертёж проверяет lab_check.py
+                Direction f = Direction.EAST;             // изножье на западе, изголовье на востоке
+                boolean open = CapsuleBlock.openAt(x, z);
+                BlockState foot = ModBlocks.CAPSULE.get().defaultBlockState()
+                        .setValue(CapsuleBlock.FACING, f)
+                        .setValue(CapsuleBlock.PART, BedPart.FOOT)
+                        .setValue(CapsuleBlock.OPEN, open);
+                BlockState head = foot.setValue(CapsuleBlock.PART, BedPart.HEAD);
+                set(lv, wx, fy, wz, foot);
+                BlockPos hp = new BlockPos(wx, fy, wz).relative(f);
+                set(lv, hp.getX(), hp.getY(), hp.getZ(), head);
             }
             case 'v' -> {
                 Direction wall = wallOf(bp, x, z);

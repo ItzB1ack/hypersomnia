@@ -173,6 +173,8 @@
   "hypersomnia.lab.rack.status.hold": "BUFFER HELD",
   "hypersomnia.lab.stack": "ROW %s · PLACE %s",
   "hypersomnia.lab.knock.wall": "Bricked up. The mortar is fresh.",
+  "hypersomnia.lab.capsule.sealed": "CAPSULE SEALED",
+  "hypersomnia.lab.capsule.occupied": "CAPSULE OCCUPIED",
   "hypersomnia.lab.protected": "It does not give.",
   "block.hypersomnia.antenna_drive": "Antenna Slew Drive",
   "hypersomnia.lab.antenna": "ANT-1 · AZ %s° · %s",

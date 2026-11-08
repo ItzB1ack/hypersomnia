@@ -377,11 +377,18 @@ public final class DocumentDefs {
                 new Para("One digit for each place in the store. For the nightly copy only."), // 1
                 new CheckGrid("ROW|PLACE"),                                        // 2
                 new Stamp("RECORDS B2"))));                                        // 3
-        // Шифр 9: код директора для B5. Стук убран: цифры нацарапаны группами счёта (Tally = LabVariants.wardCode).
+        // Шифр 9, шаг 2: сон B4 — та же палата, код директора группами счёта (Tally = LabVariants.wardCode).
         add(new Doc("note_2d_knock", "Note: Ward 2D", Style.NOTE, List.of(
-                new Para("They bricked the door in the corridor shut, so she stopped knocking."), // 0
-                new Para("Now she scratches the count on paper: four groups, left to right. Count the marks; a bar across four marks is five."), // 1
+                new Para("They bricked the door shut. Here she still sleeps, so she counts."), // 0
+                new Para("She scratches the count on paper: four groups, left to right. Count the marks; a bar across four marks is five."), // 1
                 new Tally(),                                                        // 2
                 new Para("The same four the Director presses. The panel is across the corridor from her window.")))); // 3
+        // Шифр 9, шаг 1: реальный B4 — записка глифами (алфавит черт). Говорит искать счёт во сне.
+        add(new Doc("note_2d_glyphs", "Note: Ward 2D (chalk)", Style.NOTE, List.of(
+                new Para("The corridor door is bricked up. The room on this side is empty."), // 0
+                new Glyphs("SHE COUNTS IN HER SLEEP"),                              // 1
+                new GlyphKey("SHECOUNTIRLP"),                                       // 2: ключ к знакам строки 1
+                new Para("Find the same room where she sleeps. The count is scratched on the paper by the bed."), // 3
+                new Para("Four groups. Four digits for the lift panel."))));        // 4
     }
 }

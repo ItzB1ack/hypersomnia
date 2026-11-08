@@ -14,6 +14,7 @@ cabinet_drawer_inner — выдвинутый ящик шкафа сверху: 
 crac_* / ups_* / battery_* — оборудование серверной B3 (LabEquipmentBlock, 2 блока): лицо верха и низа, бок, верх.
 Кондиционер — светлый корпус, пульт и жалюзи; ИБП — тёмный шкаф, экран, вентиляция; батарейный шкаф — щели, знак.
 Новые текстуры генерируются после старых (общий rnd): старые не меняются.
+capsule_frame / capsule_lid — капсула сна B5 (CapsuleBlock): светлый корпус и тёмное стекло крышки.
 Корпус монитора — workstation_case из make_workstation.py (тот же ЭЛТ).
 Раскладка областей совпадает с uv в models/block/*.json: менять только вместе.
 Запуск из корня: python run_tool.py make_furniture"""
@@ -601,5 +602,45 @@ for name, fn in (("crac_front_upper", crac_front_upper), ("crac_front_lower", cr
                  ("ups_side", ups_side), ("ups_top", ups_top),
                  ("battery_front_upper", battery_front_upper), ("battery_front_lower", battery_front_lower),
                  ("battery_side", battery_side), ("battery_top", battery_top)):
+    fn().save(os.path.join(OUT, name + ".png"))
+
+# ---- капсула сна B5 (CapsuleBlock): светлый корпус и тёмное стекло крышки ----
+CAPSULE_FRAME = (116, 126, 135)
+CAPSULE_EDGE = (138, 147, 155)
+CAPSULE_SHADE = (86, 96, 105)
+CAPSULE_GLASS = (12, 19, 27)
+
+
+def capsule_frame():
+    im = img(CAPSULE_FRAME, 2)
+    px = im.load()
+    for i in range(16):                            # фальц по краю
+        px[i, 0] = noisy(CAPSULE_EDGE, 2)
+        px[i, 15] = noisy(CAPSULE_SHADE, 2)
+        px[0, i] = noisy(CAPSULE_SHADE, 2)
+        px[15, i] = noisy(CAPSULE_SHADE, 2)
+    for y in range(16):                            # стык половин корпуса
+        px[8, y] = noisy(CAPSULE_SHADE, 1)
+    for x, y in ((3, 3), (12, 3), (3, 12), (12, 12)):  # заклёпки
+        px[x, y] = noisy(CAPSULE_EDGE, 1)
+    return im
+
+
+def capsule_lid():
+    im = Image.new("RGBA", (16, 16), CAPSULE_GLASS + (255,))
+    px = im.load()
+    for y in range(16):                            # блик стекла по диагонали
+        for x in range(16):
+            v = 8 + max(0, 7 - abs((x + y) - 12))
+            px[x, y] = (v, v + 5, v + 11, 255)
+    for i in range(16):                            # тёмная рамка стекла
+        px[i, 0] = px[i, 15] = (6, 10, 15, 255)
+        px[0, i] = px[15, i] = (6, 10, 15, 255)
+    for x in range(2, 14):                         # поперечная стяжка
+        px[x, 7] = noisy((40, 52, 64), 1)
+    return im
+
+
+for name, fn in (("capsule_frame", capsule_frame), ("capsule_lid", capsule_lid)):
     fn().save(os.path.join(OUT, name + ".png"))
 print("furniture ok")
