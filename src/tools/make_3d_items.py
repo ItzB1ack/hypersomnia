@@ -129,7 +129,9 @@ SYRINGE_STEPS = 8
 
 
 def syringe_elements(push=0.0):
-    shift = push * 3.0
+    # Модель вытянута до 20 единиц (x от -2 до 18, центр остаётся в 8): задняя
+    # часть с поршнем торчит из кулака и хорошо видна, пока он идёт в корпус.
+    shift = push * 6.0
     barrel_faces = {
         "north": face("fluid"),
         "south": face("fluid"),
@@ -140,17 +142,17 @@ def syringe_elements(push=0.0):
     }
     return [
         # glass barrel with the fluid showing through the long sides
-        box((4.0, 6.9, 6.9), (12.5, 9.1, 9.1), "fluid", barrel_faces),
+        box((6.0, 6.9, 6.9), (14.5, 9.1, 9.1), "fluid", barrel_faces),
         # red dose ring
-        box((8.0, 6.7, 6.7), (9.0, 9.3, 9.3), "red"),
+        box((10.0, 6.7, 6.7), (11.0, 9.3, 9.3), "red"),
         # finger flange
-        box((3.5, 5.9, 5.9), (4.2, 10.1, 10.1), "steel"),
+        box((5.5, 5.9, 5.9), (6.2, 10.1, 10.1), "steel"),
         # plunger rod + thumb pad (slide into the barrel as push -> 1)
-        box((1.0 + shift, 7.7, 7.7), (4.0 + shift, 8.3, 8.3), "steel_light"),
-        box((0.0 + shift, 6.4, 6.4), (1.2 + shift, 9.6, 9.6), "rubber"),
+        box((-0.8 + shift, 7.7, 7.7), (6.0 + shift, 8.3, 8.3), "steel_light"),
+        box((-2.0 + shift, 6.4, 6.4), (-0.8 + shift, 9.6, 9.6), "rubber"),
         # needle hub + needle
-        box((12.5, 7.45, 7.45), (13.2, 8.55, 8.55), "steel"),
-        box((13.2, 7.925, 7.925), (16.0, 8.075, 8.075), "steel_light"),
+        box((14.5, 7.45, 7.45), (15.2, 8.55, 8.55), "steel"),
+        box((15.2, 7.925, 7.925), (18.0, 8.075, 8.075), "steel_light"),
     ]
 
 

@@ -64,14 +64,19 @@ public final class SyringeViewModel {
     private static final float TORSO_SWING = 60.0F, TORSO_TILT = -30.0F;
 
     // ---- фазы укола (доля прогресса 0..1; соседние фазы перекрываются) ----
-    private static final float RAISE_END = 0.40F;
-    private static final float AIM_START = 0.22F, AIM_LEN = 0.30F;
-    private static final float INJECT_START = 0.50F, INJECT_LEN = 0.18F;
-    private static final float PLUNGE_START = 0.66F, PLUNGE_LEN = 0.30F;
+    private static final float RAISE_END = 0.30F;
+    private static final float AIM_START = 0.14F, AIM_LEN = 0.24F;
+    private static final float INJECT_START = 0.40F, INJECT_LEN = 0.10F;
+    private static final float PLUNGE_START = 0.52F, PLUNGE_LEN = 0.42F;
+
+    /** Насколько кисть отводит шприц назад перед уколом (замах), блоки. */
+    private static final float WINDUP = 0.09F;
+    /** Дрожь кисти при давлении на поршень (блоки). */
+    private static final float TREMBLE = 0.006F;
 
     // ---- уход рук (доля времени RETRACT_NS 0..1) ----
     /** Длительность ухода после укола или раннего отпускания (нс). */
-    private static final long RETRACT_NS = 420_000_000L;
+    private static final long RETRACT_NS = 320_000_000L;
     /** С этой доли времени решается, что делают руки: уходят вниз (шприц потрачен) или возвращаются в покой. */
     private static final float RETRACT_DECIDE = 0.35F;
     /** Насколько руки опускаются вниз при уходе после укола (пространство камеры). */
@@ -204,7 +209,9 @@ public final class SyringeViewModel {
     }
 
     private static float injectOf(float p) {
-        return smooth(seg(p, INJECT_START, INJECT_START + INJECT_LEN));
+        // Резкий выпад с небольшим перелётом (easeOutBack): игла бьёт и чуть отскакивает.
+        float t = seg(p, INJECT_START, INJECT_START + INJECT_LEN) - 1.0F;
+        return 1.0F + 2.4F * t * t * t + 1.4F * t * t;
     }
 
     private static float plungerOf(float p) {
@@ -241,8 +248,15 @@ public final class SyringeViewModel {
         Vector3f goal = new Vector3f(restGrip)
                 .lerp(mirror(READY_GRIP, side), raise)
                 .lerp(mirror(TORSO_GRIP, side), aim);
-        // Прокол: кисть вместе со шприцем идёт вдоль иглы.
-        goal.fma(INJECT_TRAVEL * inject, needleView);
+        // Замах назад, затем резкий прокол вдоль иглы (кисть идёт вместе со шприцем).
+        float windup = aim * (1.0F - Mth.clamp(inject * 3.0F, 0.0F, 1.0F));
+        goal.fma(INJECT_TRAVEL * inject - WINDUP * windup, needleView);
+        // Дрожь кисти, пока давит поршень.
+        if (plunger > 0.0F && plunger < 1.0F) {
+            double t = System.nanoTime() / 1.0E9;
+            goal.x += (float) Math.sin(t * 61.0) * TREMBLE;
+            goal.y += (float) Math.sin(t * 47.0 + 1.1) * TREMBLE;
+        }
         Vector3f offset = goal.sub(gripAtZeroOffset(model, arm, equip, swing, tilt));
         offset.y -= DROP_DISTANCE * drop;
 
