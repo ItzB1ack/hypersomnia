@@ -281,8 +281,9 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   LabTerminal*, LabPath*; client/LabKeypad*, LabTerminal*, LabAmbientClient,
   LabPathClient.
 - Тихие эпизоды лаборатории: server/LabAmbientHandler + client/LabAmbientClient,
-  network/LabAmbientPayload (поле forced, канал "2"), числа и сцены 0–10 в
-  ObserverTuning.LAB_AMBIENT_*; один эпизод за раз через ObserverDirector.
+  network/LabAmbientPayload (поле forced, канал "2"), числа и сцены 0–14 в
+  ObserverTuning.LAB_AMBIENT_* и HOME_AMBIENT_*; один эпизод за раз через
+  ObserverDirector. Зона 0 в LabAmbientHandler.zone — ночной дом (см. ниже).
 - Лифты: server/LiftRide (общий плавный рейс), nightmare/ShaftHandler,
   ShaftBuilder, ShaftStorage, lab/LabLift.
 - Кошмары: nightmare/* — NightmareDefs, NightmareTuning, NightmareBuilder,
@@ -442,6 +443,14 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   ближайшего изголовья закрытой капсулы в радиусе 12 блоков).
   Точка звука — назад по взгляду и/или над головой; громкость и тон на сцену.
   LabAmbientPayload получил forced (отладка), канал LabAmbientNetwork — "2".
+- [новое] Ночной дом в том же пайплайне LabAmbient (без нового режиссёра и ассетов):
+  зона 0 = Верхний мир, ночь (13000..23000), стадия >= 2 (HOME_AMBIENT_MIN_STAGE),
+  игрок в радиусе 24 блоков от home() (самое частое место сна) и под крышей
+  (canSeeSky == false). Ожидание 1–2.5 мин, пауза 4 мин (чаще лаборатории). Сцены
+  11–14 на ванильных звуках: ходьба наверху (WOOD_STEP), далёкая дверь
+  (WOODEN_DOOR_CLOSE), скрип–пауза–скрип (WOODEN_DOOR_OPEN, низкий тон),
+  стук в стену (LAB_KNOCK, стадия 4+). Звук коды 11–13 добавлены в
+  LabAmbientClient. Сети, NBT и канал "2" не менялись.
 - Кошмары: Ward, Shaft, Rounds, Session 47 — реализованы в коде; в игре
   проверены не полностью. Подробности — приложение D.
 - Финал: 7 концовок, FinaleLogic/FinaleTexts/FinaleTuning, EndingScreen,
