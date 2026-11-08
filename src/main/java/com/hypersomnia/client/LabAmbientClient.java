@@ -81,6 +81,9 @@ public final class LabAmbientClient {
                 case 8 -> SoundEvents.POINTED_DRIPSTONE_DRIP_WATER;
                 case 9 -> SoundEvents.GLASS_HIT;
                 case 10 -> SoundEvents.LEVER_CLICK;
+                case 11 -> SoundEvents.WOOD_STEP;
+                case 12 -> SoundEvents.WOODEN_DOOR_CLOSE;
+                case 13 -> SoundEvents.WOODEN_DOOR_OPEN;
                 default -> null;
             };
             if (sound != null) mc.level.playLocalSound(position.getX() + .5, position.getY() + .5, position.getZ() + .5,
