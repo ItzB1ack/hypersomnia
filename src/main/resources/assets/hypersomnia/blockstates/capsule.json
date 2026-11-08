@@ -1,20 +1,94 @@
 {
   "variants": {
-    "facing=north,part=foot,open=true": { "model": "hypersomnia:block/capsule_foot_open" },
-    "facing=north,part=head,open=true": { "model": "hypersomnia:block/capsule_head_open" },
-    "facing=north,part=foot,open=false": { "model": "hypersomnia:block/capsule_foot_closed" },
-    "facing=north,part=head,open=false": { "model": "hypersomnia:block/capsule_head_closed" },
-    "facing=east,part=foot,open=true": { "model": "hypersomnia:block/capsule_foot_open", "y": 90 },
-    "facing=east,part=head,open=true": { "model": "hypersomnia:block/capsule_head_open", "y": 90 },
-    "facing=east,part=foot,open=false": { "model": "hypersomnia:block/capsule_foot_closed", "y": 90 },
-    "facing=east,part=head,open=false": { "model": "hypersomnia:block/capsule_head_closed", "y": 90 },
-    "facing=south,part=foot,open=true": { "model": "hypersomnia:block/capsule_foot_open", "y": 180 },
-    "facing=south,part=head,open=true": { "model": "hypersomnia:block/capsule_head_open", "y": 180 },
-    "facing=south,part=foot,open=false": { "model": "hypersomnia:block/capsule_foot_closed", "y": 180 },
-    "facing=south,part=head,open=false": { "model": "hypersomnia:block/capsule_head_closed", "y": 180 },
-    "facing=west,part=foot,open=true": { "model": "hypersomnia:block/capsule_foot_open", "y": 270 },
-    "facing=west,part=head,open=true": { "model": "hypersomnia:block/capsule_head_open", "y": 270 },
-    "facing=west,part=foot,open=false": { "model": "hypersomnia:block/capsule_foot_closed", "y": 270 },
-    "facing=west,part=head,open=false": { "model": "hypersomnia:block/capsule_head_closed", "y": 270 }
+    "facing=north,part=foot,open=true": {
+      "model": "hypersomnia:block/capsule_foot_open"
+    },
+    "facing=north,part=foot,open=false": {
+      "model": "hypersomnia:block/capsule_foot_closed"
+    },
+    "facing=north,part=mid,open=true": {
+      "model": "hypersomnia:block/capsule_mid_open"
+    },
+    "facing=north,part=mid,open=false": {
+      "model": "hypersomnia:block/capsule_mid_closed"
+    },
+    "facing=north,part=head,open=true": {
+      "model": "hypersomnia:block/capsule_head_open"
+    },
+    "facing=north,part=head,open=false": {
+      "model": "hypersomnia:block/capsule_head_closed"
+    },
+    "facing=east,part=foot,open=true": {
+      "model": "hypersomnia:block/capsule_foot_open",
+      "y": 90
+    },
+    "facing=east,part=foot,open=false": {
+      "model": "hypersomnia:block/capsule_foot_closed",
+      "y": 90
+    },
+    "facing=east,part=mid,open=true": {
+      "model": "hypersomnia:block/capsule_mid_open",
+      "y": 90
+    },
+    "facing=east,part=mid,open=false": {
+      "model": "hypersomnia:block/capsule_mid_closed",
+      "y": 90
+    },
+    "facing=east,part=head,open=true": {
+      "model": "hypersomnia:block/capsule_head_open",
+      "y": 90
+    },
+    "facing=east,part=head,open=false": {
+      "model": "hypersomnia:block/capsule_head_closed",
+      "y": 90
+    },
+    "facing=south,part=foot,open=true": {
+      "model": "hypersomnia:block/capsule_foot_open",
+      "y": 180
+    },
+    "facing=south,part=foot,open=false": {
+      "model": "hypersomnia:block/capsule_foot_closed",
+      "y": 180
+    },
+    "facing=south,part=mid,open=true": {
+      "model": "hypersomnia:block/capsule_mid_open",
+      "y": 180
+    },
+    "facing=south,part=mid,open=false": {
+      "model": "hypersomnia:block/capsule_mid_closed",
+      "y": 180
+    },
+    "facing=south,part=head,open=true": {
+      "model": "hypersomnia:block/capsule_head_open",
+      "y": 180
+    },
+    "facing=south,part=head,open=false": {
+      "model": "hypersomnia:block/capsule_head_closed",
+      "y": 180
+    },
+    "facing=west,part=foot,open=true": {
+      "model": "hypersomnia:block/capsule_foot_open",
+      "y": 270
+    },
+    "facing=west,part=foot,open=false": {
+      "model": "hypersomnia:block/capsule_foot_closed",
+      "y": 270
+    },
+    "facing=west,part=mid,open=true": {
+      "model": "hypersomnia:block/capsule_mid_open",
+      "y": 270
+    },
+    "facing=west,part=mid,open=false": {
+      "model": "hypersomnia:block/capsule_mid_closed",
+      "y": 270
+    },
+    "facing=west,part=head,open=true": {
+      "model": "hypersomnia:block/capsule_head_open",
+      "y": 270
+    },
+    "facing=west,part=head,open=false": {
+      "model": "hypersomnia:block/capsule_head_closed",
+      "y": 270
+    }
   }
 }

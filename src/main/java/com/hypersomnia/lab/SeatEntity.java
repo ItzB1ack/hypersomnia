@@ -27,16 +27,20 @@ import net.minecraft.world.phys.Vec3;
  * Садясь, игрок разворачивается лицом туда, куда смотрит сиденье (дальше крутится свободно, стул поворотный).
  * Встаёт перед стулом, если там свободно, иначе сбоку или сзади.
  *
- * Тем же сиденьем пользуется открытая капсула B5 (lie): якорь — изножье, сиденье стоит на стыке половин,
- * игрок лежит лицом к изголовью (Pose.SWIMMING). Сон при этом не начинается: startSleeping не зовётся.
+ * Тем же сиденьем пользуется открытая капсула B5 (lie): якорь — изножье тройки CCC, сиденье стоит в центре
+ * клетки изголовья на высоте ложа, игрок лежит лицом к изголовью в позе кровати (Pose.SLEEPING, как в
+ * ванильной кровати; клиентский рендер — LabCapsuleRender). Сон при этом не начинается: startSleeping не зовётся.
  * Закрылась/исчезла капсула — сиденье исчезает и выпускает игрока.
  */
 public final class SeatEntity extends Entity {
     /** Лежит в капсуле (синхронизируется: клиенту нужен вид и поза). */
     private static final EntityDataAccessor<Boolean> DATA_LYING =
             SynchedEntityData.defineId(SeatEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Направление изножье -> изголовье (2D data value), нужно клиентскому рендеру. */
+    private static final EntityDataAccessor<Byte> DATA_LIE_FACING =
+            SynchedEntityData.defineId(SeatEntity.class, EntityDataSerializers.BYTE);
 
-    /** Изножье капсулы (только на сервере; клиенту достаточно флага). */
+    /** Изножье капсулы (только на сервере). */
     private BlockPos anchor;
     /** Направление от изножья к изголовью (только на сервере). */
     private Direction lieFacing = Direction.EAST;
@@ -60,23 +64,23 @@ public final class SeatEntity extends Entity {
     }
 
     /**
-     * ПКМ по открытой капсуле на сервере: лечь вдоль пары (изножье -> изголовье). false — не лёг
-     * (капсула закрыта, занята или пара разбита).
+     * ПКМ по открытой капсуле на сервере: лечь вдоль тройки (изножье -> середина -> изголовье).
+     * false — не лёг (капсула закрыта, занята или тройка разбита).
      */
     public static boolean lie(ServerLevel level, BlockPos foot, Player player, Direction facing) {
         if (player.isPassenger() || player.isSleeping()) return false;
         if (!CapsuleBlock.canLie(level, foot, facing)) return false;
-        BlockPos head = foot.relative(facing);
-        AABB pair = new AABB(foot).minmax(new AABB(head));
-        if (!level.getEntitiesOfClass(SeatEntity.class, pair, Entity::isVehicle).isEmpty()) return false; // занята
+        BlockPos head = foot.relative(facing, 2);
+        AABB triple = new AABB(foot).minmax(new AABB(head));
+        if (!level.getEntitiesOfClass(SeatEntity.class, triple, Entity::isVehicle).isEmpty()) return false; // занята
         SeatEntity seat = new SeatEntity(ModEntities.SEAT.get(), level);
         seat.anchor = foot.immutable();
         seat.lieFacing = facing;
         seat.entityData.set(DATA_LYING, true);
-        // Лежим на стыке половин: тело вдоль оси капсулы, голова к изголовью.
-        double x = foot.getX() + 0.5 + facing.getStepX() * 0.5;
-        double z = foot.getZ() + 0.5 + facing.getStepZ() * 0.5;
-        seat.moveTo(x, foot.getY() + LabTuning.CAPSULE_LIE_Y, z, facing.toYRot(), 0.0f);
+        seat.entityData.set(DATA_LIE_FACING, (byte) facing.get2DDataValue());
+        // Тело лежит от изножья к изголовью; сиденье — в центре клетки изголовья, на верх ложа.
+        seat.moveTo(head.getX() + 0.5, foot.getY() + LabTuning.CAPSULE_LIE_Y, head.getZ() + 0.5,
+                facing.toYRot(), 0.0f);
         if (!level.addFreshEntity(seat)) return false;
         if (player.startRiding(seat, true)) return true;
         seat.discard();
@@ -87,11 +91,24 @@ public final class SeatEntity extends Entity {
         return entityData.get(DATA_LYING);
     }
 
+    /** Направление тела лежащего (доступно на клиенте). */
+    public Direction getLieFacing() {
+        return Direction.from2DDataValue(entityData.get(DATA_LIE_FACING));
+    }
+
+    /** Высота сиденья: стул — CHAIR_SEAT_Y, капсула — CAPSULE_LIE_Y (центр клетки изголовья). */
+    public double seatY() {
+        return isLying() ? LabTuning.CAPSULE_LIE_Y : LabTuning.CHAIR_SEAT_Y;
+    }
+
     @Override
     public void tick() {
         super.tick();
         // Поза задаётся и на клиенте: у LocalPlayer updatePlayerPose перезаписывает позу каждый тик.
-        if (isLying() && getFirstPassenger() instanceof Player player) player.setForcedPose(Pose.SWIMMING);
+        if (isLying() && getFirstPassenger() instanceof Player player) {
+            player.setForcedPose(Pose.SLEEPING);
+            player.setPose(Pose.SLEEPING);
+        }
         if (level().isClientSide) return;
         if (!isVehicle()) {
             discard();
@@ -109,9 +126,23 @@ public final class SeatEntity extends Entity {
         return Vec3.ZERO;
     }
 
+    /** Лежащий не «сидит»: иначе модель получает позу езды вместо позы кровати. */
+    @Override
+    public boolean shouldRiderSit() {
+        return !isLying();
+    }
+
     @Override
     protected void addPassenger(Entity passenger) {
         super.addPassenger(passenger);
+        if (isLying()) {
+            // Лежащего не разворачиваем: его yRot — это взгляд (клиентский рендер ограничивает поворот головы).
+            if (passenger instanceof Player player) {
+                player.setForcedPose(Pose.SLEEPING);
+                player.setPose(Pose.SLEEPING);
+            }
+            return;
+        }
         float yaw = getYRot(); // на клиенте поворачивает камеру садящегося (как лодка)
         passenger.setYRot(yaw);
         passenger.yRotO = yaw;
@@ -120,7 +151,6 @@ public final class SeatEntity extends Entity {
             living.yBodyRot = yaw;
             living.yBodyRotO = yaw;
         }
-        if (isLying() && passenger instanceof Player player) player.setForcedPose(Pose.SWIMMING);
     }
 
     @Override
@@ -132,15 +162,18 @@ public final class SeatEntity extends Entity {
     @Override
     public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
         if (isLying() && anchor != null) {
-            // Сначала сбоку от пары, иначе перед изножьем/за изголовьем.
-            for (Direction side : new Direction[]{lieFacing.getClockWise(), lieFacing.getCounterClockWise()}) {
-                for (BlockPos p : new BlockPos[]{anchor.relative(side), anchor.relative(lieFacing).relative(side)}) {
-                    Vec3 v = DismountHelper.findSafeDismountLocation(passenger.getType(), level(), p, true);
+            // Сначала сбоку от тройки, иначе перед изножьем/за изголовьем.
+            Direction[] sides = {lieFacing.getClockWise(), lieFacing.getCounterClockWise()};
+            for (Direction side : sides) {
+                for (int i = 0; i < 3; i++) {
+                    Vec3 v = DismountHelper.findSafeDismountLocation(passenger.getType(), level(),
+                            anchor.relative(lieFacing, i).relative(side), true);
                     if (v != null) return v;
                 }
             }
-            for (BlockPos p : new BlockPos[]{anchor, anchor.relative(lieFacing)}) {
-                Vec3 v = DismountHelper.findSafeDismountLocation(passenger.getType(), level(), p, true);
+            for (int i = 0; i < 3; i++) {
+                Vec3 v = DismountHelper.findSafeDismountLocation(passenger.getType(), level(),
+                        anchor.relative(lieFacing, i), true);
                 if (v != null) return v;
             }
         }
@@ -169,6 +202,7 @@ public final class SeatEntity extends Entity {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(DATA_LYING, false);
+        builder.define(DATA_LIE_FACING, (byte) Direction.EAST.get2DDataValue());
     }
 
     @Override

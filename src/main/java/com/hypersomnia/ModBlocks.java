@@ -70,8 +70,10 @@ public final class ModBlocks {
                     .noOcclusion()));
 
     /**
-     * Капсула сна зала сеанса B5 (2 блока CC): ложе с бортами и крышкой. OPEN = крышка поднята:
-     * в открытой можно лежать (SeatEntity.lie), но сон не начинается; закрытая — только осмотр.
+     * Капсула сна зала сеанса B5 (три блока CCC): изножье, середина и изголовье вдоль FACING.
+     * FACING — от изножья к изголовью. OPEN = крышка поднята: в открытой можно лежать (SeatEntity.lie),
+     * но сон она не начинает. Закрытая капсула — только осмотр («CAPSULE SEALED»).
+     * Открытость задаёт чертёж (LabTuning.capsuleOpen), ставит LabBuilder; предмета нет.
      */
     public static final DeferredBlock<CapsuleBlock> CAPSULE = BLOCKS.register("capsule", () -> new CapsuleBlock(
             lab(MapColor.COLOR_LIGHT_GRAY, SoundType.METAL)

@@ -46,7 +46,7 @@ import java.util.Arrays;
  * o (шкаф из строк cabinet + seal)  запечатанный ящик: только документ, открывается вместе с замком (KIND_SEAL)
  * T  низкий столик (плита)        R  стеллаж (2 высотой)
  * e (любой символ из строк equip в чертеже)  оборудование серверной LabEquipmentBlock (2 высотой): кондиционер, ИБП, батареи
- * C  капсула сна: пара соседних клеток CC (западная — изножье, восточная — изголовье); OPEN по LabTuning.capsuleOpen
+ * C  капсула сна: тройка CCC (западная — изножье, средняя — середина, восточная — изголовье); OPEN по LabTuning.capsuleOpen
  * h  стул                         H  стул, развёрнутый наоборот (мир снов)
  * v  решётка вентиляции на стене под потолком
  * A, U (любой символ из строк capsule в чертеже)  капсула с номером: белое ложе и крышка (KIND_CAPSULE * 1000 + номер)
@@ -705,18 +705,17 @@ public final class LabBuilder {
             case 'h', 'H' -> set(lv, wx, fy, wz, ModBlocks.CHAIR.get().defaultBlockState()
                     .setValue(ChairBlock.FACING, chairFront(bp, x, z, c == 'H')));
             case 'C' -> {
-                if (bp.at(x - 1, z) == 'C') return true; // вторая половина пары уже поставлена
-                if (bp.at(x + 1, z) != 'C') return true; // капсула не пара CC: чертёж проверяет lab_check.py
+                if (bp.at(x - 1, z) == 'C') return true; // предыдущая клетка тройки уже поставлена
+                if (bp.at(x + 1, z) != 'C' || bp.at(x + 2, z) != 'C') return true; // не тройка CCC: чертёж проверяет lab_check.py
                 Direction f = Direction.EAST;             // изножье на западе, изголовье на востоке
                 boolean open = CapsuleBlock.openAt(x, z);
-                BlockState foot = ModBlocks.CAPSULE.get().defaultBlockState()
+                BlockState base = ModBlocks.CAPSULE.get().defaultBlockState()
                         .setValue(CapsuleBlock.FACING, f)
-                        .setValue(CapsuleBlock.PART, BedPart.FOOT)
                         .setValue(CapsuleBlock.OPEN, open);
-                BlockState head = foot.setValue(CapsuleBlock.PART, BedPart.HEAD);
-                set(lv, wx, fy, wz, foot);
-                BlockPos hp = new BlockPos(wx, fy, wz).relative(f);
-                set(lv, hp.getX(), hp.getY(), hp.getZ(), head);
+                BlockPos p = new BlockPos(wx, fy, wz);
+                set(lv, p.getX(), p.getY(), p.getZ(), base.setValue(CapsuleBlock.PART, CapsuleBlock.Part.FOOT));
+                set(lv, p.getX() + 1, p.getY(), p.getZ(), base.setValue(CapsuleBlock.PART, CapsuleBlock.Part.MID));
+                set(lv, p.getX() + 2, p.getY(), p.getZ(), base.setValue(CapsuleBlock.PART, CapsuleBlock.Part.HEAD));
             }
             case 'v' -> {
                 Direction wall = wallOf(bp, x, z);

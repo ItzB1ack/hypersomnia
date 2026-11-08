@@ -8,7 +8,7 @@
 должна быть стена); табличка, панель лифта, кодовая панель, щит и решётка вентиляции крепятся к первой стене по порядку
 С, Ю, В, З (стена = '#' или заложенная дверь knock; табличка и панели без стены — к торцу высокой мебели R, rack, stack, equip),
 стена не должна быть вырезана проёмом; кровать — изголовье у первой стены, изножье на полу напротив; капсула — горизонтальная
-пара CC (западная клетка изножье, восточная изголовье, перед парой проход); ряды хранилища
+тройка CCC (западная клетка изножье, средняя середина, восточная изголовье, перед тройкой проход); ряды хранилища
 (stack) и серверные стойки (rack) — сплошная линия одним символом по направлению роста номеров, перед лицом — проход;
 оборудование (equip: crac|ups|battery и сторона лица) — перед лицом проход.
 Доступность: обход от '@' по полу; у каждой вещи, с которой работает игрок, должна быть достижимая клетка.
@@ -186,17 +186,25 @@ def check(name, text, docs=None, stations=None, ru=None):
                 if not (ns or ew):
                     errs.append("knock (%d,%d) is not inside a wall line" % (x, z))
 
-    # капсулы B5: только горизонтальные пары CC, западная клетка — изножье, восточная — изголовье
+    # капсулы B5: только горизонтальные тройки CCC, западная клетка — изножье, восточная — изголовье
     seen = set()
     for z in range(f.d):
-        for x in range(f.w):
-            if at(x, z) != "C" or (x, z) in seen:
+        x = 0
+        while x < f.w:
+            if at(x, z) != "C":
+                x += 1
                 continue
-            if at(x + 1, z) == "C" and at(x - 1, z) != "C":
-                seen.add((x, z))
-                seen.add((x + 1, z))
+            x0 = x
+            while at(x, z) == "C":
+                x += 1
+            if x - x0 != 3:
+                errs.append("capsule (%d,%d): run of %d, need exactly 'CCC'" % (x0, z, x - x0))
             else:
-                errs.append("capsule (%d,%d): no 'CC' pair with the foot west" % (x, z))
+                seen.update((x0 + i, z) for i in range(3))
+    for z in range(f.d):
+        for x in range(f.w):
+            if at(x, z) == "C" and (x, z) not in seen:
+                errs.append("capsule (%d,%d): not in a horizontal 'CCC' with the foot west" % (x, z))
 
     # обход от центра кабины
     start = f.cells("@")

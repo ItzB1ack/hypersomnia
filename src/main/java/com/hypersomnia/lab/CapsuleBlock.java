@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
@@ -15,7 +16,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -24,49 +24,69 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
- * Капсула сна зала сеанса B5: две соседние клетки, изножье (FOOT, западная) и изголовье (HEAD, восточная),
- * FACING — от изножья к изголовью. OPEN = крышка поднята: в открытой капсуле можно лежать (SeatEntity.lie),
+ * Капсула сна зала сеанса B5: три клетки вдоль FACING — изножье (FOOT), середина (MID) и изголовье (HEAD).
+ * FACING — от изножья к изголовью. OPEN = крышка поднята: в открытой можно лежать (SeatEntity.lie),
  * но сон она не начинает. Закрытая капсула — только осмотр («CAPSULE SEALED»).
  * Открытость задаёт чертёж (LabTuning.capsuleOpen), ставит LabBuilder; предмета нет.
  */
 public final class CapsuleBlock extends HorizontalDirectionalBlock {
     public static final MapCodec<CapsuleBlock> CODEC = simpleCodec(CapsuleBlock::new);
-    public static final EnumProperty<BedPart> PART = BlockStateProperties.BED_PART;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
+    public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
 
-    /** Коробки частей при FACING = NORTH (изголовье к северу, дно капсулы — z 8..16). */
-    private static final double[][] FOOT_BOXES = {
-            {1, 0, 0, 15, 3, 16},                    // дно
-            {1, 3, 0, 3, 7, 16},                     // западный борт
-            {13, 3, 0, 15, 7, 16},                   // восточный борт
-            {3, 3, 14, 13, 7, 16},                   // торцевая стенка изножья
-            {3, 3, 0, 13, 6, 14}};                   // ложе до стыка
-    private static final double[][] HEAD_BOXES = {
-            {1, 0, 0, 15, 3, 16},
-            {1, 3, 0, 3, 7, 16},
-            {13, 3, 0, 15, 7, 16},
-            {3, 3, 0, 13, 7, 2},                     // торцевая стенка изголовья
-            {3, 3, 2, 13, 6, 16}};                   // ложе до стыка
-    private static final VoxelShape[] FOOT_SHAPES = LabShapes.horizontal(FOOT_BOXES);
+    /** Часть капсулы: порядок вдоль FACING. */
+    public enum Part implements StringRepresentable {
+        FOOT("foot"), MID("mid"), HEAD("head");
+
+        private final String name;
+
+        Part(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return name;
+        }
+    }
+
+    /** Коробки при FACING = NORTH (изголовье к северу, тело вытянуто вдоль -z). */
+    private static final double PLINTH_Y = 2;      // низ корпуса
+    private static final double PAD_Y = 6;         // верх ложа: на нём спина лежащего (SeatEntity)
+    private static final double RAIL_Y = 12;       // борта до уровня макушки; выше — стекло
+    private static final double[] GLASS = {3, RAIL_Y, 0, 13, 16, 16};
+
+    /** Общие коробки: цоколь, ложе между бортами, два борта. */
+    private static double[][] body() {
+        return new double[][]{
+                {1, 0, 0, 15, PLINTH_Y, 16},          // цоколь
+                {3, PLINTH_Y, 0, 13, PAD_Y, 16},      // ложе (верх 6/16)
+                {1, PLINTH_Y, 0, 3, RAIL_Y, 16},      // западный борт
+                {13, PLINTH_Y, 0, 15, RAIL_Y, 16}};   // восточный борт
+    }
+
+    /** Изголовье: низкая стенка (ниже головы), консоль над головой и подушка. */
+    private static final double[][] HEAD_BOXES = head();
+
+    private static double[][] head() {
+        double[][] b = body();
+        double[][] all = java.util.Arrays.copyOf(b, b.length + 3);
+        all[b.length] = new double[]{3, 0, 0, 13, 4, 2};        // стенка изголовья ниже головы
+        all[b.length + 1] = new double[]{3, RAIL_Y, 0, 13, 16, 3}; // консоль/поднятая крышка над головой
+        all[b.length + 2] = new double[]{3, PAD_Y, 2, 13, 7, 5};   // подушка
+        return all;
+    }
+
+    private static final VoxelShape[] FOOT_SHAPES = LabShapes.horizontal(body());
+    private static final VoxelShape[] MID_SHAPES = LabShapes.horizontal(body());
     private static final VoxelShape[] HEAD_SHAPES = LabShapes.horizontal(HEAD_BOXES);
-    private static final VoxelShape[] FOOT_CLOSED_SHAPES = closed(FOOT_BOXES, 0, 14);
-    private static final VoxelShape[] HEAD_CLOSED_SHAPES = closed(HEAD_BOXES, 2, 16);
-    /** Открытое изголовье: поднятая крышка на петлях у торца. */
-    private static final VoxelShape[] HEAD_OPEN_SHAPES = raised(HEAD_BOXES);
+    private static final VoxelShape[] FOOT_CLOSED_SHAPES = withGlass(body());
+    private static final VoxelShape[] MID_CLOSED_SHAPES = withGlass(body());
+    private static final VoxelShape[] HEAD_CLOSED_SHAPES = withGlass(HEAD_BOXES);
 
-    /** Закрытая крышка части: та же часть плюс плоское стекло между бортами. */
-    private static VoxelShape[] closed(double[][] boxes, int z1, int z2) {
-        return withExtra(boxes, new double[]{3, 7, z1, 13, 12, z2});
-    }
-
-    /** Открытое изголовье: та же часть плюс поднятая крышка у торца. */
-    private static VoxelShape[] raised(double[][] boxes) {
-        return withExtra(boxes, new double[]{3, 8, 0, 13, 15, 2});
-    }
-
-    private static VoxelShape[] withExtra(double[][] boxes, double[] extra) {
+    private static VoxelShape[] withGlass(double[][] boxes) {
         double[][] all = java.util.Arrays.copyOf(boxes, boxes.length + 1);
-        all[boxes.length] = extra;
+        all[boxes.length] = GLASS;
         return LabShapes.horizontal(all);
     }
 
@@ -74,7 +94,7 @@ public final class CapsuleBlock extends HorizontalDirectionalBlock {
         super(props);
         registerDefaultState(stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
-                .setValue(PART, BedPart.FOOT)
+                .setValue(PART, Part.FOOT)
                 .setValue(OPEN, false));
     }
 
@@ -93,16 +113,26 @@ public final class CapsuleBlock extends HorizontalDirectionalBlock {
         return LabTuning.capsuleOpen(blueprintX, blueprintZ);
     }
 
-    /** Пара цела и открыта: изножье в foot, изголовье через одну клетку по facing. */
-    public static boolean canLie(BlockGetter level, BlockPos foot, Direction facing) {
-        if (foot == null || facing == null || facing.getAxis().isVertical()) return false;
-        BlockState fs = level.getBlockState(foot);
-        if (!isPart(fs, BedPart.FOOT, facing, true)) return false;
-        BlockState hs = level.getBlockState(foot.relative(facing));
-        return isPart(hs, BedPart.HEAD, facing, true);
+    /** Угол тела лежащего: как sleepDirectionToRotation у ванильной кровати (голова к FACING). */
+    public static float sleepYaw(Direction facing) {
+        return switch (facing) {
+            case SOUTH -> 90f;
+            case WEST -> 0f;
+            case NORTH -> 270f;
+            case EAST -> 180f;
+            default -> 0f;
+        };
     }
 
-    private static boolean isPart(BlockState st, BedPart part, Direction facing, boolean open) {
+    /** Тройка цела и открыта: изножье в foot, середина и изголовье через клетку по facing. */
+    public static boolean canLie(BlockGetter level, BlockPos foot, Direction facing) {
+        if (foot == null || facing == null || facing.getAxis().isVertical()) return false;
+        return isPart(level.getBlockState(foot), Part.FOOT, facing, true)
+                && isPart(level.getBlockState(foot.relative(facing)), Part.MID, facing, true)
+                && isPart(level.getBlockState(foot.relative(facing, 2)), Part.HEAD, facing, true);
+    }
+
+    private static boolean isPart(BlockState st, Part part, Direction facing, boolean open) {
         return st.getBlock() instanceof CapsuleBlock
                 && st.getValue(PART) == part
                 && st.getValue(FACING) == facing
@@ -113,31 +143,37 @@ public final class CapsuleBlock extends HorizontalDirectionalBlock {
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
         int i = state.getValue(FACING).get2DDataValue();
         boolean open = state.getValue(OPEN);
-        if (state.getValue(PART) == BedPart.FOOT) return open ? FOOT_SHAPES[i] : FOOT_CLOSED_SHAPES[i];
-        return open ? HEAD_OPEN_SHAPES[i] : HEAD_CLOSED_SHAPES[i];
+        return switch (state.getValue(PART)) {
+            case FOOT -> open ? FOOT_SHAPES[i] : FOOT_CLOSED_SHAPES[i];
+            case MID -> open ? MID_SHAPES[i] : MID_CLOSED_SHAPES[i];
+            case HEAD -> open ? HEAD_SHAPES[i] : HEAD_CLOSED_SHAPES[i];
+        };
     }
 
     @Override
     protected BlockState updateShape(BlockState state, Direction dir, BlockState neighbor, LevelAccessor level,
                                      BlockPos pos, BlockPos neighborPos) {
-        if (dir == connectedDirection(state))
-            return neighbor.getBlock() instanceof CapsuleBlock && neighbor.getValue(PART) != state.getValue(PART)
-                    ? state : Blocks.AIR.defaultBlockState();
+        Direction facing = state.getValue(FACING);
+        Part part = state.getValue(PART);
+        boolean open = state.getValue(OPEN);
+        if (dir == facing && part != Part.HEAD) {
+            Part next = part == Part.FOOT ? Part.MID : Part.HEAD;
+            return isPart(neighbor, next, facing, open) ? state : Blocks.AIR.defaultBlockState();
+        }
+        if (dir == facing.getOpposite() && part != Part.FOOT) {
+            Part prev = part == Part.HEAD ? Part.MID : Part.FOOT;
+            return isPart(neighbor, prev, facing, open) ? state : Blocks.AIR.defaultBlockState();
+        }
         return super.updateShape(state, dir, neighbor, level, pos, neighborPos);
-    }
-
-    /** Направление на вторую половину: изножье смотрит на изголовье, изголовье — обратно. */
-    private static Direction connectedDirection(BlockState state) {
-        return state.getValue(PART) == BedPart.FOOT ? state.getValue(FACING) : state.getValue(FACING).getOpposite();
     }
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (player.isSecondaryUseActive() || player.isPassenger()) return InteractionResult.PASS;
         Direction facing = state.getValue(FACING);
-        BlockPos foot = state.getValue(PART) == BedPart.FOOT ? pos : pos.relative(facing.getOpposite());
+        BlockPos foot = pos.relative(facing.getOpposite(), state.getValue(PART).ordinal());
         BlockState fs = level.getBlockState(foot);
-        if (!(fs.getBlock() instanceof CapsuleBlock) || fs.getValue(PART) != BedPart.FOOT
+        if (!(fs.getBlock() instanceof CapsuleBlock) || fs.getValue(PART) != Part.FOOT
                 || fs.getValue(FACING) != facing) return InteractionResult.PASS;
         if (!fs.getValue(OPEN)) {
             if (!level.isClientSide) player.displayClientMessage(Component.translatable("hypersomnia.lab.capsule.sealed"), true);

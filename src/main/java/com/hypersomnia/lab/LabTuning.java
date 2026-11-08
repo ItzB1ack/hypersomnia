@@ -302,16 +302,20 @@ public final class LabTuning {
     /** Точка сиденья (SeatEntity) над низом блока стула: верх подушки модели 8.5/16. */
     public static final double CHAIR_SEAT_Y = 0.53;
     /**
-     * Лежит ли игрок в открытой капсуле B5 (SeatEntity.lie): высота над низом блока изножья.
-     * Поза принудительная (SWIMMING), сон не начинается.
+     * Лежит ли игрок в открытой капсуле B5 (SeatEntity.lie): высота сиденья над низом блока изножья.
+     * Поза принудительная (SLEEPING, как на кровати), сон не начинается. Верх ложа капсулы — 6/16.
      */
-    public static final double CAPSULE_LIE_Y = 0.2;
+    public static final double CAPSULE_LIE_Y = 0.5;
+    /** Сдвиг модели лежащего игрока от центра клетки изголовья к изножью (как у ванильной кровати). */
+    public static final float CAPSULE_RENDER_SHIFT = 1.52f;
+    /** Предел поворота головы лежащего от оси капсулы, градусы. */
+    public static final float CAPSULE_HEAD_LIMIT = 60f;
     /**
      * Открыта ли капсула по клетке изножья в чертеже (x, z — координаты сетки). Из двенадцати коек зала B5
-     * открыты три: (11,13), (7,21), (27,21) в обоих мирах. Иначе крышка закрыта.
+     * открыты три: (4,13), (12,16), (20,19) в обоих мирах. Иначе крышка закрыта.
      */
     public static boolean capsuleOpen(int x, int z) {
-        return Math.floorMod(x * 7 + z, 5) == 0;
+        return (x == 4 && z == 13) || (x == 12 && z == 16) || (x == 20 && z == 19);
     }
     /** Ящиков в картотечном шкафу: ряд экрана = ящик на 9 ячеек. */
     public static final int CABINET_ROWS = 3;

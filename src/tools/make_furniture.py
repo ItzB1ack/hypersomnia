@@ -14,7 +14,7 @@ cabinet_drawer_inner — выдвинутый ящик шкафа сверху: 
 crac_* / ups_* / battery_* — оборудование серверной B3 (LabEquipmentBlock, 2 блока): лицо верха и низа, бок, верх.
 Кондиционер — светлый корпус, пульт и жалюзи; ИБП — тёмный шкаф, экран, вентиляция; батарейный шкаф — щели, знак.
 Новые текстуры генерируются после старых (общий rnd): старые не меняются.
-capsule_frame / capsule_lid — капсула сна B5 (CapsuleBlock): светлый корпус и тёмное стекло крышки.
+capsule_frame / capsule_lid / capsule_pad — капсула сна B5 (CapsuleBlock): корпус, полупрозрачное стекло купола, ложе.
 Корпус монитора — workstation_case из make_workstation.py (тот же ЭЛТ).
 Раскладка областей совпадает с uv в models/block/*.json: менять только вместе.
 Запуск из корня: python run_tool.py make_furniture"""
@@ -627,20 +627,35 @@ def capsule_frame():
 
 
 def capsule_lid():
-    im = Image.new("RGBA", (16, 16), CAPSULE_GLASS + (255,))
+    # Стекло крышки: полупрозрачное (render_type translucent), блик по диагонали и тёмная рамка.
+    im = Image.new("RGBA", (16, 16), CAPSULE_GLASS + (130,))
     px = im.load()
     for y in range(16):                            # блик стекла по диагонали
         for x in range(16):
             v = 8 + max(0, 7 - abs((x + y) - 12))
-            px[x, y] = (v, v + 5, v + 11, 255)
+            px[x, y] = (v + 40, v + 50, v + 62, 195)
     for i in range(16):                            # тёмная рамка стекла
-        px[i, 0] = px[i, 15] = (6, 10, 15, 255)
-        px[0, i] = px[15, i] = (6, 10, 15, 255)
+        px[i, 0] = px[i, 15] = (6, 10, 15, 235)
+        px[0, i] = px[15, i] = (6, 10, 15, 235)
     for x in range(2, 14):                         # поперечная стяжка
-        px[x, 7] = noisy((40, 52, 64), 1)
+        px[x, 7] = noisy((40, 52, 64), 1)[:3] + (180,)
     return im
 
 
-for name, fn in (("capsule_frame", capsule_frame), ("capsule_lid", capsule_lid)):
+def capsule_pad():
+    # Ложе капсулы: светлая ткань с поперечным швом и мягким краем.
+    im = img((188, 192, 195), 2)
+    px = im.load()
+    for i in range(16):
+        px[i, 0] = noisy((206, 210, 213), 2)
+        px[i, 15] = noisy((166, 171, 175), 2)
+        px[0, i] = noisy((172, 177, 181), 2)
+        px[15, i] = noisy((172, 177, 181), 2)
+    for x in range(1, 15):                         # шов поперёк ложа
+        px[x, 8] = noisy((158, 164, 169), 1)
+    return im
+
+
+for name, fn in (("capsule_frame", capsule_frame), ("capsule_lid", capsule_lid), ("capsule_pad", capsule_pad)):
     fn().save(os.path.join(OUT, name + ".png"))
 print("furniture ok")
