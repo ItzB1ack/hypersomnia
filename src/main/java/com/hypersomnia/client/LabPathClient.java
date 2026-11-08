@@ -12,11 +12,13 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -71,9 +73,15 @@ public final class LabPathClient {
     private static boolean air(Minecraft mc, BlockPos p) {
         return mc.level.hasChunkAt(p) && mc.level.getBlockState(p).isAir();
     }
+    /** Иллюзия не видна сквозь настоящие стены: линия от камеры до центра клетки не должна упираться в блок. */
+    private static boolean visible(Minecraft mc, Vec3 cam, BlockPos p) {
+        if (mc.player == null) return false;
+        return mc.level.clip(new ClipContext(cam, Vec3.atCenterOf(p),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player)).getType() == HitResult.Type.MISS;
+    }
     private static void block(Minecraft mc, PoseStack pose, MultiBufferSource buffers, Vec3 cam,
                               BlockPos pos, BlockState state, float scale) {
-        if (!air(mc, pos)) return;
+        if (!air(mc, pos) || !visible(mc, cam, pos)) return;
         pose.pushPose();
         pose.translate(pos.getX() + .5 - cam.x, pos.getY() - cam.y, pos.getZ() + .5 - cam.z);
         pose.scale(scale, scale, scale);
@@ -84,7 +92,7 @@ public final class LabPathClient {
     }
     private static void item(Minecraft mc, PoseStack pose, MultiBufferSource buffers, Vec3 cam,
                              BlockPos pos, ItemStack stack, double side, float scale, boolean flat) {
-        if (!air(mc, pos)) return;
+        if (!air(mc, pos) || !visible(mc, cam, pos)) return;
         pose.pushPose();
         pose.translate(pos.getX() + .5 - cam.x - gate.dz() * side,
                 pos.getY() + .63 - cam.y, pos.getZ() + .5 - cam.z + gate.dx() * side);

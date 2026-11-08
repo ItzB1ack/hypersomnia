@@ -41,6 +41,24 @@ public final class TraceTuning {
     public static final float WRITING_MAX_WIDTH = .82f;
     public static final float WRITING_MAX_SCALE = .012f;
     public static final float WRITING_TILT_DEGREES = 3f;
+    /**
+     * Порядок личных надписей: {вариант, минимальная стадия}. После последней — снова сначала,
+     * чтобы к стадии 5 игрок прошёл вопросы, зацикливание и обвинение, а не увидел случайную строку. [новое]
+     */
+    public static final int[][] WRITING_ORDER = {
+            {0, 3}, {1, 3}, {2, 3},
+            {3, 4}, {4, 4}, {8, 4}, {9, 4},
+            {5, 5}, {6, 5}, {7, 5}, {10, 5}, {11, 5}
+    };
+    /** Вариант следующей надписи по шагу и стадии; шаг растёт только после успешной установки. */
+    public static int writingVariant(int step, int stage) {
+        int n = WRITING_ORDER.length;
+        for (int i = 0; i < n; i++) {
+            int[] e = WRITING_ORDER[Math.floorMod(step + i, n)];
+            if (e[1] <= stage) return e[0];
+        }
+        return 0;
+    }
     /** Клиент: дальше этой дистанции не рисуем; отступ «наклейки» от поверхности, чтобы не мерцала. */
     public static final double RENDER_DISTANCE = 48.0;
     public static final float DECAL_OFFSET = 0.015f;

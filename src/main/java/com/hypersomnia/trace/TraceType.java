@@ -13,7 +13,7 @@ public enum TraceType {
     HAND(Kind.WALL,       "hand",      2, 0.4f, 3, 2),
     SCRIBBLE(Kind.WALL,   "scribble",  3, 0.6f, 3, 2),
     TOY(Kind.ITEM,        "hypersomnia:bunny", 1, 1.0f, 4, 1),
-    WRITING(Kind.TEXT,    "writing",    8, 0.8f, 3, 0);
+    WRITING(Kind.TEXT,    "writing",   12, 0.8f, 3, 0);
 
     public enum Kind { FLOOR, WALL, ITEM, TEXT }
 

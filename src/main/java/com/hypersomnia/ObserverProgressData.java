@@ -56,6 +56,8 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     private boolean session47Seen;
     private boolean noraRoomSeen;
     private boolean labPathSeen;
+    /** Следующая личная надпись в TraceTuning.WRITING_ORDER; растёт только после успешной установки. */
+    private int writingStep;
     /** Подарок воспоминания (ObserverNotesHandler.giveGift): пробуждений подряд без новой находки, маска на прошлом пробуждении, подаренные. */
     private int giftNights;
     private int giftSeen;
@@ -68,6 +70,8 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     public void markNoraRoomSeen() { noraRoomSeen = true; dirty = true; }
     public boolean labPathSeen() { return labPathSeen; }
     public void markLabPathSeen() { labPathSeen = true; dirty = true; }
+    public int writingStep() { return writingStep; }
+    public void advanceWriting() { writingStep++; dirty = true; }
     public void resetStage5Scenes() { noraRoomSeen = false; labPathSeen = false; dirty = true; }
     public boolean session47Seen() { return session47Seen; }
     public void markSession47Seen() { session47Seen = true; dirty = true; }
@@ -329,6 +333,7 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("nora_room_seen", noraRoomSeen);
         tag.putBoolean("lab_path_seen", labPathSeen);
+        if (writingStep != 0) tag.putInt("writing_step", writingStep);
         tag.putInt("days", days);
         tag.putInt("ticks", ticks);
         tag.putInt("memories", memories);
@@ -363,6 +368,7 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
         exposureTicks = Math.max(0, Math.min(ObserverTuning.EXPOSURE_AWAKE_TICKS_PER_POINT - 1, tag.getInt("exposure_ticks")));
         noraRoomSeen = tag.getBoolean("nora_room_seen");
         labPathSeen = tag.getBoolean("lab_path_seen");
+        writingStep = Math.max(0, tag.getInt("writing_step"));
         days = Math.max(0, tag.getInt("days"));
         ticks = Math.max(0, tag.getInt("ticks"));
         memories = tag.getInt("memories") & 0x7F;

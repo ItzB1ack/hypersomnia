@@ -69,7 +69,8 @@ public final class NoraRoomHandler {
     private static boolean valid(ServerPlayer p, BlockPos bed) {
         ServerLevel l = p.serverLevel();
         return l.dimension().equals(Level.OVERWORLD) && p.isAlive() && !p.isSleeping() && !p.isSpectator()
-                && !p.isCreative() && !FinaleLogic.completed(p) && l.hasChunkAt(bed)
+                && !p.isCreative() && !p.isPassenger() && !p.getAbilities().flying
+                && !p.isInWater() && !p.isInLava() && !FinaleLogic.completed(p) && l.hasChunkAt(bed)
                 && l.getBlockState(bed).getBlock() instanceof BedBlock
                 && p.distanceToSqr(bed.getX() + .5, bed.getY() + .5, bed.getZ() + .5)
                     <= ObserverTuning.NORA_ROOM_TRIGGER_RADIUS * ObserverTuning.NORA_ROOM_TRIGGER_RADIUS;
@@ -101,7 +102,8 @@ public final class NoraRoomHandler {
             return;
         }
         ObserverProgressData progress = p.getData(ModAttachments.OBSERVER);
-        if (p.tickCount % ObserverTuning.NORA_ROOM_SCAN_TICKS != 0 || progress.stage() < 5 || progress.noraRoomSeen()) return;
+        if (p.tickCount % ObserverTuning.NORA_ROOM_SCAN_TICKS != 0 || progress.stage() < 5 || progress.noraRoomSeen()
+                || LabPathHandler.isActive(p)) return;
         ServerLevel level = p.serverLevel();
         if (!level.dimension().equals(Level.OVERWORLD) || level.getGameTime() < RETRY.getOrDefault(id, 0L)) return;
         int[] home = progress.home();

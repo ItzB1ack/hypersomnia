@@ -49,13 +49,15 @@ public final class TraceHandler {
         if (origin == null || !player.serverLevel().isLoaded(origin)
                 || player.blockPosition().distSqr(origin) > TraceTuning.WRITING_NEAR_RADIUS * TraceTuning.WRITING_NEAR_RADIUS) return;
         if (data.writingDelay() > 0) { data.tickWriting(); return; }
-        int stage = player.getData(ModAttachments.OBSERVER).stage();
+        ObserverProgressData progress = player.getData(ModAttachments.OBSERVER);
+        int stage = progress.stage();
         if (stage < 3) { data.deferWriting(TraceTuning.WRITING_RETRY_TICKS); return; }
         TraceData.Entry found = tryPlace(player.serverLevel(), data, origin, TraceTuning.RADIUS, origin, TraceType.WRITING, player.getRandom());
         if (found == null) { data.deferWriting(TraceTuning.WRITING_RETRY_TICKS); return; }
-        int first = stage >= 5 ? 5 : stage >= 4 ? 3 : 0;
-        int count = stage >= 5 ? 3 : stage >= 4 ? 2 : 3;
-        data.add(new TraceData.Entry(TraceType.WRITING.ordinal(), found.pos(), found.face(), first + player.getRandom().nextInt(count), 0, origin));
+        // Не случайная строка из пула, а личная последовательность: вопросы, зацикливание, обвинение. [новое]
+        int variant = TraceTuning.writingVariant(progress.writingStep(), stage);
+        data.add(new TraceData.Entry(TraceType.WRITING.ordinal(), found.pos(), found.face(), variant, 0, origin));
+        progress.advanceWriting();
         data.clearWriting();
         send(player, data);
     }

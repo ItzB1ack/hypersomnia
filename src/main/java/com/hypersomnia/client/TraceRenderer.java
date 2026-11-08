@@ -106,7 +106,7 @@ public final class TraceRenderer {
                     ps.translate(face.getStepX() * off, 0, face.getStepZ() * off);
                     ps.mulPose(Axis.YP.rotationDegrees(-face.toYRot()));
                     ps.mulPose(Axis.ZP.rotationDegrees(((p.hashCode() & 1) == 0 ? 1f : -1f) * TraceTuning.WRITING_TILT_DEGREES));
-                    int variant = Math.floorMod(e.variant(), 8);
+                    int variant = Math.floorMod(e.variant(), TraceType.WRITING.variants);
                     BlockPos reference = e.origin() == null ? p : e.origin();
                     net.minecraft.network.chat.MutableComponent text = variant == 4
                             ? net.minecraft.network.chat.Component.translatable("hypersomnia.trace.writing." + variant, reference.getX(), reference.getY(), reference.getZ())

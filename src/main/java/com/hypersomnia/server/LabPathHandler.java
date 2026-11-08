@@ -44,6 +44,8 @@ public final class LabPathHandler {
     }
     private static final Map<UUID, Gate> ACTIVE = new HashMap<>();
     private static final Map<UUID, Long> RETRY = new HashMap<>();
+    /** Идёт ли у игрока личная преграда: вторую сцену стадии 5 одновременно не запускаем. */
+    public static boolean isActive(ServerPlayer p) { return ACTIVE.containsKey(p.getUUID()); }
     public static void ack(LabPathAck payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer p)) return;

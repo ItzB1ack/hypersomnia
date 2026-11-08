@@ -18,9 +18,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -57,7 +61,8 @@ public final class NoraRoomClient {
         if (pending == null || mc.isPaused()) return;
         if (mc.level == null || mc.player == null || !mc.player.isAlive() || mc.player.isSleeping()
                 || !mc.level.dimension().equals(Level.OVERWORLD) || --remaining <= 0) { clear(); return; }
-        if (!playing && !ObserverClient.isBusy(mc) && ObserverDirector.current() == null && !SleepSceneState.active()) {
+        if (!playing && !ObserverClient.isBusy(mc) && ObserverDirector.current() == null
+                && !SleepSceneState.active() && !LabPathClient.active()) {
             playing = true;
             if ((pending.layout() & ObserverTuning.NORA_ROOM_LAYOUT_BED) != 0) findPictures(mc);
         }
@@ -99,6 +104,7 @@ public final class NoraRoomClient {
                     for (Direction face : Direction.Plane.HORIZONTAL) {
                         BlockPos air = wall.relative(face);
                         if (mc.level.hasChunkAt(air) && mc.level.getBlockState(air).isAir()
+                                && !mc.level.canSeeSky(air)
                                 && mc.level.getBlockState(wall).isFaceSturdy(mc.level, wall, face)) {
                             int[] indices = ObserverTuning.NORA_ROOM_PICTURE_INDICES;
                             pictures.add(new Picture(wall, face, indices[pictures.size() % indices.length]));
@@ -126,15 +132,23 @@ public final class NoraRoomClient {
         float scale = visualScale();
         BlockPos foot = pending.a().north();
         if ((pending.layout() & ObserverTuning.NORA_ROOM_LAYOUT_BED) != 0
-                && mc.level.hasChunkAt(foot) && mc.level.getBlockState(foot).isAir())
-            block(mc, pose, buffers, camera, pending.a(), Blocks.LIGHT_BLUE_BED.defaultBlockState(), scale);
+                && mc.level.hasChunkAt(foot) && mc.level.getBlockState(foot).isAir()
+                && mc.level.getBlockState(pending.a()).isAir()) {
+            // Обе половины кровати: голова у a, ноги к северу от неё (FACING смотрит от ног к голове).
+            BlockState head = Blocks.LIGHT_BLUE_BED.defaultBlockState()
+                    .setValue(BedBlock.PART, BedPart.HEAD)
+                    .setValue(BedBlock.FACING, Direction.SOUTH);
+            block(mc, pose, buffers, camera, pending.a(), head, scale);
+            block(mc, pose, buffers, camera, foot, head.setValue(BedBlock.PART, BedPart.FOOT), scale);
+        }
         if ((pending.layout() & ObserverTuning.NORA_ROOM_LAYOUT_CARPET) != 0)
             block(mc, pose, buffers, camera, pending.b(), Blocks.LIGHT_BLUE_CARPET.defaultBlockState(), scale);
         if ((pending.layout() & ObserverTuning.NORA_ROOM_LAYOUT_TOY) != 0)
             block(mc, pose, buffers, camera, pending.c(), Blocks.OAK_SLAB.defaultBlockState(), scale);
         BlockPos drawing = pending.b();
         if ((pending.layout() & ObserverTuning.NORA_ROOM_LAYOUT_CARPET) != 0
-                && mc.level.hasChunkAt(drawing) && mc.level.getBlockState(drawing).isAir()) {
+                && mc.level.hasChunkAt(drawing) && mc.level.getBlockState(drawing).isAir()
+                && visible(mc, camera, drawing)) {
             pose.pushPose();
             pose.translate(drawing.getX() + .5 - camera.x, drawing.getY() + .15 - camera.y, drawing.getZ() + .5 - camera.z);
             pose.scale(scale, scale, scale);
@@ -145,7 +159,8 @@ public final class NoraRoomClient {
         }
         BlockPos toy = pending.c();
         if ((pending.layout() & ObserverTuning.NORA_ROOM_LAYOUT_TOY) != 0
-                && mc.level.hasChunkAt(toy) && mc.level.getBlockState(toy).isAir()) {
+                && mc.level.hasChunkAt(toy) && mc.level.getBlockState(toy).isAir()
+                && visible(mc, camera, toy)) {
             pose.pushPose();
             pose.translate(toy.getX() + .5 - camera.x, toy.getY() + .65 - camera.y, toy.getZ() + .5 - camera.z);
             pose.scale(scale, scale, scale);
@@ -161,7 +176,8 @@ public final class NoraRoomClient {
         Direction face = picture.face();
         if (!mc.level.hasChunkAt(p) || !mc.level.hasChunkAt(p.relative(face))
                 || mc.level.getBlockEntity(p) != null || !mc.level.getBlockState(p.relative(face)).isAir()
-                || !mc.level.getBlockState(p).isFaceSturdy(mc.level, p, face)) return;
+                || !mc.level.getBlockState(p).isFaceSturdy(mc.level, p, face)
+                || !visible(mc, camera, p.relative(face))) return;
         pose.pushPose();
         float offset = ObserverTuning.NORA_ROOM_PICTURE_OFFSET;
         pose.translate(p.getX() + .5 - camera.x + face.getStepX() * offset,
@@ -184,8 +200,14 @@ public final class NoraRoomClient {
         vc.addVertex(pose, x, y, 0).setColor(255, 255, 255, 255).setUv(u, v)
                 .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, 0, 0, 1);
     }
+    /** Иллюзия не видна сквозь настоящие стены: линия от камеры до центра клетки не должна упираться в блок. */
+    private static boolean visible(Minecraft mc, Vec3 camera, BlockPos pos) {
+        if (mc.player == null) return false;
+        return mc.level.clip(new ClipContext(camera, Vec3.atCenterOf(pos),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player)).getType() == HitResult.Type.MISS;
+    }
     private static void block(Minecraft mc, PoseStack pose, MultiBufferSource buffers, Vec3 camera, BlockPos p, BlockState state, float scale) {
-        if (!mc.level.hasChunkAt(p) || !mc.level.getBlockState(p).isAir()) return;
+        if (!mc.level.hasChunkAt(p) || !mc.level.getBlockState(p).isAir() || !visible(mc, camera, p)) return;
         pose.pushPose();
         pose.translate(p.getX() + .5 - camera.x, p.getY() - camera.y, p.getZ() + .5 - camera.z);
         pose.scale(scale, scale, scale);
