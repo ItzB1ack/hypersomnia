@@ -364,6 +364,13 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   Сон не начинается; закрытая снаружи отвечает «КАПСУЛА ЗАКРЫТА». Якорь,
   FACING и лежание сиденья хранятся в NBT. Предмета нет, ставит LabBuilder;
   lab_check.py проверяет ровно тройку CCC и достижимость.
+- Стоячая капсула [новое]: UprightCapsuleBlock (capsule_upright), вертикальный вариант CapsuleBlock:
+  колонка из трёх блоков BASE/MID/TOP снизу вверх, FACING — куда дверца, OPEN = дверца снята (пустая
+  ячейка). Декор: сиденья и сна нет, закрытая отвечает «CAPSULE SEALED». Модели
+  capsule_upright_{base,mid,top}_{open,closed}, текстуры общие с CapsuleBlock. В B5 — символ I чертежа:
+  два ряда по 5 у северной стены (z=11; x=8..12 и 18..22), закрытые, дверцей в зал. В rounds — ниши
+  капсул 1..46 (RoundsBuilder.upright, NightmareTuning.ROUNDS_UPRIGHT; ROUNDS_LAYOUT = 3). Предмета нет.
+  Детали и непроверенное: CHANGES/CHANGES_capsule_upright.txt.
 - Шифр 9 (замок 8 LOCK_WARD): код = LabVariants.wardCode(seed), четыре
   разные цифры 1..9 (ноль не используется). Стука больше нет (LabKnocks
   удалён). Реальный B4: записка глифами note_2d_glyphs (алфавит черт,
@@ -815,7 +822,8 @@ D.2. Четыре сценария (реализованы в коде)
 3. Rounds — «Обход». Триггер: откат после шприца (SyringeHandler). Ряд капсул
    1–46 с пометками канона; осколков нет ни в одной (осколок только у 47).
    Бежать нельзя, шприцы на полу не трогать. Выход — дойти до капсулы 47 и
-   лечь. Код: RoundsHandler/Builder, ROUNDS_*.
+   лечь. Ниши 1–46 [новое] — стоячие капсулы UprightCapsuleBlock (ROUNDS_UPRIGHT), у «discharged»
+   дверца снята. Код: RoundsHandler/Builder, ROUNDS_*.
 4. Session 47 — «Сеанс 47». Триггер: сон после находки воспоминания 6 (Incident
    Protocol). Зал сеансов, часы 02:41 → 03:07 → 03:12 → 03:13; игрок пытается
    «успеть», не успеть нельзя. Выход — часы доходят до 03:13, обрыв. Код:

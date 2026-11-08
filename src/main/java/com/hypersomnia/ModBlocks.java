@@ -16,6 +16,7 @@ import com.hypersomnia.lab.LightTubeBlock;
 import com.hypersomnia.lab.MonitorBlock;
 import com.hypersomnia.lab.ServerRackBlock;
 import com.hypersomnia.lab.UnlitTubeBlock;
+import com.hypersomnia.lab.UprightCapsuleBlock;
 import com.hypersomnia.lab.WorkstationBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -76,6 +77,14 @@ public final class ModBlocks {
      * Открытость задаёт чертёж (LabTuning.capsuleOpen), ставит LabBuilder; предмета нет.
      */
     public static final DeferredBlock<CapsuleBlock> CAPSULE = BLOCKS.register("capsule", () -> new CapsuleBlock(
+            lab(MapColor.COLOR_LIGHT_GRAY, SoundType.METAL)
+                    .noOcclusion()));
+
+    /**
+     * [новое] Стоячая капсула (вертикальный вариант CapsuleBlock): колонка из трёх блоков, FACING — куда смотрит дверца,
+     * OPEN = дверца снята (пустая ячейка). Декор B5 (символ I чертежа) и обхода rounds; предмета нет, сна нет.
+     */
+    public static final DeferredBlock<UprightCapsuleBlock> CAPSULE_UPRIGHT = BLOCKS.register("capsule_upright", () -> new UprightCapsuleBlock(
             lab(MapColor.COLOR_LIGHT_GRAY, SoundType.METAL)
                     .noOcclusion()));
 

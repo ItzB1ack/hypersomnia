@@ -8,7 +8,8 @@
 должна быть стена); табличка, панель лифта, кодовая панель, щит и решётка вентиляции крепятся к первой стене по порядку
 С, Ю, В, З (стена = '#' или заложенная дверь knock; табличка и панели без стены — к торцу высокой мебели R, rack, stack, equip),
 стена не должна быть вырезана проёмом; кровать — изголовье у первой стены, изножье на полу напротив; капсула — горизонтальная
-тройка CCC (западная клетка изножье, средняя середина, восточная изголовье, перед тройкой проход); ряды хранилища
+тройка CCC (западная клетка изножье, средняя середина, восточная изголовье, перед тройкой проход); стоячая капсула I —
+колонка в три блока (высота этажа не меньше 3), рядом с ней должна быть достижимая клетка пола; ряды хранилища
 (stack) и серверные стойки (rack) — сплошная линия одним символом по направлению роста номеров, перед лицом — проход;
 оборудование (equip: crac|ups|battery и сторона лица) — перед лицом проход.
 Доступность: обход от '@' по полу; у каждой вещи, с которой работает игрок, должна быть достижимая клетка.
@@ -25,7 +26,7 @@ RU = os.path.join(ROOT, "main/resources/assets/hypersomnia/lang/ru_ru.json")
 ORDER = ((0, -1), (0, 1), (1, 0), (-1, 0))          # С, Ю, В, З (LabBuilder.ORDER)
 SIDE = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
 STRUCT = set(" #.=L@Yl*Ew")
-FURN = set("TRDdVZFphHCvru+~")
+FURN = set("TRDdVZFphHCIvru+~")
 EQUIP = ("crac", "ups", "battery")             # LabBlueprint.EQUIP
 FLOOR = set(".*vru123456789")                          # LabBuilder.walkable: где можно встать
 SIGN_LINE_WARN = 16
@@ -206,6 +207,11 @@ def check(name, text, docs=None, stations=None, ru=None):
             if at(x, z) == "C" and (x, z) not in seen:
                 errs.append("capsule (%d,%d): not in a horizontal 'CCC' with the foot west" % (x, z))
 
+    # стоячие капсулы (символ I): колонка в три блока должна влезть под потолок
+    hm = re.search(r"^height\s+(\d+)", text, re.M)
+    if f.cells("I") and (not hm or int(hm.group(1)) < 3):
+        errs.append("upright capsule 'I' needs 'height' >= 3 (has %s)" % (hm.group(1) if hm else "none"))
+
     # обход от центра кабины
     start = f.cells("@")
     reach = set()
@@ -249,6 +255,9 @@ def check(name, text, docs=None, stations=None, ru=None):
                 elif c == "C":
                     if not near(x, z):
                         what = "capsule"
+                elif c == "I":
+                    if not any((x + dx, z + dz) in reach for dx, dz in ORDER):
+                        what = "upright capsule"
                 if what:
                     errs.append("unreachable %s '%s' at (%d,%d)" % (what, c, x, z))
 

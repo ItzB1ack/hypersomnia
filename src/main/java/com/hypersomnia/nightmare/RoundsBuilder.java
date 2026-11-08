@@ -3,6 +3,7 @@ package com.hypersomnia.nightmare;
 import com.hypersomnia.ModBlocks;
 import com.hypersomnia.ModItems;
 import com.hypersomnia.lab.LabSigns;
+import com.hypersomnia.lab.UprightCapsuleBlock;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -64,6 +65,22 @@ public final class RoundsBuilder {
         put(level, bx, 3, bz, Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, lvl));
         put(level, bx, 4, bz, Blocks.WHITE_STAINED_GLASS.defaultBlockState());
     }
+    /**
+     * [новое] Ниша капсулы i (3x3 клетки, z+4..z+6) со стоячей капсулой: колонка в центре фасада (cx+1, z+4) дверцей в проход,
+     * остальное — глухой белый бетон. Выписанный субъект (последняя метка MARKS): дверца снята, ячейка пуста.
+     * Табличка — на левой боковине ниши, чтобы не закрывать стекло.
+     */
+    private static void upright(ServerLevel level, int cx, int i) {
+        boolean open = i % MARKS.length == MARKS.length - 1;
+        BlockState[] pod = UprightCapsuleBlock.column(Direction.NORTH, open);
+        for (int dx = 0; dx < 3; dx++) for (int dz = 4; dz <= 6; dz++) for (int dy = 1; dy <= 3; dy++) {
+            boolean podCell = dx == 1 && dz == 4;
+            put(level, cx + dx, dy, z() + dz, podCell ? pod[dy - 1] : Blocks.WHITE_CONCRETE.defaultBlockState());
+        }
+        LabSigns.wall(level, new BlockPos(cx, y() + 2, z() + 3), Direction.NORTH,
+                String.format(java.util.Locale.ROOT, "CAPSULE %02d", i + 1), MARKS[i % MARKS.length]);
+    }
+
     public static boolean ensureBuilt(ServerLevel level) {
         NightmareSavedData data = NightmareSavedData.get(level);
         if (data.isBuilt(NightmareDefs.ROUNDS) && data.layout(NightmareDefs.ROUNDS) != NightmareTuning.ROUNDS_LAYOUT) {
@@ -101,7 +118,9 @@ public final class RoundsBuilder {
                 // Опорные столбы между капсулами.
                 for (int dy = 1; dy <= 3; dy++) for (int dz = 4; dz <= 6; dz++)
                     put(level, cx + 3, dy, z() + dz, Blocks.LIGHT_GRAY_CONCRETE.defaultBlockState());
-                if (!last) {
+                if (!last && NightmareTuning.ROUNDS_UPRIGHT) {
+                    upright(level, cx, i);
+                } else if (!last) {
                     // Закрытая капсула: подиум, матрас (цвет меняется: «потревоженные»), тёмное стекло спереди.
                     BlockState sheet = switch ((i * 7) % 5) {
                         case 2 -> Blocks.LIGHT_GRAY_CARPET.defaultBlockState();

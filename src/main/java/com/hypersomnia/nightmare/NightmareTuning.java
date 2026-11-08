@@ -43,8 +43,13 @@ public final class NightmareTuning {
     /** [новое] Контрольные точки обхода (индексы капсул с 0): без отметки дальше не пускает. */
     public static final int[] ROUNDS_CHECKS = {11, 23, 35};
     public static final int ROUNDS_CHECK_HOLD_TICKS = 60;
+    /**
+     * [новое] Ниши обхода со стоячими капсулами (UprightCapsuleBlock) вместо лежаков: колонка у прохода, по бокам и сзади
+     * глухой бетон; у «выписанных» (Dissociation, discharged) дверца снята. false — прежний вид: подиум, матрас, тёмное стекло.
+     */
+    public static final boolean ROUNDS_UPRIGHT = true;
     /** Версии постройки: при смене старая зона (только наша) очищается и строится заново. */
-    public static final int ROUNDS_LAYOUT = 2;
+    public static final int ROUNDS_LAYOUT = ROUNDS_UPRIGHT ? 3 : 2;
     public static final int SESSION_LAYOUT = 2;
     public static final int SHAFT_LAYOUT = 6;
     /** [новое] Сеанс 47: пауза между попытками растёт, затем канал закрывается. */

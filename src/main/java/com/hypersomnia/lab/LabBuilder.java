@@ -47,6 +47,7 @@ import java.util.Arrays;
  * T  низкий столик (плита)        R  стеллаж (2 высотой)
  * e (любой символ из строк equip в чертеже)  оборудование серверной LabEquipmentBlock (2 высотой): кондиционер, ИБП, батареи
  * C  капсула сна: тройка CCC (западная — изножье, средняя — середина, восточная — изголовье); OPEN по LabTuning.capsuleOpen
+ * I  [новое] стоячая капсула: колонка из трёх блоков (UprightCapsuleBlock), закрытая, дверцей на свободный пол (как у шкафа)
  * h  стул                         H  стул, развёрнутый наоборот (мир снов)
  * v  решётка вентиляции на стене под потолком
  * A, U (любой символ из строк capsule в чертеже)  капсула с номером: белое ложе и крышка (KIND_CAPSULE * 1000 + номер)
@@ -716,6 +717,11 @@ public final class LabBuilder {
                 set(lv, p.getX(), p.getY(), p.getZ(), base.setValue(CapsuleBlock.PART, CapsuleBlock.Part.FOOT));
                 set(lv, p.getX() + 1, p.getY(), p.getZ(), base.setValue(CapsuleBlock.PART, CapsuleBlock.Part.MID));
                 set(lv, p.getX() + 2, p.getY(), p.getZ(), base.setValue(CapsuleBlock.PART, CapsuleBlock.Part.HEAD));
+            }
+            case 'I' -> {
+                // [новое] стоячая капсула: основание, середина и крышка друг над другом; высоту этажа (>= 3) проверяет lab_check.py
+                BlockState[] pod = UprightCapsuleBlock.column(cabinetFacing(bp, x, z), false);
+                for (int i = 0; i < pod.length; i++) set(lv, wx, fy + i, wz, pod[i]);
             }
             case 'v' -> {
                 Direction wall = wallOf(bp, x, z);
