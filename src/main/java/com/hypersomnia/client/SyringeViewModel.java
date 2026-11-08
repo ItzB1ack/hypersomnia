@@ -47,7 +47,12 @@ public final class SyringeViewModel {
     private SyringeViewModel() {}
 
     /** Масштаб 3D-модели шприца в руке (длина модели 1 блок). */
-    private static final float SCALE = 0.62F;
+    private static final float SCALE = 0.5F;
+    /**
+     * Сдвиг шприца вдоль иглы (блоки): кисть держит заднюю треть корпуса у фланца,
+     * а не центр, поэтому игла выходит из кулака вперёд, а поршень остаётся под большим пальцем.
+     */
+    private static final float GRIP_SHIFT = 0.17F;
     /** Насколько кисть с шприцем идёт вдоль иглы при проколе (блоки). */
     private static final float INJECT_TRAVEL = 0.10F;
 
@@ -270,6 +275,7 @@ public final class SyringeViewModel {
         pose.mulPose(new Quaternionf().rotationZYX(part.zRot, part.yRot, part.xRot));
         pose.translate(grip.x, grip.y, grip.z);
         pose.mulPose(new Quaternionf().rotationTo(NEEDLE_AXIS, aimLocal));
+        pose.translate(GRIP_SHIFT, 0.0F, 0.0F);
         pose.scale(SCALE, SCALE, SCALE);
 
         // Кадр модели выбирается по свойству hypersomnia:using: отдаём ему
