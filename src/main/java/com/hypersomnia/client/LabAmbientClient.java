@@ -86,9 +86,12 @@ public final class LabAmbientClient {
                 case 13 -> SoundEvents.WOODEN_DOOR_OPEN;
                 default -> null;
             };
+            float[] steps = scene < ObserverTuning.LAB_AMBIENT_SCENE_STEP_VOLUME.length
+                    ? ObserverTuning.LAB_AMBIENT_SCENE_STEP_VOLUME[scene] : new float[0];
+            float step = i < steps.length ? steps[i] : 1f;
             if (sound != null) mc.level.playLocalSound(position.getX() + .5, position.getY() + .5, position.getZ() + .5,
                     sound, SoundSource.BLOCKS,
-                    ObserverTuning.LAB_AMBIENT_VOLUME * ObserverTuning.LAB_AMBIENT_SCENE_VOLUME[scene],
+                    ObserverTuning.LAB_AMBIENT_VOLUME * ObserverTuning.LAB_AMBIENT_SCENE_VOLUME[scene] * step,
                     (ObserverTuning.LAB_AMBIENT_PITCH_MIN + mc.level.random.nextFloat() * ObserverTuning.LAB_AMBIENT_PITCH_RANGE)
                             * ObserverTuning.LAB_AMBIENT_SCENE_PITCH[scene], false);
             break;
