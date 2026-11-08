@@ -251,6 +251,8 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   HOPSCOTCH, HAND, SCRIBBLE, TOY и надписи.
 - Шприцы: syringe/* (AdrenalineSyringeItem, SyringeData, SyringeHandler,
   SyringeTuning, SyringeAttachments), client/Syringe*, network/Syringe*.
+  Вид от первого лица: client/SyringeViewModel (одна рука, укол в торс, поза кисти
+  целевыми точками); модели шприца и дневника генерирует src/tools/make_3d_items.py.
 - Сцена в кровати: scene/* (SleepSceneHandler, SceneData, SceneAttachments,
   SleepSceneTuning, SceneCommand), client/SleepScene*, SceneBedScreen.
 - Документы и дневник: document/* (DocumentItem, DocumentDefs, EyeAlphabet,
