@@ -307,7 +307,10 @@ public final class SyringeViewModel {
         m.translate(f * 5.6F, 0.0F, 0.0F);
         m.rotateZ((float) Math.toRadians(sign(arm) * swing));
         m.rotateX((float) Math.toRadians(tilt));
-        m.mul(partMatrix(partOf(model, arm)));
+        // Только смещение плеча: поворот части руки в этот момент ещё от замаха
+        // третьего лица (renderRightHand обнуляет его позже), и он сдвигал бы кисть.
+        ModelPart part = partOf(model, arm);
+        m.translate(part.x / 16.0F, part.y / 16.0F, part.z / 16.0F);
         return m.transformPosition(new Vector3f(handX(arm), 10.0F / 16.0F, 0.0F));
     }
 
