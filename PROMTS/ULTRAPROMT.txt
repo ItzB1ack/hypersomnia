@@ -281,7 +281,7 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   LabTerminal*, LabPath*; client/LabKeypad*, LabTerminal*, LabAmbientClient,
   LabPathClient.
 - Тихие эпизоды лаборатории: server/LabAmbientHandler + client/LabAmbientClient,
-  network/LabAmbientPayload (поле forced, канал "2"), числа и сцены 0–15 в
+  network/LabAmbientPayload (поле forced, канал "2"), числа и сцены 0–16 в
   ObserverTuning.LAB_AMBIENT_* и HOME_AMBIENT_*; один эпизод за раз через
   ObserverDirector. Зона 0 в LabAmbientHandler.zone — ночной дом (см. ниже).
 - Лифты: server/LiftRide (общий плавный рейс), nightmare/ShaftHandler,
@@ -451,7 +451,10 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   (WOODEN_DOOR_CLOSE), скрип–пауза–скрип (WOODEN_DOOR_OPEN, низкий тон),
   стук в стену (LAB_KNOCK, стадия 4+), 15 — [новое] шесть шагов по дереву с
   нарастающей громкостью (LAB_AMBIENT_SCENE_STEP_VOLUME: .35→1.15) и обрыв без
-  звука, стадия 4+. Коды звуков 11–13 добавлены в LabAmbientClient. Сети, NBT и канал "2" не менялись.
+  звука, стадия 4+; 16 — [новое] «далёкая шкатулка»: 4 ноты NOTE_BLOCK_CHIME
+  (код 14) абсолютной высоты .8/1/.9/.84 (LAB_AMBIENT_SCENE_STEP_PITCH, без
+  случайности), четвёртая «спотыкается» (тик 68, тише), пятой нет; стадия 3+,
+  пулы дома и B4. Коды звуков 11–14 добавлены в LabAmbientClient. Сети, NBT и канал "2" не менялись.
 - Кошмары: Ward, Shaft, Rounds, Session 47 — реализованы в коде; в игре
   проверены не полностью. Подробности — приложение D.
 - Финал: 7 концовок, FinaleLogic/FinaleTexts/FinaleTuning, EndingScreen,
