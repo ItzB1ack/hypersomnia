@@ -1,0 +1,22 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "minecraft:block/black_concrete",
+    "mark": "minecraft:block/black_concrete"
+  },
+  "elements": [
+    {
+      "name": "hand_minute",
+      "from": [7.8, 7.5, 2.56],
+      "to": [8.2, 11, 2.64],
+      "faces": {
+        "down": {"texture": "#mark"},
+        "up": {"texture": "#mark"},
+        "north": {"texture": "#mark"},
+        "south": {"texture": "#mark"},
+        "west": {"texture": "#mark"},
+        "east": {"texture": "#mark"}
+      }
+    }
+  ]
+}

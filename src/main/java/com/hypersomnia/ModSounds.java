@@ -30,7 +30,8 @@ public final class ModSounds {
     /** Стук за заложенной дверью палаты 2D (LabKnocks). Файлы — ванильные удары по дереву, см. sounds.json. */
     public static final DeferredHolder<SoundEvent, SoundEvent> LAB_KNOCK = tape("lab_knock");
 
-    /** [новое] Напольные часы в мире снов (DreamClock): тиканье и удары. Файлы — ванильные, см. sounds.json.
+    /** [новое] Напольные часы в мире снов (DreamClock): тиканье (ванильный click) и бой
+     *  (свой dream_clock_chime.ogg, см. src/tools/make_clock_sound.py).
      *  Фиксированная дальность события важна: пакет звука уходит только игрокам в этом радиусе. */
     public static final DeferredHolder<SoundEvent, SoundEvent> CLOCK_TICK = clock("dream_clock_tick", 192f);
     public static final DeferredHolder<SoundEvent, SoundEvent> CLOCK_STRIKE = clock("dream_clock_strike", 256f);

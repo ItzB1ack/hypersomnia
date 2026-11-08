@@ -123,32 +123,6 @@
       }
     },
     {
-      "name": "pendulum_rod",
-      "from": [7.75, 5, 2.7],
-      "to": [8.25, 15.8, 2.8],
-      "faces": {
-        "down": {"texture": "#brass"},
-        "up": {"texture": "#brass"},
-        "north": {"texture": "#brass"},
-        "south": {"texture": "#brass"},
-        "west": {"texture": "#brass"},
-        "east": {"texture": "#brass"}
-      }
-    },
-    {
-      "name": "pendulum_bob",
-      "from": [6.9, 3.9, 2.68],
-      "to": [9.1, 6, 2.86],
-      "faces": {
-        "down": {"texture": "#brass"},
-        "up": {"texture": "#brass"},
-        "north": {"texture": "#brass"},
-        "south": {"texture": "#brass"},
-        "west": {"texture": "#brass"},
-        "east": {"texture": "#brass"}
-      }
-    },
-    {
       "name": "glass",
       "from": [4.05, 3.6, 2.55],
       "to": [11.95, 14, 2.67],

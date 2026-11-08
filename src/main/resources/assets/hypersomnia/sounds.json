@@ -216,8 +216,7 @@
   "dream_clock_strike": {
     "subtitle": "hypersomnia.subtitle.clock_strike",
     "sounds": [
-      {"name": "minecraft:block/bell/bell_use01", "volume": 3.0, "attenuation_distance": 256},
-      {"name": "minecraft:block/bell/bell_use01", "volume": 3.0, "pitch": 0.92, "attenuation_distance": 256}
+      {"name": "hypersomnia:dream_clock_chime", "volume": 1.0, "attenuation_distance": 256}
     ]
   }
 }

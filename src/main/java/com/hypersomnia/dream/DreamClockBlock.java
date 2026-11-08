@@ -13,7 +13,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -27,8 +29,9 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 /**
  * [новое] Напольные часы сна: два блока в высоту, ставятся только кодом (DreamClock).
  * ПКМ по любой половине — «нашёл часы»: игрок просыпается. Предмета у блока нет.
+ * Обе половины несут DreamClockBlockEntity: маятник и стрелки рисует client/DreamClockRenderer.
  */
-public final class DreamClockBlock extends HorizontalDirectionalBlock {
+public final class DreamClockBlock extends HorizontalDirectionalBlock implements EntityBlock {
     public static final MapCodec<DreamClockBlock> CODEC = simpleCodec(DreamClockBlock::new);
     public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
     /** Корпус уже клетки: по углам часы не мешают пройти. */
@@ -85,5 +88,10 @@ public final class DreamClockBlock extends HorizontalDirectionalBlock {
             DreamClock.found(serverPlayer);
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new DreamClockBlockEntity(pos, state);
     }
 }

@@ -1,5 +1,6 @@
 package com.hypersomnia;
 
+import com.hypersomnia.dream.DreamClockBlockEntity;
 import com.hypersomnia.lab.CabinetBlockEntity;
 import com.hypersomnia.lab.LabSignBlockEntity;
 import net.minecraft.core.registries.Registries;
@@ -19,4 +20,8 @@ public final class ModBlockEntities {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LabSignBlockEntity>> LAB_SIGN =
             BLOCK_ENTITIES.register("lab_sign", () -> BlockEntityType.Builder.of(LabSignBlockEntity::new, ModBlocks.LAB_SIGN.get()).build(null));
+
+    /** [новое] Часы сна: обе половины несут пустую сущность ради анимации. */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DreamClockBlockEntity>> DREAM_CLOCK =
+            BLOCK_ENTITIES.register("dream_clock", () -> BlockEntityType.Builder.of(DreamClockBlockEntity::new, ModBlocks.DREAM_CLOCK.get()).build(null));
 }

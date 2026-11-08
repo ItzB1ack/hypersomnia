@@ -316,34 +316,6 @@
       }
     },
     {
-      "name": "hand_minute",
-      "from": [7.8, 7.5, 2.56],
-      "to": [8.2, 11, 2.64],
-      "rotation": {"origin": [8, 7.5, 2.6], "axis": "z", "angle": -45},
-      "faces": {
-        "down": {"texture": "#mark"},
-        "up": {"texture": "#mark"},
-        "north": {"texture": "#mark"},
-        "south": {"texture": "#mark"},
-        "west": {"texture": "#mark"},
-        "east": {"texture": "#mark"}
-      }
-    },
-    {
-      "name": "hand_hour",
-      "from": [7.8, 7.5, 2.48],
-      "to": [8.2, 9.8, 2.56],
-      "rotation": {"origin": [8, 7.5, 2.52], "axis": "z", "angle": 45},
-      "faces": {
-        "down": {"texture": "#mark"},
-        "up": {"texture": "#mark"},
-        "north": {"texture": "#mark"},
-        "south": {"texture": "#mark"},
-        "west": {"texture": "#mark"},
-        "east": {"texture": "#mark"}
-      }
-    },
-    {
       "name": "hub",
       "from": [7.4, 6.9, 2.4],
       "to": [8.6, 8.1, 2.48],

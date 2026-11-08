@@ -10,7 +10,6 @@ import com.hypersomnia.server.ObserverNotesHandler;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -123,7 +122,10 @@ public final class DreamClock {
         if (!data.clockActive()) return;
 
         // Тиканье идёт всё время, пока часы не нашли и погоня не началась.
-        if (!data.clockChase() && player.tickCount % DreamClockTuning.TICK_EVERY_TICKS == 0) playTick(player, data);
+        // Фаза — по игровому времени: клиентская анимация маятника считается от него же,
+        // поэтому щелчок совпадает с крайней точкой.
+        long now = player.level().getGameTime();
+        if (!data.clockChase() && now % DreamClockTuning.TICK_EVERY_TICKS == 0) playTick(player, data, now);
 
         if (data.clockTicks() > 0) {
             int left = data.clockTicks() - 1;
@@ -131,7 +133,6 @@ public final class DreamClock {
             if (left == 0) {
                 data.setClockStrikes(DreamClockTuning.STRIKES_BY_STAGE[strikeIndex(player)]);
                 data.setClockNext(DreamClockTuning.STRIKE_FIRST_TICKS);
-                player.displayClientMessage(Component.translatable("hypersomnia.dream.clock.strike"), true);
                 LOGGER.info("DreamClock: {} strikes for {}", data.clockStrikes(), player.getGameProfile().getName());
             }
             return;
@@ -173,9 +174,9 @@ public final class DreamClock {
         return Mth.clamp(stage, 0, DreamClockTuning.STRIKES_BY_STAGE.length - 1);
     }
 
-    private static void playTick(ServerPlayer player, DreamData data) {
+    private static void playTick(ServerPlayer player, DreamData data, long now) {
         ServerLevel level = player.serverLevel();
-        boolean high = (player.tickCount / DreamClockTuning.TICK_EVERY_TICKS) % 2 == 0;
+        boolean high = (now / DreamClockTuning.TICK_EVERY_TICKS) % 2 == 0;
         level.playSound(null, data.clockX() + 0.5, data.clockY() + 1.0, data.clockZ() + 0.5,
                 ModSounds.CLOCK_TICK.get(), SoundSource.BLOCKS, DreamClockTuning.TICK_VOLUME,
                 high ? DreamClockTuning.TICK_PITCH_HIGH : DreamClockTuning.TICK_PITCH_LOW);
@@ -194,7 +195,6 @@ public final class DreamClock {
         DreamData data = player.getData(DreamAttachments.DREAM);
         if (!data.isInDream() || !data.clockActive() || !data.getKind().isEmpty()) return;
         if (!player.level().dimension().equals(DreamDimension.LEVEL)) return;
-        player.displayClientMessage(Component.translatable("hypersomnia.dream.clock.found"), true);
         DreamTransition.exit(player);
     }
 
@@ -214,7 +214,6 @@ public final class DreamClock {
 
         BlockPos origin = player.blockPosition();
         ObserverNotesHandler.giveRandomNote(player, player.serverLevel(), origin);
-        player.displayClientMessage(Component.translatable("hypersomnia.dream.clock.caught"), false);
     }
 
     // ------------------------------------------------------------------ очистка

@@ -10,21 +10,28 @@ public final class DreamClockTuning {
 
     /** Сколько тиков даётся на поиск часов (3 минуты). */
     public static final int FIND_TICKS = 3 * 60 * 20;
-    /** Тиканье: раз в столько тиков (тик-так: два разных тона).
+    /** Тиканье: ровно раз в секунду (тик-так: два разных тона).
      *  Дальность: fixed-range 192 блока (ModSounds) + attenuation 192 (sounds.json). */
-    public static final int TICK_EVERY_TICKS = 10;
+    public static final int TICK_EVERY_TICKS = 20;
     public static final float TICK_VOLUME = 1.3f;
     public static final float TICK_PITCH_HIGH = 1.35f;
     public static final float TICK_PITCH_LOW = 1.05f;
 
+    /** Анимация маятника: полный цикл 2 с, крайние точки — на каждом тике (раз в секунду). */
+    public static final int PENDULUM_PERIOD_TICKS = 40;
+    public static final float PENDULUM_SWING_DEGREES = 7.0f;
+    /** Стрелки идут ускоренно, как во сне: минутная делает оборот за 10 реальных минут. */
+    public static final int MINUTE_HAND_TICKS = 12000;
+    public static final int HOUR_HAND_TICKS = MINUTE_HAND_TICKS * 12;
+
     /** Сколько раз часы бьют после истечения времени; индекс — стадия 0..5. */
     public static final int[] STRIKES_BY_STAGE = {2, 3, 4, 5, 6, 7};
-    /** Задержка перед первым ударом и между ударами. */
+    /** Задержка перед первым ударом и между ударами: у напольных часов удары реже тиканья. */
     public static final int STRIKE_FIRST_TICKS = 30;
-    public static final int STRIKE_EVERY_TICKS = 16;
+    public static final int STRIKE_EVERY_TICKS = 26;
     /** После последнего удара погоня начинается не сразу: игрок успевает понять, что произошло. */
     public static final int CHASE_DELAY_TICKS = 30;
-    public static final float STRIKE_VOLUME = 1.5f;
+    public static final float STRIKE_VOLUME = 1.2f;
     /** Если погоню не удалось начать (место/чанки), повтор через столько тиков. */
     public static final int CHASE_RETRY_TICKS = 40;
 
