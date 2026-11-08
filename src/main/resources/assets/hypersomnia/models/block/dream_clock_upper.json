@@ -1,0 +1,360 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "minecraft:block/spruce_planks",
+    "case": "minecraft:block/spruce_planks",
+    "dark": "minecraft:block/dark_oak_planks",
+    "brass": "minecraft:block/gold_block",
+    "face": "minecraft:block/quartz_block_side",
+    "mark": "minecraft:block/black_concrete"
+  },
+  "elements": [
+    {
+      "name": "hood_lip",
+      "from": [1.5, 0, 2],
+      "to": [14.5, 1.5, 14],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "hood",
+      "from": [2, 1.5, 3.1],
+      "to": [14, 13, 13.1],
+      "faces": {
+        "down": {"texture": "#case"},
+        "up": {"texture": "#case"},
+        "north": {"texture": "#case"},
+        "south": {"texture": "#case"},
+        "west": {"texture": "#case"},
+        "east": {"texture": "#case"}
+      }
+    },
+    {
+      "name": "column_left",
+      "from": [1.9, 1.5, 2.6],
+      "to": [2.9, 12.6, 3.4],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "column_right",
+      "from": [13.1, 1.5, 2.6],
+      "to": [14.1, 12.6, 3.4],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "capital_left",
+      "from": [1.7, 12.4, 2.4],
+      "to": [3.1, 13.1, 3.6],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "capital_right",
+      "from": [12.9, 12.4, 2.4],
+      "to": [14.3, 13.1, 3.6],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "crown_lower",
+      "from": [1.2, 13, 1.9],
+      "to": [14.8, 14.4, 14.1],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "crown_band",
+      "from": [1.15, 13.55, 1.85],
+      "to": [14.85, 13.9, 14.15],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "crown_middle",
+      "from": [1.7, 14.4, 2.4],
+      "to": [14.3, 15.4, 13.6],
+      "faces": {
+        "down": {"texture": "#case"},
+        "up": {"texture": "#case"},
+        "north": {"texture": "#case"},
+        "south": {"texture": "#case"},
+        "west": {"texture": "#case"},
+        "east": {"texture": "#case"}
+      }
+    },
+    {
+      "name": "crown_top",
+      "from": [2.3, 15.4, 3],
+      "to": [13.7, 15.75, 13],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "finial_front_left",
+      "from": [2.5, 15.75, 3.2],
+      "to": [3.3, 16, 4],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "finial_front_right",
+      "from": [12.7, 15.75, 3.2],
+      "to": [13.5, 16, 4],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "finial_back_left",
+      "from": [2.5, 15.75, 12],
+      "to": [3.3, 16, 12.8],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "finial_back_right",
+      "from": [12.7, 15.75, 12],
+      "to": [13.5, 16, 12.8],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "dial",
+      "from": [4, 3.5, 2.75],
+      "to": [12, 11.5, 3.1],
+      "faces": {
+        "north": {"texture": "#face"}
+      }
+    },
+    {
+      "name": "dial_frame_top",
+      "from": [3.6, 11.5, 2.6],
+      "to": [12.4, 12.2, 3.1],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "dial_frame_bottom",
+      "from": [3.6, 2.8, 2.6],
+      "to": [12.4, 3.5, 3.1],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "dial_frame_left",
+      "from": [3.3, 3.5, 2.6],
+      "to": [4, 11.5, 3.1],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "dial_frame_right",
+      "from": [12, 3.5, 2.6],
+      "to": [12.7, 11.5, 3.1],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "mark_12",
+      "from": [7.7, 10.5, 2.66],
+      "to": [8.3, 11.1, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "mark_3",
+      "from": [10.5, 7.2, 2.66],
+      "to": [11.1, 7.8, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "mark_6",
+      "from": [7.7, 3.8, 2.66],
+      "to": [8.3, 4.4, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "mark_9",
+      "from": [4.9, 7.2, 2.66],
+      "to": [5.5, 7.8, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "tick_1",
+      "from": [9.7, 9.2, 2.66],
+      "to": [10.05, 9.55, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "tick_2",
+      "from": [9.7, 5.45, 2.66],
+      "to": [10.05, 5.8, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "tick_3",
+      "from": [5.95, 5.45, 2.66],
+      "to": [6.3, 5.8, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "tick_4",
+      "from": [5.95, 9.2, 2.66],
+      "to": [6.3, 9.55, 2.74],
+      "faces": {
+        "north": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "hand_minute",
+      "from": [7.8, 7.5, 2.56],
+      "to": [8.2, 11, 2.64],
+      "rotation": {"origin": [8, 7.5, 2.6], "axis": "z", "angle": -45},
+      "faces": {
+        "down": {"texture": "#mark"},
+        "up": {"texture": "#mark"},
+        "north": {"texture": "#mark"},
+        "south": {"texture": "#mark"},
+        "west": {"texture": "#mark"},
+        "east": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "hand_hour",
+      "from": [7.8, 7.5, 2.48],
+      "to": [8.2, 9.8, 2.56],
+      "rotation": {"origin": [8, 7.5, 2.52], "axis": "z", "angle": 45},
+      "faces": {
+        "down": {"texture": "#mark"},
+        "up": {"texture": "#mark"},
+        "north": {"texture": "#mark"},
+        "south": {"texture": "#mark"},
+        "west": {"texture": "#mark"},
+        "east": {"texture": "#mark"}
+      }
+    },
+    {
+      "name": "hub",
+      "from": [7.4, 6.9, 2.4],
+      "to": [8.6, 8.1, 2.48],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    }
+  ]
+}

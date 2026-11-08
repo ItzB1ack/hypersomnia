@@ -1,5 +1,6 @@
 package com.hypersomnia;
 
+import com.hypersomnia.dream.DreamClockBlock;
 import com.hypersomnia.lab.AntennaDriveBlock;
 import com.hypersomnia.lab.BreakerPanelBlock;
 import com.hypersomnia.lab.CabinetBlock;
@@ -120,4 +121,12 @@ public final class ModBlocks {
             lab(MapColor.COLOR_BLACK, SoundType.METAL)
                     .noOcclusion()
                     .noCollission()));
+
+    /**
+     * [новое] Напольные часы в мире снов (DreamClock): два блока в высоту, неразрушаемые, без дропа.
+     * Предмета нет: часы ставит серверный код, ПКМ по ним будит игрока.
+     */
+    public static final DeferredBlock<DreamClockBlock> DREAM_CLOCK = BLOCKS.register("dream_clock", () -> new DreamClockBlock(
+            lab(MapColor.WOOD, SoundType.WOOD)
+                    .noOcclusion()));
 }

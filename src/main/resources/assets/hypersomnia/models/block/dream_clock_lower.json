@@ -1,0 +1,178 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "minecraft:block/spruce_planks",
+    "case": "minecraft:block/spruce_planks",
+    "dark": "minecraft:block/dark_oak_planks",
+    "brass": "minecraft:block/gold_block",
+    "glass": "minecraft:block/glass",
+    "inner": "minecraft:block/black_concrete"
+  },
+  "elements": [
+    {
+      "name": "base_bottom",
+      "from": [1, 0, 1.5],
+      "to": [15, 1, 14.5],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "base_top",
+      "from": [1.5, 1, 2],
+      "to": [14.5, 2, 14],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "base_brass",
+      "from": [1.6, 2, 2.1],
+      "to": [14.4, 2.4, 14.1],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "case",
+      "from": [2.5, 2.4, 3.1],
+      "to": [13.5, 16, 13.1],
+      "faces": {
+        "down": {"texture": "#case"},
+        "up": {"texture": "#case"},
+        "north": {"texture": "#case"},
+        "south": {"texture": "#case"},
+        "west": {"texture": "#case"},
+        "east": {"texture": "#case"}
+      }
+    },
+    {
+      "name": "door_left",
+      "from": [2.5, 2.4, 2.45],
+      "to": [4, 15.2, 3.15],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "door_right",
+      "from": [12, 2.4, 2.45],
+      "to": [13.5, 15.2, 3.15],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "door_bottom",
+      "from": [4, 2.4, 2.45],
+      "to": [12, 3.6, 3.15],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "door_top",
+      "from": [4, 14, 2.45],
+      "to": [12, 15.2, 3.15],
+      "faces": {
+        "down": {"texture": "#dark"},
+        "up": {"texture": "#dark"},
+        "north": {"texture": "#dark"},
+        "south": {"texture": "#dark"},
+        "west": {"texture": "#dark"},
+        "east": {"texture": "#dark"}
+      }
+    },
+    {
+      "name": "interior",
+      "from": [4.05, 3.6, 2.95],
+      "to": [11.95, 14, 3.05],
+      "faces": {
+        "north": {"texture": "#inner"}
+      }
+    },
+    {
+      "name": "pendulum_rod",
+      "from": [7.75, 5, 2.7],
+      "to": [8.25, 15.8, 2.8],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "pendulum_bob",
+      "from": [6.9, 3.9, 2.68],
+      "to": [9.1, 6, 2.86],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    },
+    {
+      "name": "glass",
+      "from": [4.05, 3.6, 2.55],
+      "to": [11.95, 14, 2.67],
+      "faces": {
+        "down": {"texture": "#glass"},
+        "up": {"texture": "#glass"},
+        "north": {"texture": "#glass"},
+        "south": {"texture": "#glass"},
+        "west": {"texture": "#glass"},
+        "east": {"texture": "#glass"}
+      }
+    },
+    {
+      "name": "handle",
+      "from": [11.35, 7.6, 2.38],
+      "to": [11.65, 8.4, 2.5],
+      "faces": {
+        "down": {"texture": "#brass"},
+        "up": {"texture": "#brass"},
+        "north": {"texture": "#brass"},
+        "south": {"texture": "#brass"},
+        "west": {"texture": "#brass"},
+        "east": {"texture": "#brass"}
+      }
+    }
+  ]
+}

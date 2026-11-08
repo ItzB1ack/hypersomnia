@@ -5,6 +5,7 @@ import com.hypersomnia.FatigueTuning;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
+import com.hypersomnia.dream.DreamClock;
 import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.dream.DreamTransition;
 import com.hypersomnia.finale.FinaleLogic;
@@ -137,6 +138,8 @@ public final class ChaseHandler {
         BlockPos door;
         /** «Обесточено»: этаж лаборатории в темноте (LabOutage), иначе -1. */
         int outage = -1;
+        /** [новое] Погоня из напольных часов в мире снов: поимка будит, а не ведёт в палату. */
+        boolean dreamClock;
     }
 
     private static final Map<UUID, Trail> TRAILS = new HashMap<>();
@@ -212,7 +215,8 @@ public final class ChaseHandler {
             if (run.phaseTicks >= ChaseTuning.CAUGHT_TICKS) {
                 end(player, run, ChasePayload.O_CAUGHT);
                 // поимка = сон: run уже снят, поэтому смена измерения его не прервёт
-                DreamTransition.enterNightmare(player, com.hypersomnia.nightmare.NightmareDefs.WARD_CORRIDOR);
+                if (run.dreamClock) DreamClock.onCaught(player);
+                else DreamTransition.enterNightmare(player, com.hypersomnia.nightmare.NightmareDefs.WARD_CORRIDOR);
             } else send(player, run, ChasePayload.PH_CAUGHT, ChasePayload.O_NONE);
             return;
         }
@@ -507,6 +511,8 @@ public final class ChaseHandler {
     private static void caught(ServerPlayer player, Run run) {
         phase(run, ChasePayload.PH_CAUGHT);
         send(player, run, ChasePayload.PH_CAUGHT, ChasePayload.O_NONE);
+        // Погоня из часов: урон, вещи и усталость не нужны — последствия выдаются при пробуждении.
+        if (run.dreamClock) return;
         FatigueData f = player.getData(ModAttachments.FATIGUE);
         f.addFatigue(Math.round(FatigueTuning.MAX_FATIGUE * ChaseTuning.FATIGUE_ON_CATCH));
         f.addMadness(ChaseTuning.MADNESS_ON_CATCH);
@@ -605,6 +611,36 @@ public final class ChaseHandler {
     /** 0 — погоня началась, иначе причина отказа ChasePayload.R_*. force: 1 — отладка, 2 — отладка и не учебная. */
     public static int start(ServerPlayer player, int force) {
         return start(player, force, false);
+    }
+
+    /**
+     * [новое] Погоня из напольных часов в мире снов. Без проверок стадии, ночи, дней и следа:
+     * часы уже пробили, игрок не нашёл их вовремя. Всегда настоящая (не учебная), чтобы поимка
+     * разбудила игрока с последствиями.
+     */
+    public static int startDreamClock(ServerPlayer player) {
+        if (RUNS.containsKey(player.getUUID())) return ChasePayload.R_BUSY;
+        if (!player.isAlive() || player.isSpectator() || FinaleLogic.completed(player)) return ChasePayload.R_CONTEXT;
+        ServerLevel level = player.serverLevel();
+        if (!level.dimension().equals(DreamDimension.LEVEL)) return ChasePayload.R_CONTEXT;
+        if (player.isCreative()) return ChasePayload.R_CONTEXT;
+        Vec3 spawn = spotAround(player, level, false);
+        if (spawn == null) return ChasePayload.R_SAFETY;
+
+        Run run = new Run();
+        run.id = nextId++;
+        run.dim = level.dimension();
+        run.stage = Math.max(Mth.clamp(player.getData(ModAttachments.OBSERVER).stage(),
+                ChaseTuning.MIN_STAGE, 5), ChaseTuning.CATCH_MIN_STAGE);
+        run.teach = false;
+        run.dreamClock = true;
+        // Фигуру вывел сервер: клиенту не нужно запрашивать погоню самому (флаг I_PUSH).
+        run.pushed = true;
+        run.warnTicks = 10;
+        run.pos = spawn;
+        RUNS.put(player.getUUID(), run);
+        send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
+        return 0;
     }
 
     /**

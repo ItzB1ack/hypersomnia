@@ -68,6 +68,10 @@ public final class DreamTransition {
         ServerLevel dream = server.getLevel(DreamDimension.LEVEL);
         if (dream == null) return false;
 
+        // [новое] Дом в мире снов: доработать зеркало до выбора безопасной точки, чтобы findSafe
+        // уже видел скопированные пол и кровать, а не только рельеф под ними.
+        if (nightmare == null) DreamMirror.finish(player);
+
         DreamData data = player.getData(DreamAttachments.DREAM);
         ServerLevel from = player.serverLevel();
         if (data.isInDream() || from == dream) {
@@ -118,6 +122,7 @@ public final class DreamTransition {
         if (nightmare == null) {
             player.getData(ModAttachments.FATIGUE).setSyringeCollapse(false);
             com.hypersomnia.server.ObserverNotesHandler.onEnterDream(player, dream);
+            DreamClock.start(player, dream);
         }
         if (nightmare == NightmareDefs.SESSION_47)
             player.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.begin"), false);
@@ -158,6 +163,8 @@ public final class DreamTransition {
             player.displayClientMessage(Component.translatable("hypersomnia.dream.wake_failed"), false);
             return false;
         }
+        DreamMirror.abort(player);
+        DreamClock.clear(player);
         if (recovery) player.displayClientMessage(Component.translatable("hypersomnia.dream.wake_fallback"), false);
 
         boolean shaft = NightmareDefs.SHAFT.id().equals(data.getKind());

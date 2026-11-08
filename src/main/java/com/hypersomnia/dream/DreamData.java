@@ -18,6 +18,17 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     private int sessionNextAttemptTicks;
     private int sessionNotice;
     private int roundsChecks;
+    // [новое] Напольные часы в мире снов (DreamClock).
+    private boolean clockActive;
+    private int clockX, clockY, clockZ;
+    /** Остаток времени на поиск часов; 0 — время вышло. */
+    private int clockTicks;
+    /** Сколько ударов осталось; 0 — уже пробили. */
+    private int clockStrikes;
+    /** Тики до следующего удара / до начала погони. */
+    private int clockNext;
+    /** Погоня из-за часов уже началась. */
+    private boolean clockChase;
 
     public boolean isInDream() { return inDream; }
     public void setInDream(boolean inDream) {
@@ -45,6 +56,39 @@ public class DreamData implements INBTSerializable<CompoundTag> {
     public int getSessionNotice() { return sessionNotice; }
     public void setSessionNotice(int notice) { sessionNotice = Math.max(0, Math.min(3, notice)); }
     public void resetSession() { sessionAttempts = 0; sessionNextAttemptTicks = 0; sessionNotice = 0; roundsChecks = 0; }
+
+    // ---- [новое] Часы сна ----
+    public boolean clockActive() { return clockActive; }
+    public int clockX() { return clockX; }
+    public int clockY() { return clockY; }
+    public int clockZ() { return clockZ; }
+    public int clockTicks() { return clockTicks; }
+    public int clockStrikes() { return clockStrikes; }
+    public int clockNext() { return clockNext; }
+    public boolean clockChase() { return clockChase; }
+
+    /** Часы поставлены: запомнить место и запустить отсчёт поиска. */
+    public void startClock(int x, int y, int z, int ticks) {
+        clockActive = true;
+        clockX = x; clockY = y; clockZ = z;
+        clockTicks = Math.max(0, ticks);
+        clockStrikes = 0;
+        clockNext = 0;
+        clockChase = false;
+    }
+    public void setClockTicks(int v) { clockTicks = Math.max(0, v); }
+    public void setClockStrikes(int v) { clockStrikes = Math.max(0, v); }
+    public void setClockNext(int v) { clockNext = Math.max(0, v); }
+    public void setClockChase(boolean v) { clockChase = v; }
+    /** Снять часы (пробуждение, выход из сна, смена измерения). */
+    public void resetClock() {
+        clockActive = false;
+        clockX = clockY = clockZ = 0;
+        clockTicks = 0;
+        clockStrikes = 0;
+        clockNext = 0;
+        clockChase = false;
+    }
 
     public int getTicksLeft() { return ticksLeft; }
     public void setTicksLeft(int ticks) { this.ticksLeft = Math.max(0, ticks); }
@@ -82,6 +126,14 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         tag.putInt("sessionNextAttemptTicks", sessionNextAttemptTicks);
         tag.putInt("sessionNotice", sessionNotice);
         tag.putInt("roundsChecks", roundsChecks);
+        tag.putBoolean("clockActive", clockActive);
+        tag.putInt("clockX", clockX);
+        tag.putInt("clockY", clockY);
+        tag.putInt("clockZ", clockZ);
+        tag.putInt("clockTicks", clockTicks);
+        tag.putInt("clockStrikes", clockStrikes);
+        tag.putInt("clockNext", clockNext);
+        tag.putBoolean("clockChase", clockChase);
         return tag;
     }
 
@@ -101,5 +153,13 @@ public class DreamData implements INBTSerializable<CompoundTag> {
         sessionNextAttemptTicks = inDream ? Math.max(0, tag.getInt("sessionNextAttemptTicks")) : 0;
         sessionNotice = inDream ? Math.max(0, Math.min(3, tag.getInt("sessionNotice"))) : 0;
         roundsChecks = inDream ? Math.max(0, tag.getInt("roundsChecks")) : 0;
+        clockActive = inDream && tag.getBoolean("clockActive");
+        clockX = tag.getInt("clockX");
+        clockY = tag.getInt("clockY");
+        clockZ = tag.getInt("clockZ");
+        clockTicks = clockActive ? Math.max(0, tag.getInt("clockTicks")) : 0;
+        clockStrikes = clockActive ? Math.max(0, tag.getInt("clockStrikes")) : 0;
+        clockNext = clockActive ? Math.max(0, tag.getInt("clockNext")) : 0;
+        clockChase = clockActive && tag.getBoolean("clockChase");
     }
 }

@@ -8,7 +8,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-/** Отладка: /hypersomnia_dream enter | exit | status */
+/** Отладка: /hypersomnia_dream enter | exit | status | mirror ... | clock ... */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class DreamCommand {
     private DreamCommand() {}
@@ -38,6 +38,47 @@ public final class DreamCommand {
                             "Dream: inDream=" + data.isInDream() + ", ticksLeft=" + data.getTicksLeft()
                                     + ", return=" + data.getReturnDim()), false);
                     return 1;
-                })));
+                }))
+                .then(Commands.literal("clock")
+                        .then(Commands.literal("status").executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            ctx.getSource().sendSuccess(() -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
+                            return 1;
+                        }))
+                        .then(Commands.literal("place").executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            boolean ok = DreamClock.placeNow(player);
+                            ctx.getSource().sendSuccess(() -> Component.literal(ok
+                                    ? "DreamClock: placed at " + DreamClock.status(player)
+                                    : "DreamClock: cannot place (need a normal dream and free floor)"), false);
+                            return ok ? 1 : 0;
+                        }))
+                        .then(Commands.literal("strike").executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            DreamClock.skipToStrikes(player);
+                            ctx.getSource().sendSuccess(() -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
+                            return 1;
+                        }))
+                        .then(Commands.literal("chase").executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            DreamClock.forceChase(player);
+                            ctx.getSource().sendSuccess(() -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
+                            return 1;
+                        })))
+                .then(Commands.literal("mirror")
+                        .then(Commands.literal("status").executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            ctx.getSource().sendSuccess(() -> Component.literal(DreamMirror.status(player)), false);
+                            return 1;
+                        }))
+                        .then(Commands.literal("apply").executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            boolean ok = DreamMirror.force(player);
+                            ctx.getSource().sendSuccess(() -> Component.literal(ok
+                                    ? "DreamMirror: applied at current position"
+                                    : "DreamMirror: cannot apply (need Overworld, stage >= "
+                                            + DreamMirrorTuning.MIN_STAGE + ", and no protected zone)"), false);
+                            return ok ? 1 : 0;
+                        }))));
     }
 }

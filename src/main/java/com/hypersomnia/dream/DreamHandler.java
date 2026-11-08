@@ -5,12 +5,16 @@ import com.hypersomnia.FatigueTuning;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.SleepPenalty;
+import com.hypersomnia.chase.ChaseHandler;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.MobSpawnType;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import com.hypersomnia.scene.SceneAttachments;
 
@@ -22,6 +26,11 @@ public final class DreamHandler {
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+
+        // [новое] Зеркало дома: захват во время сна и плавный перенос в мир снов.
+        DreamMirror.tick(player);
+        // [новое] Напольные часы: тиканье, удары и погоня.
+        DreamClock.tick(player);
 
         DreamData dream = player.getData(DreamAttachments.DREAM);
         boolean inDreamLevel = player.level().dimension() == DreamDimension.LEVEL;
@@ -52,6 +61,8 @@ public final class DreamHandler {
             DreamTransition.adoptUnexpectedArrival(player, dream);
         } else if (!inDreamLevel && dream.isInDream()) {
             // Вышли из мира снов другим путём (команда, смерть): сон закончен
+            DreamMirror.abort(player);
+            DreamClock.clear(player);
             if (com.hypersomnia.nightmare.NightmareDefs.SHAFT.id().equals(dream.getKind()))
                 com.hypersomnia.nightmare.ShaftHandler.release(player);
             dream.setInDream(false);
@@ -77,6 +88,40 @@ public final class DreamHandler {
         if (dream.getTicksLeft() <= 0) {
             if (!DreamTransition.exit(player)) dream.setTicksLeft(DreamTuning.WAKE_RETRY_TICKS);
         }
+    }
+
+    /** Выход из игры во время сна не должен оставлять захваченный дом в памяти сервера. */
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) DreamMirror.abort(player);
+    }
+
+    /**
+     * [новое] Урон в обычном сне будит игрока. Поимка погоней (hypersomnia:fragment) исключена:
+     * у неё своё пробуждение с последствиями (DreamClock.onCaught / кошмар палаты).
+     */
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (event.getAmount() <= 0f) return;
+        DreamData dream = player.getData(DreamAttachments.DREAM);
+        if (!dream.isInDream() || !dream.getKind().isEmpty()) return;
+        if (!player.level().dimension().equals(DreamDimension.LEVEL)) return;
+        if (event.getSource().is(ChaseHandler.FRAGMENT_DAMAGE)) return;
+        event.setCanceled(true);
+        DreamTransition.exit(player);
+    }
+
+    /** Смерть в обычном сне (в том числе /kill): не оставляем игрока в мире снов, будим. */
+    @SubscribeEvent
+    public static void onDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        DreamData dream = player.getData(DreamAttachments.DREAM);
+        if (!dream.isInDream() || !dream.getKind().isEmpty()) return;
+        if (!player.level().dimension().equals(DreamDimension.LEVEL)) return;
+        event.setCanceled(true);
+        if (player.getHealth() <= 0f) player.setHealth(1.0f);
+        DreamTransition.exit(player);
     }
 
     /** Мир снов пуст: ни животных, ни монстров при генерации и естественном спавне. */

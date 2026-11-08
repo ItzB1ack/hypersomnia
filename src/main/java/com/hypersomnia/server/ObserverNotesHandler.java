@@ -42,6 +42,9 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Что Фрагмент оставляет игроку. Записки: бросок при входе в сон (стадия, шанс, способ, страница); кровать, контейнер и окно
  * доставляются при пробуждении, инвентарь и мир снов сразу при входе. Не вышло доставить: запасные способы кровать, затем инвентарь.
@@ -223,6 +226,30 @@ public final class ObserverNotesHandler {
             if (doc.equals(DocumentItem.idOf(e.getItem()))) return true;
         for (ItemFrame f : level.getEntitiesOfClass(ItemFrame.class, box))
             if (doc.equals(DocumentItem.idOf(f.getItem()))) return true;
+        return false;
+    }
+
+    /**
+     * [новое] Случайная ещё не найденная записка за поимку погоней из часов (DreamClock.onCaught):
+     * сначала в инвентарь, иначе на кровать, иначе на землю рядом. Стадия учитывается та же,
+     * что и при обычной выдаче (NOTE_PAGE_MIN_STAGE). Возвращает true, если записка выдана.
+     */
+    public static boolean giveRandomNote(ServerPlayer player, ServerLevel level, BlockPos origin) {
+        ObserverProgressData data = player.getData(ModAttachments.OBSERVER);
+        int stage = data.stage();
+        List<Integer> free = new ArrayList<>();
+        for (int i = 0; i < ObserverTuning.NOTE_PAGES.length; i++) {
+            if (data.hasNote(i) || stage < ObserverTuning.NOTE_PAGE_MIN_STAGE[i]) continue;
+            free.add(i);
+        }
+        if (free.isEmpty()) return false;
+        int note = free.get(player.getRandom().nextInt(free.size()));
+        for (Way w : new Way[]{Way.INVENTORY, Way.BED, Way.DREAM}) {
+            if (deliver(player, level, origin, w, DocumentItem.make(ObserverTuning.NOTE_PAGES[note]))) {
+                data.addNote(note);
+                return true;
+            }
+        }
         return false;
     }
 
