@@ -3,9 +3,11 @@ package com.hypersomnia.lab;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
+import com.hypersomnia.ObserverTuning;
 import com.hypersomnia.document.WorldVariant;
 import com.hypersomnia.network.LabSeedPayload;
 import com.hypersomnia.network.LabTerminalPayload;
+import com.hypersomnia.server.LabAmbientHandler;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.Commands;
@@ -23,7 +25,7 @@ import com.hypersomnia.dream.DreamDimension;
 
 /**
  * /hypersomnia_lab where | tp | status | rebuild | resite | unlock <0-5> | lock <id> open | feed on|reset | ws <станция> | index [reroll]
- * | antenna [азимут] | outage [on|off].
+ * | antenna [азимут] | outage [on|off] | ambient [<сцена>].
  * rebuild: стирает старую постройку этого мира, сбрасывает прогресс и строит заново по чертежам.
  * ws: открыть рабочую станцию (ArchiveDefs.Station.key) с доступом по текущему состоянию мира — для проверки содержимого.
  * index: порядок строк карточки RECORDER 47-OP в этом сохранении и ответ, варианты MAIN FEED, входного замка, отсека и формы 12-B,
@@ -32,6 +34,7 @@ import com.hypersomnia.dream.DreamDimension;
  * antenna: азимут тарелки ANT-1 (шифр 8), начальный и ретранслятора, питание, замок; с числом — поставить азимут (кратно шагу).
  * outage: «обесточено» (LabOutage) — состояние; on — погасить свет этажа под игроком без погони (проверка света, щита этажа,
  * лифта; погоня — отладкой режиссёра в лаборатории), off — вернуть свет.
+ * ambient: тихие эпизоды LabAmbient — ожидание/кулдаун и номер последней сцены; с числом — проиграть сцену 0..9 сразу.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class LabCommand {
@@ -194,6 +197,15 @@ public final class LabCommand {
                             LabOutage.restore(lv, LabSavedData.get(lv));
                             return say(ctx.getSource(), LabOutage.status(lv));
                         })))
+                .then(Commands.literal("ambient")
+                        .executes(ctx -> say(ctx.getSource(), LabAmbientHandler.status(ctx.getSource().getPlayerOrException())))
+                        .then(Commands.argument("scene", IntegerArgumentType.integer(0, ObserverTuning.LAB_AMBIENT_SCENE_TICKS.length - 1))
+                                .executes(ctx -> {
+                                    ServerPlayer p = ctx.getSource().getPlayerOrException();
+                                    int scene = IntegerArgumentType.getInteger(ctx, "scene");
+                                    return say(ctx.getSource(), LabAmbientHandler.play(p, scene)
+                                            ? "Ambient scene " + scene + " sent" : "Ambient: no chunk at the sound position");
+                                })))
                 .then(Commands.literal("ws")
                         .then(Commands.argument("station", StringArgumentType.word())
                                 .suggests((ctx, b) -> SharedSuggestionProvider.suggest(

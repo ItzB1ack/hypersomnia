@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
@@ -30,9 +31,19 @@ public final class LabAmbientClient {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (plan != null || payload.kind() < 0 || payload.kind() >= ObserverTuning.LAB_AMBIENT_SCENE_TICKS.length
+                    || payload.kind() >= ObserverTuning.LAB_AMBIENT_SCENE_VOLUME.length
+                    || payload.kind() >= ObserverTuning.LAB_AMBIENT_SCENE_PITCH.length
                     || blocked(mc)) return;
-            ObserverDirector.Plan candidate = ObserverDirector.request(ObserverDirector.Kind.GLITCH);
-            if (candidate == null || !ObserverDirector.accept(candidate)) return;
+            ObserverDirector.Plan candidate;
+            if (payload.forced()) {
+                // отладка /hypersomnia_lab ambient <сцена>: мимо стадии, усталости, бюджета и тишины
+                ObserverDirector.force(ObserverDirector.Kind.GLITCH, false);
+                candidate = ObserverDirector.offered(ObserverDirector.Kind.GLITCH);
+                if (candidate == null || !ObserverDirector.accept(candidate)) return;
+            } else {
+                candidate = ObserverDirector.request(ObserverDirector.Kind.GLITCH);
+                if (candidate == null || !ObserverDirector.accept(candidate)) return;
+            }
             plan = candidate;
             dimension = mc.level.dimension();
             position = payload.pos();
@@ -56,18 +67,25 @@ public final class LabAmbientClient {
         ticks++;
         int[] times = ObserverTuning.LAB_AMBIENT_SCENE_TICKS[scene];
         byte[] sounds = ObserverTuning.LAB_AMBIENT_SCENE_SOUNDS[scene];
-        for (int i = 0; i < times.length; i++) {
+        for (int i = 0; i < Math.min(times.length, sounds.length); i++) {
             if (ticks != times[i]) continue;
             SoundEvent sound = switch (sounds[i]) {
                 case 0 -> ModSounds.TAPE_CLICK.get();
                 case 1 -> ModSounds.TAPE_DROPOUT.get();
                 case 2 -> ModSounds.TAPE_HISS.get();
                 case 3 -> ModSounds.LAB_KNOCK.get();
+                case 4 -> SoundEvents.STONE_STEP;
+                case 5 -> SoundEvents.IRON_DOOR_CLOSE;
+                case 6 -> SoundEvents.PISTON_EXTEND;
+                case 7 -> SoundEvents.IRON_TRAPDOOR_OPEN;
+                case 8 -> SoundEvents.POINTED_DRIPSTONE_DRIP_WATER;
                 default -> null;
             };
             if (sound != null) mc.level.playLocalSound(position.getX() + .5, position.getY() + .5, position.getZ() + .5,
-                    sound, SoundSource.BLOCKS, ObserverTuning.LAB_AMBIENT_VOLUME,
-                    ObserverTuning.LAB_AMBIENT_PITCH_MIN + mc.level.random.nextFloat() * ObserverTuning.LAB_AMBIENT_PITCH_RANGE, false);
+                    sound, SoundSource.BLOCKS,
+                    ObserverTuning.LAB_AMBIENT_VOLUME * ObserverTuning.LAB_AMBIENT_SCENE_VOLUME[scene],
+                    (ObserverTuning.LAB_AMBIENT_PITCH_MIN + mc.level.random.nextFloat() * ObserverTuning.LAB_AMBIENT_PITCH_RANGE)
+                            * ObserverTuning.LAB_AMBIENT_SCENE_PITCH[scene], false);
             break;
         }
         if (ticks >= times[times.length - 1] + ObserverTuning.LAB_AMBIENT_TAIL_TICKS)

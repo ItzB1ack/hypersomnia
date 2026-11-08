@@ -1,5 +1,5 @@
 HYPERSOMNIA — ЕДИНЫЙ УЛЬТРАПРОМТ
-Обновлено: 2026-11-08. Сверено с кодом ветки main (сессия: часы сна, зеркало, фикс IP; затем стадия 5 и надписи).
+Обновлено: 2026-11-08. Сверено с кодом ветки main (сессия: часы сна, зеркало, фикс IP; затем стадия 5 и надписи; затем тихие эпизоды лаборатории).
 
 Этот файл заменяет все остальные промты в PROMTS/ (PROMT.txt, COMMONPROMT.txt,
 PROMT_handoff.txt, PROMT_NEXT_CHAT.txt, PROMT_nightmares.txt, PROMT_cutscenes.txt,
@@ -280,6 +280,9 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   LabAmbientHandler, LabPathHandler; network/LabNetwork, LabKeypad*,
   LabTerminal*, LabPath*; client/LabKeypad*, LabTerminal*, LabAmbientClient,
   LabPathClient.
+- Тихие эпизоды лаборатории: server/LabAmbientHandler + client/LabAmbientClient,
+  network/LabAmbientPayload (поле forced, канал "2"), числа и сцены 0–9 в
+  ObserverTuning.LAB_AMBIENT_*; один эпизод за раз через ObserverDirector.
 - Лифты: server/LiftRide (общий плавный рейс), nightmare/ShaftHandler,
   ShaftBuilder, ShaftStorage, lab/LabLift.
 - Кошмары: nightmare/* — NightmareDefs, NightmareTuning, NightmareBuilder,
@@ -302,7 +305,8 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
       director, calm, log, watch, rule, chase)
   /hypersomnia_traces wake|clear|count
   /hypersomnia_lab where|tp|status|rebuild confirm|resite confirm|unlock <0-5>|
-      lock <id> open|feed on|reset|index [reroll]|antenna [азимут]|outage on|off|ws
+      lock <id> open|feed on|reset|index [reroll]|antenna [азимут]|outage on|off|ws|
+      ambient [<0-9>]
   /hypersomnia_finale status|reset|truth|tp|end <key>
   /hypersomnia_nightmare enter <ward|shaft|rounds|session47>|exit|status|build|tp
   /hypersomnia_chase status|reset|return
@@ -391,6 +395,13 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   Надписи на стенах идут личной последовательностью TraceTuning.WRITING_ORDER
   (вопросы → зацикливание → обвинение), шаг хранится в ObserverProgressData
   ("writing_step"), добавлены варианты 8–11.
+- [новое] Тихие эпизоды лаборатории (LabAmbient) расширены: у каждого этажа B1–B5
+  свой пул сцен вместо одной, прошлая сцена не повторяется, выбор по стадии и
+  питанию. Сцены 0–9: щелчки/обрыв/шипение, стук за стеной, шаги по потолку,
+  уезжающий лифт (IRON_DOOR_CLOSE + PISTON_EXTEND), металлический скрип,
+  интерком (стадия 5), капель, «шаги, пауза, ещё один шаг» (стадия 4+).
+  Точка звука — назад по взгляду и/или над головой; громкость и тон на сцену.
+  LabAmbientPayload получил forced (отладка), канал LabAmbientNetwork — "2".
 - Кошмары: Ward, Shaft, Rounds, Session 47 — реализованы в коде; в игре
   проверены не полностью. Подробности — приложение D.
 - Финал: 7 концовок, FinaleLogic/FinaleTexts/FinaleTuning, EndingScreen,
@@ -406,7 +417,9 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   кольца 14–34, удары, переход в погоню, поимка с 50% усталости и запиской,
   модель в игре, очистка блока); зеркало дома (захват, петля, стадии 4–5);
   фикс client/ImmersivePortalsCompat — нужен реальный вход в сон и выход из
-  него, чтобы убедиться, что «Ошибка сетевого протокола» не повторяется.
+  него, чтобы убедиться, что «Ошибка сетевого протокола» не повторяется;
+  сцены LabAmbient — слышимость и направление, порядок и отсутствие повторов,
+  сцена 5 при «обесточено», стадийные пороги, /hypersomnia_lab ambient.
 
 ======================================================================================================================
 7. ЧТО ОСТАЛОСЬ
@@ -421,8 +434,10 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
 3. Надписи на стенах: личная последовательность вопросов → зацикливания →
    обвинения и варианты 8–11 добавлены; проверить порядок и сохранение шага
    в игре, при необходимости дополнить данными игрока.
-4. Пассивные эпизоды в лаборатории (LabAmbient) — развивать, не создавать
-   LabEpisode.
+4. Пассивные эпизоды в лаборатории (LabAmbient): набор сцен расширен (10 сцен,
+   пулы по этажам, стадийные пороги, точка звука, отладочная команда) — проверить
+   в игре через `/hypersomnia_lab ambient <0-9>`, затем оценить естественный темп.
+   Не создавать отдельный LabEpisode.
 5. Шприцы и долгое бодрствование: сейчас влияют на давление, но не ускоряют
    стадию. Решить, нужно ли ограниченное ускорение стадии (столп «пища
    осколка»), без мгновенных скачков.
@@ -440,7 +455,7 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
 - Ускорение стадии шприцами/бодрствованием: ограниченное, без скачков
   (дефолт — не добавлять, пока не проверено).
 - Порядок дальнейших этапов: сначала лифты и стадия 5, потом атмосфера
-  (дефолт).
+  (дефолт; начали с тихих эпизодов лаборатории).
 
 ======================================================================================================================
 8. ТЕХНИЧЕСКИЕ ЛОВУШКИ

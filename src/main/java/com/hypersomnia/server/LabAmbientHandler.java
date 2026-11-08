@@ -6,9 +6,11 @@ import com.hypersomnia.ObserverTuning;
 import com.hypersomnia.chase.ChaseHandler;
 import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.finale.FinaleLogic;
+import com.hypersomnia.lab.LabOutage;
 import com.hypersomnia.lab.LabProtection;
 import com.hypersomnia.lab.LabLift;
 import com.hypersomnia.lab.LabSavedData;
+import com.hypersomnia.lab.LabTuning;
 import com.hypersomnia.network.LabAmbientPayload;
 import com.hypersomnia.scene.SceneAttachments;
 import net.minecraft.core.BlockPos;
@@ -33,6 +35,8 @@ public final class LabAmbientHandler {
     private record Visit(ResourceKey<Level> dimension, int floor, long due) {}
     private static final Map<UUID, Visit> VISITS = new HashMap<>();
     private static final Map<UUID, Long> COOLDOWNS = new HashMap<>();
+    /** Последняя сцена игрока: одна и та же не играет подряд. */
+    private static final Map<UUID, Integer> LAST = new HashMap<>();
 
     @SubscribeEvent public static void tick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer p) || p.tickCount % ObserverTuning.LAB_AMBIENT_SCAN_TICKS != 0) return;
@@ -58,16 +62,72 @@ public final class LabAmbientHandler {
             return;
         }
         if (now < visit.due() || now < COOLDOWNS.getOrDefault(id, 0L)) return;
-        var view = p.getViewVector(1f);
-        BlockPos at = BlockPos.containing(p.getX() - view.x * ObserverTuning.LAB_AMBIENT_OFFSET,
-                p.getY(), p.getZ() - view.z * ObserverTuning.LAB_AMBIENT_OFFSET);
+        int kind = choose(p, level, floor);
+        if (kind < 0) { VISITS.remove(id); return; }
+        BlockPos at = soundAt(p, kind);
         if (!level.hasChunkAt(at)) return;
-        PacketDistributor.sendToPlayer(p, new LabAmbientPayload(at, floor - 1));
+        PacketDistributor.sendToPlayer(p, new LabAmbientPayload(at, kind, false));
         COOLDOWNS.put(id, now + ObserverTuning.LAB_AMBIENT_COOLDOWN);
+        LAST.put(id, kind);
         VISITS.remove(id);
     }
-    @SubscribeEvent public static void logout(PlayerEvent.PlayerLoggedOutEvent event) {
-        UUID id = event.getEntity().getUUID(); VISITS.remove(id); COOLDOWNS.remove(id);
+
+    /** Сцена для этажа: только доступные по стадии и питанию, прошлая не повторяется, если есть выбор. */
+    private static int choose(ServerPlayer p, ServerLevel level, int floor) {
+        int[] pool = ObserverTuning.LAB_AMBIENT_FLOOR_SCENES[floor - 1];
+        int stage = p.getData(ModAttachments.OBSERVER).stage();
+        int last = LAST.getOrDefault(p.getUUID(), -1);
+        int[] candidates = new int[pool.length];
+        int n = 0;
+        for (int k : pool) {
+            if (k < 0 || k >= ObserverTuning.LAB_AMBIENT_SCENE_TICKS.length) continue;
+            if (stage < ObserverTuning.LAB_AMBIENT_SCENE_MIN_STAGE[k]) continue;
+            if (ObserverTuning.LAB_AMBIENT_SCENE_POWER[k] && LabOutage.active(level)) continue;
+            candidates[n++] = k;
+        }
+        if (n == 0) return -1;
+        int[] pick = new int[n];
+        int m = 0;
+        for (int i = 0; i < n; i++) if (candidates[i] != last || n == 1) pick[m++] = candidates[i];
+        return pick[p.getRandom().nextInt(m)];
     }
-    @SubscribeEvent public static void stop(ServerStoppedEvent event) { VISITS.clear(); COOLDOWNS.clear(); }
+
+    /** Точка звука сцены: назад по взгляду и/или выше головы (шаги над потолком, лифт за стеной). */
+    private static BlockPos soundAt(ServerPlayer p, int kind) {
+        int distance = ObserverTuning.LAB_AMBIENT_SCENE_DISTANCE[kind];
+        double dx = -p.getViewVector(1f).x, dz = -p.getViewVector(1f).z;
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 1e-4) { dx = 0; dz = -1; len = 1; }
+        return BlockPos.containing(p.getX() + dx / len * distance,
+                p.getY() + ObserverTuning.LAB_AMBIENT_SCENE_Y[kind],
+                p.getZ() + dz / len * distance);
+    }
+
+    /** Отладка: состояние ожидания и кулдауна для этого игрока. */
+    public static String status(ServerPlayer p) {
+        long now = p.getServer().overworld().getGameTime();
+        UUID id = p.getUUID();
+        Visit v = VISITS.get(id);
+        return "Ambient: " + (v == null ? "no dwell" : "floor " + LabTuning.stopLabel(v.floor())
+                + ", in " + Math.max(0L, v.due() - now) + "t")
+                + ", cooldown " + Math.max(0L, COOLDOWNS.getOrDefault(id, 0L) - now) + "t"
+                + ", last " + LAST.getOrDefault(id, -1)
+                + ", stage " + p.getData(ModAttachments.OBSERVER).stage();
+    }
+
+    /** Отладка: проиграть сцену сразу, без ожидания и кулдауна. */
+    public static boolean play(ServerPlayer p, int kind) {
+        if (kind < 0 || kind >= ObserverTuning.LAB_AMBIENT_SCENE_TICKS.length) return false;
+        ServerLevel level = p.serverLevel();
+        BlockPos at = soundAt(p, kind);
+        if (!level.hasChunkAt(at)) return false;
+        PacketDistributor.sendToPlayer(p, new LabAmbientPayload(at, kind, true));
+        LAST.put(p.getUUID(), kind);
+        return true;
+    }
+
+    @SubscribeEvent public static void logout(PlayerEvent.PlayerLoggedOutEvent event) {
+        UUID id = event.getEntity().getUUID(); VISITS.remove(id); COOLDOWNS.remove(id); LAST.remove(id);
+    }
+    @SubscribeEvent public static void stop(ServerStoppedEvent event) { VISITS.clear(); COOLDOWNS.clear(); LAST.clear(); }
 }

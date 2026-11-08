@@ -7,6 +7,6 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 public final class LabAmbientNetwork {
     private LabAmbientNetwork() {}
     @SubscribeEvent public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("1").playToClient(LabAmbientPayload.TYPE, LabAmbientPayload.STREAM_CODEC, ClientPayloadBridge::labAmbient);
+        event.registrar("2").playToClient(LabAmbientPayload.TYPE, LabAmbientPayload.STREAM_CODEC, ClientPayloadBridge::labAmbient);
     }
 }
