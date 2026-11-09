@@ -144,12 +144,12 @@ def eye_iris(path, seed=22):
     return (W, H)
 
 
-def eye_lids(path, seed=23, halo_units=0.5, sparks=1.0):
+def eye_lids(path, seed=23, halo_units=0.5, sparks=1.0, rim_gain=1.0):
     """Верхний слой: тёмная кожа вокруг раскрытия (обрезает радужку), тень от верхнего века, светлая кромка внизу.
 
-    halo_units — ширина тёмного ореола вокруг раскрытия; 0 = ореола нет, остаются только тень
-    внутри раскрытия и влажная кромка (для пары в меню паузы, где лица вокруг нет и любой ореол
-    на фоне меню читается обводкой). sparks — множитель ярких искр на нижней кромке.
+    halo_units — ширина тёмного ореола вокруг раскрытия; 0 = ореола нет. sparks — множитель
+    ярких искр на нижней кромке. rim_gain — множитель светлой влажной кромки: на лице она нужна,
+    а у пары в меню паузы на фоне эффектов читается светлой обводкой, поэтому там rim_gain=0.
     """
     from scipy.ndimage import distance_transform_edt
     rng = np.random.default_rng(seed)
@@ -173,7 +173,7 @@ def eye_lids(path, seed=23, halo_units=0.5, sparks=1.0):
     spark_px = (rng.random((H, W)) < 0.10) & (np.abs(y - bot - 0.03) < 0.07) & (x > -1.1) & (x < 0.9)
     spark_px = gaussian_filter(spark_px.astype(np.float32), 0.6) * 2.4 * sparks
     rim_v = np.clip(0.50 + 0.18 * (-x / A) + spark_px, 0, 1)
-    top_a = np.clip(rim_a + np.clip(spark_px, 0, 1) * 0.6, 0, 1)
+    top_a = np.clip(rim_a + np.clip(spark_px, 0, 1) * 0.6, 0, 1) * rim_gain
     out_a = top_a + alpha * (1 - top_a)
     rgb = (rim_v[..., None] * 255.0 * top_a[..., None] + rgb * alpha[..., None] * (1 - top_a[..., None])) / np.maximum(out_a[..., None], 1e-4)
     out = np.dstack([rgb, out_a * 255.0]).clip(0, 255).astype(np.uint8)
@@ -193,12 +193,12 @@ if __name__ == "__main__":
         print(n, f(pth)); names.append(n)
         # зеркальная копия для второго глаза (отдельный файл *_r)
         Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
-    # Пара в меню паузы: та же текстура, но без внешнего ореола и без искр — лица вокруг нет,
-    # и любой ореол на фоне меню и эффектов антипаузы читается обводкой, а искры — бусинами.
-    # Остаются тень верхнего века внутри раскрытия и ровная влажная кромка нижнего.
+    # Пара в меню паузы: та же текстура, но без внешнего ореола, без искр и без светлой кромки —
+    # лица вокруг нет, и любой светлый контур на фоне меню и эффектов антипаузы читается обводкой,
+    # а искры — бусинами. Остаётся только мягкая тень верхнего века внутри раскрытия.
     n = "silhouette_eye_lids_pause"
     pth = os.path.join(out, n + ".png")
-    print(n, eye_lids(pth, halo_units=0.0, sparks=0.0)); names.append(n)
+    print(n, eye_lids(pth, halo_units=0.0, sparks=0.0, rim_gain=0.0)); names.append(n)
     Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля
         with open(os.path.join(out, n + ".png.mcmeta"), "w") as fh:
