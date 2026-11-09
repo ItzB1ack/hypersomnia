@@ -26,19 +26,21 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Главное меню после стадии 3+ [новое].
  *
  * Игрок дошёл до стадии 3 хотя бы в одном мире — и главное меню перестаёт быть обычным, как в референсе автора:
- * чёрный экран, пустые белые рамки кнопок, глаз осколка в центре и редкие рукописные обрывки по углам. Кнопки
+ * чёрный экран, плавающие подписи без рамок, глаз осколка в центре и редкие рукописные обрывки по углам. Кнопки
  * расставляются вокруг глаза, поэтому зрачок может смотреть на любую из них. Это не толпа глаз и не глаз в
  * интерфейсе внутри мира: осколок смотрит на игрока снаружи, пока сеанс ещё не начат.
  *
  * Стадия хранится в config/hypersomnia_title.txt и переживает перезапуск. Пока эффект включён, ванильная отрисовка
  * титульного экрана отменяется целиком: панорама, логотип, сплэш, версия, копирайт и подписи не рисуются. Вместо них
- * мы рисуем чёрный кадр, рамки, глаз и подписи всех кнопок одним размером. Все надписи — ванильным шрифтом Minecraft.
+ * мы рисуем чёрный кадр, глаз и подписи всех кнопок одним размером. Все надписи — ванильным шрифтом Minecraft.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class HauntedTitle {
@@ -66,42 +68,46 @@ public final class HauntedTitle {
 
     private static boolean loaded;
     private static int maxStage;
-    /** Шаг времени для мелкой дрожи букв в углах: обновляется редко, чтобы не было ряби каждый кадр. */
+    /** Шаг времени для мелкой дрожи букв: обновляется редко, чтобы не было ряби каждый кадр. */
     private static final int JITTER_MS = 110;
-    /** Общая шкала подписей: подбирается один раз на кадр и одинакова у всех кнопок. */
-    private static final float MAX_LABEL_SCALE = 2.5f;
-    private static final float MIN_LABEL_SCALE = 0.55f;
-    private static final int LABEL_PAD_X = 6;
-    private static final int LABEL_PAD_Y = 4;
+    /** Общая шкала подписей: зависит только от высоты экрана, поэтому одинакова у всех кнопок. */
+    private static final float LABEL_BASE = 1.15f;
+    private static final float LABEL_MIN = 0.90f;
+    private static final float LABEL_MAX = 2.40f;
+    private static final int LABEL_PAD_X = 8;
+    private static final int LABEL_PAD_Y = 5;
     /** Сглаженный взгляд зрачка: цель меняется при смене кнопки. */
     private static float gazeX = Float.NaN;
     private static float gazeY = Float.NaN;
     private static long gazeAt;
-    /** Рябь включается заново, когда курсор переходит на другую рамку. */
+    /** Рябь включается заново, когда курсор переходит на другую кнопку. */
     private static AbstractWidget hoveredLast;
     private static long hoverAt;
 
     /**
-     * Раскладка из референса: восемь рамок вокруг центрального глаза. Координаты — доли экрана, чтобы меню
-     * одинаково выглядело на 720p, 1080p и 4K.
+     * Раскладка: две колонки текста по сторонам глаза, важное — над ним и под ним. Рамок нет, поэтому кнопка —
+     * это сам текст и небольшая невидимая область вокруг него. Координаты — доли экрана, чтобы меню одинаково
+     * выглядело на 720p, 1080p и 4K.
      */
-    private record Box(float x, float y, float w, float h) {}
+    private record Spot(float cx, float cy, float maxW) {}
 
-    private static final Box TOP = new Box(0.402f, 0.184f, 0.196f, 0.108f);
-    private static final Box UPPER_LEFT = new Box(0.236f, 0.266f, 0.170f, 0.100f);
-    private static final Box UPPER_RIGHT = new Box(0.594f, 0.266f, 0.170f, 0.100f);
-    private static final Box MID_LEFT = new Box(0.202f, 0.415f, 0.196f, 0.104f);
-    private static final Box MID_RIGHT = new Box(0.602f, 0.415f, 0.196f, 0.104f);
-    private static final Box LOWER_LEFT = new Box(0.258f, 0.574f, 0.140f, 0.100f);
-    private static final Box LOWER_RIGHT = new Box(0.602f, 0.574f, 0.140f, 0.100f);
-    private static final Box BOTTOM = new Box(0.405f, 0.632f, 0.190f, 0.112f);
+    private static final Spot SINGLE = new Spot(0.500f, 0.155f, 0.260f);
+    private static final Spot MULTI = new Spot(0.285f, 0.295f, 0.220f);
+    private static final Spot REALMS = new Spot(0.715f, 0.295f, 0.250f);
+    private static final Spot MODS = new Spot(0.285f, 0.700f, 0.170f);
+    private static final Spot OPTIONS = new Spot(0.715f, 0.700f, 0.200f);
+    private static final Spot QUIT = new Spot(0.500f, 0.830f, 0.240f);
+    private static final Spot LANGUAGE = new Spot(0.100f, 0.930f, 0.150f);
+    private static final Spot ACCESS = new Spot(0.870f, 0.930f, 0.240f);
 
     /** Куда ставить текстовые кнопки: Singleplayer, Multiplayer, Realms, Mods, Options, Quit. */
-    private static final Box[] TEXT_BOXES = {TOP, MID_LEFT, MID_RIGHT, LOWER_LEFT, LOWER_RIGHT, BOTTOM};
+    private static final Spot[] TEXT_SPOTS = {SINGLE, MULTI, REALMS, MODS, OPTIONS, QUIT};
     /** Куда ставить иконки: Language и Accessibility. */
-    private static final Box[] ICON_BOXES = {UPPER_LEFT, UPPER_RIGHT};
+    private static final Spot[] ICON_SPOTS = {LANGUAGE, ACCESS};
     /** Уже расставленные виджеты в смысловом порядке: первая — Singleplayer, с неё начинается выбор. */
     private static final List<AbstractWidget> ORDER = new ArrayList<>();
+    /** Готовые строки подписи (с переносами) для каждого виджета: кнопка подгоняется под них, а не наоборот. */
+    private static final Map<AbstractWidget, List<String>> LABEL_LINES = new IdentityHashMap<>();
 
     private static ResourceLocation tex(String name) {
         return ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "textures/misc/" + name + ".png");
@@ -151,7 +157,7 @@ public final class HauntedTitle {
         }
     }
 
-    /** Рамки ставятся сразу при открытии меню, чтобы первый клик попал в новую раскладку. */
+    /** Кнопки ставятся сразу при открытии меню, чтобы первый клик попал в новую раскладку. */
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
@@ -162,7 +168,7 @@ public final class HauntedTitle {
      * Отменяем ванильную отрисовку титульного экрана целиком. Иначе панорама, логотип, сплэш, версия
      * Minecraft, брендинг NeoForge и подписи кнопок приходится закрывать чёрным кадром — а часть текста
      * всё равно оказывается поверх него. В Render.Post при этом событие всё равно приходит, и мы рисуем
-     * меню сами: чёрный кадр, рамки, глаз, подписи и тултипы.
+     * меню сами: чёрный кадр, глаз, подписи и тултипы.
      */
     @SubscribeEvent
     public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
@@ -172,7 +178,7 @@ public final class HauntedTitle {
     }
 
     /**
-     * Ванильный рендер отменён, поэтому рисуем титульный экран сами: чёрный кадр, рамки, глаз, подписи и тултипы.
+     * Ванильный рендер отменён, поэтому рисуем титульный экран сами: чёрный кадр, глаз, подписи и тултипы.
      * Кнопки остаются рабочими — их прямоугольники задаёт layout().
      */
     @SubscribeEvent
@@ -204,25 +210,19 @@ public final class HauntedTitle {
         // 2) Мягкое свечение вокруг глаза: чёрный экран остаётся чёрным, но центр получает глубину.
         drawGlow(g, eyeX, eyeY, eyeW, now, level);
 
-        // 3) Восемь пустых рамок: неровные штрихи, лёгкое дыхание яркости, подсветка выбранной и рябь под курсором.
-        for (GuiEventListener listener : screen.children()) {
-            if (!(listener instanceof AbstractWidget widget) || !widget.visible) continue;
-            drawFrame(g, widget, widget == selected, widget == hover, now - hoverAt, now);
-        }
-
-        // 4) Глаз осколка в центре. Зрачок поворачивается к выбранной кнопке и не выходит за белок.
+        // 3) Глаз осколка в центре. Зрачок поворачивается к выбранной кнопке и не выходит за белок.
         drawEye(g, eyeX, eyeY, eyeW, selected, now, level);
 
-        // 5) Фиксируем всю графику, чтобы буквы гарантированно легли сверху, а не под рамками.
+        // 4) Фиксируем всю графику, чтобы буквы гарантированно легли сверху.
         g.flush();
 
-        // 6) Обрывки фраз в углах — ванильный шрифт с очень мелкой дрожью.
+        // 5) Обрывки фраз по углам — ванильный шрифт с очень мелкой дрожью.
         drawCorners(g, font, w, h, now, level);
 
-        // 7) Подписи всех кнопок одним размером: выбранная ярче, остальные приглушены.
-        drawLabels(g, font, selected);
+        // 6) Подписи всех кнопок одним размером: выбранная ярче, под курсором — лёгкая рябь и дрожь букв.
+        drawLabels(g, font, selected, hover, now, hoverAt);
 
-        // 8) Тултипы (язык, доступность, отключённый мультиплеер) рисуем сами — ванильные отключены.
+        // 7) Тултипы (язык, доступность, отключённый мультиплеер) рисуем сами — ванильные отключены.
         if (hover != null) {
             Tooltip tip = hover.getTooltip();
             if (tip != null) {
@@ -233,8 +233,8 @@ public final class HauntedTitle {
     }
 
     /**
-     * Переставляет ванильные кнопки в раскладку из референса. Сами кнопки не рисуются (ванильный рендер отменён),
-     * но остаются кликабельными: рамку, подпись и подсветку рисуем поверх по их прямоугольникам.
+     * Переставляет ванильные кнопки в текстовую раскладку. Сами кнопки не рисуются (ванильный рендер отменён),
+     * но остаются кликабельными: невидимая область вокруг подписи совпадает с тем, что видит игрок.
      */
     private static void layout(TitleScreen screen) {
         List<AbstractWidget> texts = new ArrayList<>();
@@ -251,23 +251,24 @@ public final class HauntedTitle {
         }
         // Ванильный порядок — Mods, Language, Options, Quit, ...; для меню важнее смысл: Singleplayer сверху.
         texts.sort((a, b) -> Integer.compare(rank(a), rank(b)));
-        int w = screen.width;
-        int h = screen.height;
+        float scale = labelScale(screen.height);
+        Font font = Minecraft.getInstance().font;
         ORDER.clear();
+        LABEL_LINES.clear();
         for (int i = 0; i < texts.size(); i++) {
-            if (i >= TEXT_BOXES.length) {
+            if (i >= TEXT_SPOTS.length) {
                 texts.get(i).visible = false;
                 continue;
             }
-            place(texts.get(i), TEXT_BOXES[i], w, h);
+            place(texts.get(i), TEXT_SPOTS[i], screen.width, screen.height, scale, font);
             ORDER.add(texts.get(i));
         }
         for (int i = 0; i < icons.size(); i++) {
-            if (i >= ICON_BOXES.length) {
+            if (i >= ICON_SPOTS.length) {
                 icons.get(i).visible = false;
                 continue;
             }
-            place(icons.get(i), ICON_BOXES[i], w, h);
+            place(icons.get(i), ICON_SPOTS[i], screen.width, screen.height, scale, font);
             ORDER.add(icons.get(i));
         }
     }
@@ -290,15 +291,29 @@ public final class HauntedTitle {
         return message.getContents() instanceof TranslatableContents tc ? tc.getKey() : "";
     }
 
-    private static void place(AbstractWidget widget, Box box, int sw, int sh) {
-        int x = Math.round(box.x * sw);
-        int y = Math.round(box.y * sh);
-        int w = Math.max(56, Math.round(box.w * sw));
-        int h = Math.max(22, Math.round(box.h * sh));
-        widget.setX(x);
-        widget.setY(y);
-        widget.setWidth(w);
-        widget.setHeight(h);
+    /** Ставит невидимую кнопку так, чтобы её центр совпал с точкой раскладки, а размер — с текстом и отступами. */
+    private static void place(AbstractWidget widget, Spot spot, int sw, int sh, float scale, Font font) {
+        String text = labelText(widget);
+        int maxTextW = Math.max(40, Math.round(spot.maxW() * sw));
+        List<String> lines = wrap(font, text, Math.max(1, (int) Math.floor(maxTextW / scale)));
+        if (lines == null) lines = List.of(text);
+        int contentW = 0;
+        for (String line : lines) contentW = Math.max(contentW, font.width(line));
+        int contentH = lines.size() * font.lineHeight;
+        int widgetW = Math.max(32, Math.round(contentW * scale) + LABEL_PAD_X * 2);
+        int widgetH = Math.max(18, Math.round(contentH * scale) + LABEL_PAD_Y * 2);
+        int cx = Math.round(spot.cx() * sw);
+        int cy = Math.round(spot.cy() * sh);
+        widget.setX(Mth.clamp(cx - widgetW / 2, 4, Math.max(4, sw - widgetW - 4)));
+        widget.setY(Mth.clamp(cy - widgetH / 2, 4, Math.max(4, sh - widgetH - 4)));
+        widget.setWidth(widgetW);
+        widget.setHeight(widgetH);
+        LABEL_LINES.put(widget, lines);
+    }
+
+    /** Шкала подписей зависит только от высоты экрана, поэтому у всех кнопок она одинаковая. */
+    private static float labelScale(int screenHeight) {
+        return Mth.clamp(screenHeight / 270f * LABEL_BASE, LABEL_MIN, LABEL_MAX);
     }
 
     /** Кнопка под мышью, иначе кнопка с клавиатурным фокусом, иначе первая в смысловом порядке (Singleplayer). */
@@ -332,8 +347,8 @@ public final class HauntedTitle {
 
     private static void drawGlow(GuiGraphics g, float cx, float cy, float eyeW, long now, float level) {
         float pulse = (float) Math.sin(now / 1700.0) * 0.03f;
-        float size = eyeW * (3.15f + pulse + 0.10f * level);
-        float alpha = Mth.clamp(0.42f + 0.14f * level, 0f, 0.68f);
+        float size = eyeW * (2.95f + pulse + 0.10f * level);
+        float alpha = Mth.clamp(0.38f + 0.14f * level, 0f, 0.60f);
         int s = Math.max(8, Math.round(size));
         int x = Math.round(cx - s / 2f);
         int y = Math.round(cy - s / 2f);
@@ -346,197 +361,115 @@ public final class HauntedTitle {
     }
 
     /**
-     * Рамка нарисована «от руки»: тонкая неровная линия с утолщениями и чуть выходящими углами. Выбранная
-     * кнопка получает мягкое свечение и очень слабую заливку, а под курсором по рамке бежит рябь.
+     * Вместо рамки — тонкая черта под выбранной подписью и очень слабое свечение. Рамки убраны: текст висит
+     * в темноте, а глаз остаётся единственным крупным объектом. Черта пульсирует, у наведённой — ярче.
      */
-    private static void drawFrame(GuiGraphics g, AbstractWidget widget, boolean selected, boolean hovered,
-                                  long hoverAge, long now) {
-        int x = widget.getX();
-        int y = widget.getY();
-        int w = widget.getWidth();
-        int h = widget.getHeight();
-        boolean lit = selected && widget.active;
-        boolean ripple = hovered && widget.active;
-        int edge = !widget.active ? 0xB85C666B : lit ? 0xFFF3F8FA : 0xC0AEB9BE;
-
-        // Рябь расходится от рамки наружу, поэтому рисуется первой — под линиями.
-        if (ripple) drawRipple(g, x, y, w, h, hoverAge, now);
-
-        if (lit) {
-            int pulse = (int) Math.round(2.0 + 2.0 * Math.sin(now / 520.0));
-            int boost = hovered ? 6 : 0;
-            for (int i = 5; i >= 1; i--) {
-                int a = Math.min(44, 8 + pulse + boost + (5 - i) * 4);
-                outline(g, x - i, y - i, w + i * 2, h + i * 2, (a << 24) | 0xC9E2EA);
-            }
-            // Едва заметная холодная дымка внутри — пустая рамка не выглядит мёртвой.
-            g.fill(x + 1, y + 1, x + w - 1, y + h - 1, hovered ? 0x0CE6F0F2 : 0x07E6F0F2);
-        }
-
-        // Тонкая внутренняя линия, будто рамка выдавлена в темноте.
-        if (lit || ripple) {
-            outline(g, x + 3, y + 3, w - 6, h - 6, 0x28D5E4EA);
-        }
-
-        // Базовая линия и мелкие «перекосы» пера.
-        g.fill(x, y, x + w, y + 1, edge);
-        g.fill(x, y + h - 1, x + w, y + h, edge);
-        g.fill(x, y, x + 1, y + h, edge);
-        g.fill(x + w - 1, y, x + w, y + h, edge);
-
-        int tx = Math.max(6, w / 6);
-        int ty = Math.max(4, h / 5);
-        g.fill(x + w / 5, y, x + w / 5 + tx, y + 2, edge);
-        g.fill(x + w - w / 4, y + h - 2, x + w - w / 4 + tx, y + h, edge);
-        g.fill(x, y + h / 2, x + 2, y + h / 2 + ty, edge);
-        g.fill(x + w - 2, y + h / 6, x + w, y + h / 6 + ty, edge);
-
-        // Углы чуть выходят за прямоугольник, как у настоящего наброска; у выбранной — чуть заметнее.
-        int over = lit ? 2 : 1;
-        int corner = lit ? Math.max(5, Math.min(12, w / 9)) : 4;
-        g.fill(x - over, y - over, x + corner, y, edge);
-        g.fill(x - over, y - over, x, y + corner, edge);
-        g.fill(x + w - corner, y - over, x + w + over, y, edge);
-        g.fill(x + w, y - over, x + w + over, y + corner, edge);
-        g.fill(x - over, y + h, x + corner, y + h + over, edge);
-        g.fill(x - over, y + h - corner, x, y + h, edge);
-        g.fill(x + w - corner, y + h, x + w + over, y + h + over, edge);
-        g.fill(x + w, y + h - corner, x + w + over, y + h, edge);
-
-        // По рамке под курсором бегут световые штрихи — как рябь по воде.
-        if (ripple) {
-            float p = (hoverAge % 1700L) / 1700f;
-            int dash = Math.max(10, (w + h) / 10);
-            perimeterDash(g, x, y, w, h, p, dash, 0x78EAF4F7);
-            perimeterDash(g, x, y, w, h, (p + 0.5f) % 1f, Math.max(6, dash / 2), 0x30DAE8EC);
-        }
+    private static void drawSelection(GuiGraphics g, int cx, int cy, float textW, float textH,
+                                      long now, boolean hovered) {
+        int half = Math.round(textW / 2f) + 6;
+        int y = Math.round(cy + textH / 2f + 5);
+        float pulse = 0.5f + 0.5f * (float) Math.sin(now / 420.0);
+        int alpha = hovered ? 150 + (int) (75 * pulse) : 70 + (int) (45 * pulse);
+        g.fill(cx - half - 4, y + 1, cx + half + 4, y + 2, (Math.max(16, alpha / 4) << 24) | 0xDCE8EC);
+        g.fill(cx - half, y, cx + half, y + 1, (alpha << 24) | 0xF3F8FA);
     }
 
-    /** Две расходящиеся рамки-волны и медленные горизонтальные полосы помех внутри. */
-    private static void drawRipple(GuiGraphics g, int x, int y, int w, int h, long age, long now) {
-        float maxD = Math.max(10f, Math.min(28f, h * 0.30f));
+    /**
+     * Рябь от наведения: две пары коротких линий уходят вверх и вниз от подписи, будто текст отражается
+     * в чёрной воде. Полных прямоугольников нет, поэтому эффект не читается как рамка.
+     */
+    private static void drawHoverRipple(GuiGraphics g, int cx, int cy, float textW, float textH, long age) {
+        float maxD = 10f + Math.min(16f, textH * 0.45f);
         for (int k = 0; k < 2; k++) {
-            float f = ((age + k * 760f) % 1520f) / 1520f;
-            int a = (int) ((1f - f) * (1f - f) * 78f);
-            if (a < 4) continue;
-            int d = Math.round(f * maxD);
-            outline(g, x - d, y - d, w + d * 2, h + d * 2, (a << 24) | 0xD6EAF0);
-        }
-
-        long q = now / 90L;
-        for (int i = 0; i < 3; i++) {
-            int yy = y + 2 + (int) Math.floorMod(q + i * (long) Math.max(1, h / 3), Math.max(1, h - 4));
-            int a = 8 + (int) (6 * Math.sin(now / 300.0 + i * 2.1));
-            g.fill(x + 3, yy, x + w - 3, yy + 1, (Math.max(4, a) << 24) | 0xCFE0E6);
+            float f = ((age + k * 650f) % 1300f) / 1300f;
+            int alpha = (int) ((1f - f) * (1f - f) * 70f);
+            if (alpha < 4) continue;
+            float d = f * maxD;
+            int half = Math.round(textW * 0.5f + 8f + d * 0.8f);
+            int yTop = Math.round(cy - textH / 2f - 6f - d);
+            int yBot = Math.round(cy + textH / 2f + 6f + d);
+            g.fill(cx - half, yTop, cx + half, yTop + 1, (alpha << 24) | 0xE8F2F4);
+            g.fill(cx - half, yBot, cx + half, yBot + 1, (alpha << 24) | 0xE8F2F4);
         }
     }
 
-    /** Короткий штрих, бегущий по периметру рамки; phase 0..1, len в пикселях. */
-    private static void perimeterDash(GuiGraphics g, int x, int y, int w, int h,
-                                      float phase, int len, int color) {
-        int total = 2 * (w + h);
-        if (total <= 0) return;
-        int count = Math.min(len, total);
-        int start = Math.round(Math.floorMod((long) (phase * total), (long) total));
-        for (int i = 0; i < count; i++) {
-            int t = Math.floorMod(start + i, total);
-            if (t < w) {
-                g.fill(x + t, y, x + t + 1, y + 2, color);
-            } else if (t < w + h) {
-                g.fill(x + w - 2, y + t - w, x + w, y + t - w + 1, color);
-            } else if (t < 2 * w + h) {
-                int u = t - w - h;
-                g.fill(x + w - 1 - u, y + h - 2, x + w - u, y + h, color);
-            } else {
-                int u = t - 2 * w - h;
-                g.fill(x, y + h - 1 - u, x + 2, y + h - u, color);
+    /** Ширина самой длинной строки подписи в пикселях шрифта (до масштабирования). */
+    private static int blockWidth(Font font, List<String> lines) {
+        int w = 0;
+        for (String line : lines) w = Math.max(w, font.width(line));
+        return w;
+    }
+
+    /**
+     * Рисует блок подписи по центру. Под курсором буквы мелко дрожат и поворачиваются, как будто текст
+     * не хочет стоять на месте; в остальное время строка ровная, чтобы меню оставалось удобным.
+     */
+    private static void drawBlock(GuiGraphics g, Font font, List<String> lines, float cx, float cy,
+                                  float scale, int color, boolean jitter, long now) {
+        int lineH = font.lineHeight;
+        float blockH = lines.size() * lineH * scale;
+        g.pose().pushPose();
+        g.pose().translate(cx, cy - blockH / 2f, 0f);
+        g.pose().scale(scale, scale, 1f);
+        long q = now / JITTER_MS;
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            int y = i * lineH;
+            if (!jitter) {
+                g.drawString(font, line, -font.width(line) / 2, y, color, false);
+                continue;
+            }
+            float pen = -font.width(line) / 2f;
+            for (int j = 0; j < line.length(); ) {
+                int cp = line.codePointAt(j);
+                j += Character.charCount(cp);
+                String glyph = new String(Character.toChars(cp));
+                long hash = mix(i * 97L + j, q);
+                float jx = ((hash & 7L) - 3.5f) / 3.5f * 0.5f;
+                float jy = (((hash >>> 3) & 7L) - 3.5f) / 3.5f * 0.5f;
+                float rot = (((hash >>> 6) & 7L) - 3.5f) / 3.5f * 1.4f;
+                g.pose().pushPose();
+                g.pose().translate(pen + jx, y + jy, 0f);
+                g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
+                g.drawString(font, glyph, 0, 0, color, false);
+                g.pose().popPose();
+                pen += font.width(glyph);
             }
         }
+        g.pose().popPose();
     }
 
-    private static void outline(GuiGraphics g, int x, int y, int w, int h, int color) {
-        g.fill(x, y, x + w, y + 1, color);
-        g.fill(x, y + h - 1, x + w, y + h, color);
-        g.fill(x, y, x + 1, y + h, color);
-        g.fill(x + w - 1, y, x + w, y + h, color);
-    }
-
-    /** Все подписи одним размером: сначала подбираем общую шкалу, затем рисуем каждую с переносом строк. */
-    private static void drawLabels(GuiGraphics g, Font font, AbstractWidget selected) {
-        float scale = labelScale(font);
+    /** Все подписи одним размером; под выбранной — черта, под курсором — рябь и дрожь букв. */
+    private static void drawLabels(GuiGraphics g, Font font, AbstractWidget selected, AbstractWidget hover,
+                                   long now, long hoverAt) {
+        float scale = labelScale(Minecraft.getInstance().getWindow().getGuiScaledHeight());
         for (AbstractWidget widget : ORDER) {
             if (!widget.visible) continue;
-            String text = labelText(widget);
-            if (text.isBlank()) continue;
-            int x = widget.getX();
-            int y = widget.getY();
-            int w = widget.getWidth();
-            int h = widget.getHeight();
-            int availW = Math.max(1, w - LABEL_PAD_X * 2);
-            List<String> lines = wrap(font, text, Math.max(1, (int) Math.floor(availW / scale)));
-            if (lines == null) lines = List.of(text);
-            int color = !widget.active ? 0xFF6E797E : widget == selected ? 0xFFF3F8FA : 0xFFB6C1C6;
-            int lineH = font.lineHeight;
-            float baseY = y + (h - lines.size() * lineH * scale) / 2f;
+            List<String> lines = LABEL_LINES.get(widget);
+            if (lines == null || lines.isEmpty()) continue;
+            int cx = widget.getX() + widget.getWidth() / 2;
+            int cy = widget.getY() + widget.getHeight() / 2;
+            boolean lit = widget == selected;
+            boolean glitch = widget == hover && widget.active;
+            int color = !widget.active ? 0xFF59636A : lit ? 0xFFF3F8FA : 0xFFA9B4B9;
+            float textW = blockWidth(font, lines) * scale;
+            float textH = lines.size() * font.lineHeight * scale;
 
-            g.pose().pushPose();
-            g.pose().translate(x + w / 2f, baseY, 0f);
-            g.pose().scale(scale, scale, 1f);
-            for (int i = 0; i < lines.size(); i++) {
-                String line = lines.get(i);
-                g.drawString(font, line, -font.width(line) / 2, i * lineH, color, false);
+            if (glitch) {
+                drawHoverRipple(g, cx, cy, textW, textH, now - hoverAt);
+                // Бледный «двойник» на пару пикселей в сторону — короткий сбой изображения.
+                drawBlock(g, font, lines, cx + 2f, cy + 1f, scale, 0x22FFFFFF, false, now);
             }
-            g.pose().popPose();
-
-            // Тонкая черта под выбранной — подсказка, что именно откроется по клику.
-            if (widget == selected && widget.active) {
-                int textW = lines.stream().mapToInt(font::width).max().orElse(0);
-                int underline = Math.min(w - 10, Math.round(textW * scale) + 10);
-                if (underline > 0) {
-                    int ux = x + (w - underline) / 2;
-                    int uy = y + h - 4;
-                    g.fill(ux, uy, ux + underline, uy + 1, (color & 0x00FFFFFF) | 0x50000000);
-                }
+            if (lit && widget.active) {
+                drawSelection(g, cx, cy, textW, textH, now, glitch);
             }
+            drawBlock(g, font, lines, cx, cy, scale, color, glitch, now);
         }
     }
 
     /** Подпись кнопки; у иконочных кнопок сообщение тоже заполнено (options.language / options.accessibility). */
     private static String labelText(AbstractWidget widget) {
         return widget.getMessage().getString();
-    }
-
-    /** Одна шкала для всех подписей: самая крупная, при которой каждая влезает в свою рамку. */
-    private static float labelScale(Font font) {
-        float scale = MAX_LABEL_SCALE;
-        for (AbstractWidget widget : ORDER) {
-            if (!widget.visible) continue;
-            String text = labelText(widget);
-            if (text.isBlank()) continue;
-            int availW = widget.getWidth() - LABEL_PAD_X * 2;
-            int availH = widget.getHeight() - LABEL_PAD_Y * 2;
-            if (availW < 8 || availH < font.lineHeight * MIN_LABEL_SCALE) continue;
-            scale = Math.min(scale, fitScale(font, text, availW, availH));
-        }
-        return Mth.clamp(scale, MIN_LABEL_SCALE, MAX_LABEL_SCALE);
-    }
-
-    /** Наибольшая шкала, при которой текст переносится по словам и влезает по ширине и высоте. */
-    private static float fitScale(Font font, String text, int availW, int availH) {
-        if (!wrapsWithin(font, text, availW, availH, MIN_LABEL_SCALE)) return MIN_LABEL_SCALE;
-        float lo = MIN_LABEL_SCALE;
-        float hi = MAX_LABEL_SCALE;
-        for (int i = 0; i < 12; i++) {
-            float mid = (lo + hi) / 2f;
-            if (wrapsWithin(font, text, availW, availH, mid)) lo = mid;
-            else hi = mid;
-        }
-        return lo;
-    }
-
-    private static boolean wrapsWithin(Font font, String text, int availW, int availH, float scale) {
-        List<String> lines = wrap(font, text, Math.max(1, (int) Math.floor(availW / scale)));
-        return lines != null && lines.size() * font.lineHeight * scale <= availH + 0.01f;
     }
 
     /** Перенос по словам; null, если даже одно слово не влезает в заданную ширину. */
@@ -598,10 +531,10 @@ public final class HauntedTitle {
     }
 
     private static void drawCorners(GuiGraphics g, Font font, int w, int h, long now, float level) {
-        // Три места как в референсе: верх по центру, низ слева, низ справа.
-        drawCorner(g, font, now, level, 0, w * 0.50f, h * 0.135f, -4.5f, 0);
-        drawCorner(g, font, now, level, 1, w * 0.03f, h * 0.93f, 2.0f, -1);
-        drawCorner(g, font, now, level, 2, w * 0.97f, h * 0.94f, -2.5f, 1);
+        // Три места: два верхних угла и низ по центру. Нижние углы отданы «Языку» и спец. возможностям.
+        drawCorner(g, font, now, level, 0, w * 0.025f, h * 0.045f, 1.2f, -1);
+        drawCorner(g, font, now, level, 1, w * 0.975f, h * 0.050f, -1.2f, 1);
+        drawCorner(g, font, now, level, 2, w * 0.50f, h * 0.952f, -0.8f, 0);
     }
 
     /** align: -1 слева, 0 по центру, 1 справа. Шрифт — ванильный Minecraft, с лёгкой дрожью букв. */
