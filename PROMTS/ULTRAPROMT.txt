@@ -480,7 +480,8 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   (SleepSceneState.pauseTicks>0). ESC закрывает меню штатно (SceneBedScreen или мир). 5 ключей EN/RU.
 - [новое] Главное меню после стадии 3+ по референсу: client/HauntedTitle на ScreenEvent.Init.Post и Render.Post для
   TitleScreen. Кадр pure black #03050A: перед заливкой g.flush(), чтобы скрыть версию Minecraft и брендинг, а сплэш
-  обнуляется рефлексией на Init.Post. PixelDecay на титульном экране убран; вместо него мягкое голубое свечение
+  скрывается ванильной опцией hideSplashTexts («Скрывать сплэши»), включаемой на время кадра и возвращаемой после
+  отрисовки. PixelDecay на титульном экране убран; вместо него мягкое голубое свечение
   вокруг глаза (title_glow.png). Восемь пустых рамок по долям экрана вокруг центра (TOP, UPPER_LEFT, UPPER_RIGHT,
   MID_LEFT, MID_RIGHT, LOWER_LEFT, LOWER_RIGHT, BOTTOM — координаты в HauntedTitle.Box). Порядок смысловой:
   Singleplayer → TOP, Multiplayer → MID_LEFT, Realms → MID_RIGHT, Mods → LOWER_LEFT, Options → LOWER_RIGHT,

@@ -8,7 +8,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.PlainTextButton;
-import net.minecraft.client.gui.components.SplashRenderer;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -23,7 +22,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,6 +68,9 @@ public final class HauntedTitle {
     private static int maxStage;
     /** Шаг времени для мелкой дрожи букв в углах: обновляется редко, чтобы не было ряби каждый кадр. */
     private static final int JITTER_MS = 110;
+    /** Ванильная опция «Скрывать сплэши» временно включается только на кадр титульного экрана. */
+    private static boolean splashForced;
+    private static boolean splashWasHidden;
     /** Сглаженный взгляд зрачка: цель меняется при смене кнопки. */
     private static float gazeX = Float.NaN;
     private static float gazeY = Float.NaN;
@@ -148,26 +149,33 @@ public final class HauntedTitle {
     /** Рамки ставятся сразу при открытии меню, чтобы первый клик попал в новую раскладку. */
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
+        restoreSplash();
         if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
-        hideSplash(screen);
         layout(screen);
     }
 
     /**
-     * Жёлтый сплэш — ванильная шутка, которая не вписывается в пустой экран. Поле приватное, поэтому ищем его
-     * по типу, а не по имени: так рефлексия переживёт смену маппингов.
+     * Сплэш — ванильная шутка, которая не вписывается в пустой экран. Вместо рефлексии используем готовую
+     * опцию «Скрывать сплэши»: включаем её на время кадра и возвращаем прежнее значение после отрисовки,
+     * чтобы не менять настройки игрока.
      */
-    private static void hideSplash(TitleScreen screen) {
-        for (Field field : TitleScreen.class.getDeclaredFields()) {
-            if (!SplashRenderer.class.isAssignableFrom(field.getType())) continue;
-            try {
-                field.setAccessible(true);
-                field.set(screen, null);
-            } catch (ReflectiveOperationException | RuntimeException ignored) {
-                // Если поле закрыто — чёрный кадр всё равно закроет сплэш.
-            }
+    @SubscribeEvent
+    public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
+        if (!(event.getScreen() instanceof TitleScreen) || !haunted()) {
+            restoreSplash();
             return;
         }
+        if (splashForced) return;
+        Minecraft mc = Minecraft.getInstance();
+        splashWasHidden = mc.options.hideSplashTexts().get();
+        splashForced = true;
+        if (!splashWasHidden) mc.options.hideSplashTexts().set(true);
+    }
+
+    private static void restoreSplash() {
+        if (!splashForced) return;
+        splashForced = false;
+        if (!splashWasHidden) Minecraft.getInstance().options.hideSplashTexts().set(false);
     }
 
     /**
@@ -176,10 +184,16 @@ public final class HauntedTitle {
      */
     @SubscribeEvent
     public static void onScreenRender(ScreenEvent.Render.Post event) {
-        if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
+        if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) {
+            restoreSplash();
+            return;
+        }
         int w = screen.width;
         int h = screen.height;
-        if (w <= 0 || h <= 0) return;
+        if (w <= 0 || h <= 0) {
+            restoreSplash();
+            return;
+        }
         layout(screen);
         long now = System.currentTimeMillis();
         float level = Mth.clamp((maxStage - (MIN_STAGE - 1)) / 3f, 0f, 1f);
@@ -226,6 +240,8 @@ public final class HauntedTitle {
                         event.getMouseX(), event.getMouseY());
             }
         }
+
+        restoreSplash();
     }
 
     /**
