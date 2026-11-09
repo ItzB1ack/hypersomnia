@@ -101,7 +101,12 @@ def eye_grid():
     return W, H, (xx - W / 2) / EYE_PX, (yy - H / 2) / EYE_PX
 
 
-def eye_sclera(path, seed=21):
+def eye_sclera(path, seed=21, lid=0.0, lower=0.0):
+    """Белок с прожилками. lid/lower — добавочная тень верхнего/нижнего века (0 = как на лице).
+
+    Для пары в меню паузы лица вокруг нет, и отдельный слой век оставлял над глазом светлую
+    дугу; поэтому тень века запекается прямо в белок паузного варианта.
+    """
     rng = np.random.default_rng(seed)
     W, H, x, y = eye_grid()
     top, bot = lid_curves(x)
@@ -110,6 +115,10 @@ def eye_sclera(path, seed=21):
     v = 0.44 + 0.18 * (-x / A)                            # слева светлее, справа темнее (как на референсе)
     v += 0.10 * np.clip(y / 0.6, -1, 1)
     v *= 0.45 + 0.55 * np.clip((y - top) / 0.45, 0, 1)    # тень под верхним веком
+    if lid > 0:
+        v *= 1 - lid * np.clip(1 - (y - top) / 0.40, 0, 1) ** 1.3
+    if lower > 0:
+        v *= 1 - lower * np.clip(1 - (bot - y) / 0.18, 0, 1) ** 1.4
     v *= 1 - 0.55 * (np.abs(x) / A) ** 4                  # края глаза темнее
     veins = gaussian_filter(rng.standard_normal((H, W)), 2.2)
     v += 0.09 * veins / (np.abs(veins).max() + 1e-9)
@@ -185,6 +194,13 @@ if __name__ == "__main__":
         print(n, f(pth)); names.append(n)
         # зеркальная копия для второго глаза (отдельный файл *_r)
         Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
+    # Пара в меню паузы: белок с запечённой более плотной тенью верхнего и нижнего века.
+    # Отдельный слой век без лица вокруг оставлял над глазом светлую дугу, поэтому тень
+    # входит в сам белок и гаснет вместе с его альфой.
+    n = "silhouette_eye_sclera_pause"
+    pth = os.path.join(out, n + ".png")
+    print(n, eye_sclera(pth, lid=0.50, lower=0.28)); names.append(n)
+    Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля
         with open(os.path.join(out, n + ".png.mcmeta"), "w") as fh:
             fh.write('{\n  "texture": {\n    "blur": true\n  }\n}\n')

@@ -87,6 +87,9 @@ public final class SleepSceneOverlay {
      */
     private static final Part EYE_SCLERA_L = eye("sclera", 5f, 3.4f, true);
     private static final Part EYE_SCLERA_R = eye("sclera", 5f, 3.4f, false);
+    /** Белок с запечённой тенью век: для пары в меню паузы, где нет лица вокруг. */
+    private static final Part EYE_SCLERA_PAUSE_L = eye("sclera_pause", 5f, 3.4f, true);
+    private static final Part EYE_SCLERA_PAUSE_R = eye("sclera_pause", 5f, 3.4f, false);
     private static final Part EYE_IRIS_L = eye("iris", 2.2f, 2.2f, true);
     private static final Part EYE_IRIS_R = eye("iris", 2.2f, 2.2f, false);
     private static final Part EYE_LIDS_L = eye("lids", 5f, 3.4f, true);
@@ -374,7 +377,7 @@ public final class SleepSceneOverlay {
             float alpha = (right ? 0.82f : 1f) * (0.90f + 0.10f * rnd.nextFloat());
             float cxU = side * EYE_DX;
             float cyU = EYE_Y + (right ? 0.35f : 0f);
-            layer(g, right ? EYE_SCLERA_R : EYE_SCLERA_L, cxU, cyU, k, size, size * sy * PAUSE_EYE_VSCALE, alpha);
+            layer(g, right ? EYE_SCLERA_PAUSE_R : EYE_SCLERA_PAUSE_L, cxU, cyU, k, size, size * sy * PAUSE_EYE_VSCALE, alpha);
             long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
             int si = right ? 1 : 0;
             float tx = Mth.clamp((mx - w / 2f) / (w * 0.5f), -1f, 1f) * SleepSceneTuning.PAUSE_PAIR_LOOK_X
@@ -386,10 +389,11 @@ public final class SleepSceneOverlay {
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
             layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
-            // Отдельный слой век здесь не рисуется: у silhouette_eye_lids тень верхнего века тянется
-            // от самого края раскрытия. Без лица вокруг она ложится на полупрозрачную кромку склеры
-            // и оставляет над глазом светлую дугу с тёмной полосой — «обводку». В склере эта тень
-            // уже заложена, поэтому паре в паузе достаточно склеры и радужки.
+            // Отдельный слой век не рисуется: у silhouette_eye_lids тень верхнего века тянется
+            // от самого края раскрытия и без лица вокруг оставляла над глазом светлую дугу с
+            // тёмной полосой. В паре используется silhouette_eye_sclera_pause — та же склера,
+            // но с более плотной запечённой тенью век: она гаснет вместе с альфой белка и не
+            // может вылезти наружу, а глаз при этом не выглядит плоским.
         }
         g.pose().popPose();
         RenderSystem.disableBlend();
