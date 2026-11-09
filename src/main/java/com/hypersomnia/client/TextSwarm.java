@@ -27,10 +27,12 @@ public final class TextSwarm {
     private static final float MARK_SHARE = 0.34f;
     /** Шаг дрожи: положение каждого слота меняется раз в JITTER_MS. */
     private static final int JITTER_MS = 70;
-    /** Фраза собирается из кучки пикселей за ASSEMBLE_MS мс, а не появляется готовой строкой [новое]. */
-    private static final int ASSEMBLE_MS = 260;
+    /** Фраза собирается из пиксельной пыли за ASSEMBLE_MS мс, а не появляется готовой строкой [новое]. */
+    private static final int ASSEMBLE_MS = 620;
     /** Максимум пиксельных точек на одну сборку. */
-    private static final int ASSEMBLE_DOTS = 14;
+    private static final int ASSEMBLE_DOTS = 30;
+    /** Полос, из которых по одной проявляются строки: буквы собираются рядами пикселей. */
+    private static final int REVEAL_BANDS = 7;
     private static final int QUESTION_RGB = 0xDDE6EC;
     private static final int ACCUSE_RGB = 0xE0B7BA;
 
@@ -64,23 +66,26 @@ public final class TextSwarm {
             int alpha = (int) (Mth.clamp(a, 0f, 1f) * 255f);
             if (alpha < 12) continue;
             // Сборка из пикселей: в начале жизни строка ещё не готова, точки слетаются к её месту.
-            float asm = Mth.clamp(f * lifeMs / ASSEMBLE_MS, 0f, 1f);
+            // На высокой панике жизнь короче, поэтому сборка не должна съесть всю вспышку.
+            float asmMs = Math.min(ASSEMBLE_MS, lifeMs * 0.5f);
+            float asm = Mth.clamp(f * lifeMs / asmMs, 0f, 1f);
 
             Component text;
             float scale;
             int rgb;
             if (unit(ch, 3) < MARK_SHARE) {
                 text = Component.literal(MARKS[Math.min(MARKS.length - 1, (int) (unit(ch, 4) * MARKS.length))]);
-                scale = 1.5f + (float) Math.pow(unit(ch, 11), 1.8) * 6f;
+                scale = 2f + (float) Math.pow(unit(ch, 11), 1.8) * 6f;
                 rgb = QUESTION_RGB;
             } else {
                 int line = Math.min(LINES - 1, (int) (unit(ch, 5) * LINES));
                 text = Component.translatable("hypersomnia.swarm." + line);
-                scale = 0.8f + (float) Math.pow(unit(ch, 11), 2.0) * 2.2f;
+                scale = 1.3f + (float) Math.pow(unit(ch, 11), 1.6) * 2.7f;
                 rgb = line >= LINES_QUESTIONS ? ACCUSE_RGB : QUESTION_RGB;
             }
             scale *= 1f + 0.12f * Mth.clamp(pulse, 0f, 1f);
             float textW = font.width(text);
+            scale = Math.min(scale, Math.max(1f, (w - 16f) / Math.max(1f, textW)));
             float tw = textW * scale;
             float th = 9f * scale;
             float x = unit(ch, 7) * w + (unit(ch, 9) - 0.5f) * 60f * f
@@ -91,30 +96,65 @@ public final class TextSwarm {
             if (blocked(avoid, x, y, tw / 2f, th / 2f)) continue;
             float rot = (unit(ch, 10) - 0.5f) * 28f + (unit(mix(base, q), 16) - 0.5f) * 10f * panic;
 
-            // Сборка: точки летят к прямоугольнику будущей строки и гаснут, когда буквы уже проявились.
+            // Сборка: густая пиксельная пыль слетается к прямоугольнику строки, пока буквы не проявятся.
             if (asm < 1f) {
-                int dots = Math.min(ASSEMBLE_DOTS, 4 + (int) (tw / 10f));
+                int dots = Math.min(ASSEMBLE_DOTS, 8 + (int) (tw / 8f));
                 for (int dot = 0; dot < dots; dot++) {
                     long db = mix(ch, 30 + dot);
                     float angle = unit(db, 1) * 6.2832f;
-                    float dist = (18f + unit(db, 2) * 46f) * scale * (1f - asm);
+                    float dist = (10f + unit(db, 2) * 62f) * scale * (1f - asm);
                     float dotX = x + (unit(db, 3) - 0.5f) * tw + (float) Math.cos(angle) * dist;
                     float dotY = y + (unit(db, 4) - 0.5f) * th + (float) Math.sin(angle) * dist;
-                    int dotAlpha = (int) (alpha * (0.9f - 0.5f * asm));
+                    int dotAlpha = (int) (alpha * (0.95f - 0.35f * asm));
                     if (dotAlpha < 12) continue;
-                    int dotSize = 1 + (int) (unit(db, 5) * 2f);
+                    int dotSize = Math.max(1, Math.round((1f + unit(db, 5) * 2.4f) * Math.max(1f, scale * 0.55f)));
                     g.fill((int) dotX, (int) dotY, (int) dotX + dotSize, (int) dotY + dotSize,
                             (dotAlpha << 24) | rgb);
                 }
             }
-            int textAlpha = Math.round(alpha * (0.25f + 0.75f * asm));
+            int textAlpha = Math.round(alpha * (0.4f + 0.6f * asm));
 
-            g.pose().pushPose();
-            g.pose().translate(x, y, 0f);
-            g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
-            g.pose().scale(scale, scale, 1f);
-            g.drawString(font, text, -Math.round(textW / 2f), -4, (textAlpha << 24) | rgb, false);
-            g.pose().popPose();
+            if (asm >= 1f) {
+                g.pose().pushPose();
+                g.pose().translate(x, y, 0f);
+                g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
+                g.pose().scale(scale, scale, 1f);
+                g.drawString(font, text, -Math.round(textW / 2f), -4, (textAlpha << 24) | rgb, false);
+                g.pose().popPose();
+            } else {
+                // Буквы проявляются не целиком, а случайными рядами пикселей: строка «собирается» из шума.
+                float left = x - tw / 2f - 8f;
+                float right = x + tw / 2f + 8f;
+                float top = y - th / 2f - 3f;
+                float bottom = y + th / 2f + 3f;
+                for (int band = 0; band < REVEAL_BANDS; band++) {
+                    if (asm <= unit(ch, 40 + band) * 0.9f) continue;
+                    int bandTop = Math.round(top + (bottom - top) * band / REVEAL_BANDS);
+                    int bandBottom = Math.round(top + (bottom - top) * (band + 1) / REVEAL_BANDS);
+                    g.enableScissor((int) left, bandTop, (int) right, bandBottom);
+                    g.pose().pushPose();
+                    g.pose().translate(x, y, 0f);
+                    g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
+                    g.pose().scale(scale, scale, 1f);
+                    g.drawString(font, text, -Math.round(textW / 2f), -4, (textAlpha << 24) | rgb, false);
+                    g.pose().popPose();
+                    g.disableScissor();
+                }
+            }
+            // После сборки на буквах ещё держатся одиночные пиксели — строка не выглядит «чистой» наклейкой.
+            if (asm >= 1f) {
+                int motes = 2 + (int) (unit(ch, 61) * 4f);
+                for (int mote = 0; mote < motes; mote++) {
+                    long mb = mix(ch, 70 + mote);
+                    float moteX = x + (unit(mb, 1) - 0.5f) * tw;
+                    float moteY = y + (unit(mb, 2) - 0.5f) * th;
+                    int moteAlpha = (int) (alpha * (0.25f + 0.35f * unit(mb, 3)));
+                    if (moteAlpha < 12) continue;
+                    int moteSize = 1 + (int) (unit(mb, 4) * 2f);
+                    g.fill((int) moteX, (int) moteY, (int) moteX + moteSize, (int) moteY + moteSize,
+                            (moteAlpha << 24) | rgb);
+                }
+            }
         }
         // Текст буферизуется: сбрасываем сразу, чтобы он не оказался поверх более поздних слоёв (пара глаз, чёрный кадр).
         g.flush();

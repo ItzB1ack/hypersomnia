@@ -4,18 +4,20 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 
 /**
- * Пиксельная эрозия кадра [новое]: по краям экрана изображение теряет квадратные пиксели и медленно рассыпается
+ * Пиксельная эрозия кадра [новое]: по краям экрана изображение теряет крупные квадратные куски и медленно рассыпается
  * внутрь, как цифровая копия мира. Один и тот же рисовальщик в погоне (ChaseText) и в меню антипаузы
  * (SleepSceneOverlay.drawPauseEyes). Без состояния: всё выводится из (seed, номер блока, время), поэтому раскладка
- * воспроизводима. Блоки живут короткими циклами, часть возвращается — кадр «дышит». Центр и путь впереди не
- * задеваются (avoid). Почти всё — чёрные дыры палитры #03050A; редкие тусклые #1E2A34/#4A5E70 читаются как битые
- * пиксели, красный #8A2030 — только редкий акцент. Глаза не рисует: они остаются только на лице осколка.
+ * воспроизводима. Куски собраны в кластеры по 1..3 клетки, живут короткими циклами и сносятся внутрь кадра; часть
+ * возвращается — кадр «дышит». В дополнение идут редкие горизонтальные полосы-выпадения, как сбой записи. Центр и
+ * путь впереди не задеваются (avoid). Почти всё — чёрные дыры палитры #03050A; редкие тусклые #1E2A34/#4A5E70
+ * читаются как битые пиксели, красный #8A2030 — только редкий акцент. Глаза не рисует: они остаются только на лице
+ * осколка.
  */
 public final class PixelDecay {
     private PixelDecay() {}
 
-    /** Верхняя граница числа блоков. */
-    public static final int MAX_BLOCKS = 170;
+    /** Верхняя граница числа кусков. */
+    public static final int MAX_BLOCKS = 240;
     /** Шаг дрожания блоков: положение меняется раз в JITTER_MS. */
     private static final int JITTER_MS = 90;
 
@@ -25,8 +27,8 @@ public final class PixelDecay {
     private static final int ACCENT_RGB = 0x8A2030;
 
     /**
-     * @param intensity 0..1: сколько блоков и насколько ярко
-     * @param panic     0..1: глубина проникновения, размер и дрожь
+     * @param intensity 0..1: сколько кусков и насколько ярко
+     * @param panic     0..1: глубина проникновения, размер, дрейф и полосы
      * @param red       0..1: доля красных акцентов (0 — совсем нет)
      * @param avoid     прямоугольники, куда блоки не заходят, по четыре числа {cx, cy, halfW, halfH} в пикселях; может быть null
      */
@@ -37,46 +39,82 @@ public final class PixelDecay {
         int count = Math.min(MAX_BLOCKS, Math.round(MAX_BLOCKS * amount));
         if (count <= 0) return;
         float p = Mth.clamp(panic, 0f, 1f);
-        float reach = h * (0.07f + 0.22f * p);
+        // Размер клетки привязан к высоте экрана: на 1080p куски заметно крупнее, чем на 720p.
+        float unitPx = Math.max(1f, h / 360f);
+        float reach = h * (0.09f + 0.30f * p);
         long q = now / JITTER_MS;
         for (int slot = 0; slot < count; slot++) {
             long base = mix(seed, slot);
-            int lifeMs = 320 + (int) (unit(base, 1) * 1000f);
+            int lifeMs = 300 + (int) (unit(base, 1) * 1100f);
             long shifted = now + (long) (unit(base, 2) * lifeMs);
             long cycle = shifted / lifeMs;
             float f = (shifted % lifeMs) / (float) lifeMs;
-            float env = f < 0.2f ? f / 0.2f : f > 0.7f ? (1f - f) / 0.3f : 1f;
+            float env = f < 0.16f ? f / 0.16f : f > 0.72f ? (1f - f) / 0.28f : 1f;
             long ch = mix(base, cycle);
-            float a = env * amount * (0.55f + 0.45f * unit(ch, 3));
+            float a = env * amount * (0.60f + 0.40f * unit(ch, 3));
             int alpha = (int) (Mth.clamp(a, 0f, 1f) * 255f);
             if (alpha < 14) continue;
 
             int edge = Math.min(3, (int) (unit(ch, 4) * 4f));
-            float depth = (float) Math.pow(unit(ch, 5), 2.0) * reach;
+            float depth = (float) Math.pow(unit(ch, 5), 2.4) * reach;
             float along = unit(ch, 6);
-            int size = Math.max(1, Math.round(2f + unit(ch, 7) * (4f + 5f * p)));
+            int size = Math.max(2, Math.round((2.5f + unit(ch, 7) * 5.5f) * unitPx * (1f + 0.35f * p)));
+            // Куски не стоят на месте: рождаются у края и медленно уносятся внутрь кадра.
+            float drift = f * (6f + 34f * p) * unitPx;
             float x;
             float y;
             switch (edge) {
-                case 0 -> { x = along * w; y = depth; }
-                case 1 -> { x = along * w; y = h - depth; }
-                case 2 -> { x = depth; y = along * h; }
-                default -> { x = w - depth; y = along * h; }
+                case 0 -> { x = along * w; y = depth + drift; }
+                case 1 -> { x = along * w; y = h - depth - drift; }
+                case 2 -> { x = depth + drift; y = along * h; }
+                default -> { x = w - depth - drift; y = along * h; }
             }
-            // Блоки мелко дрожат, как сбойные тайлы, а не плывут плавно.
-            x += (unit(mix(base, q), 8) - 0.5f) * 3f;
-            y += (unit(mix(base, q), 9) - 0.5f) * 3f;
-            if (blocked(avoid, x, y, size)) continue;
-            x = Mth.clamp(x, 0f, w - size);
-            y = Mth.clamp(y, 0f, h - size);
+            // Мелкая дрожь, как у сбойного тайла, а не плавное движение.
+            x += (unit(mix(base, q), 8) - 0.5f) * 4f;
+            y += (unit(mix(base, q), 9) - 0.5f) * 4f;
 
-            float roll = unit(ch, 10);
-            int rgb;
-            if (roll < Mth.clamp(red, 0f, 1f) * 0.10f) rgb = ACCENT_RGB;
-            else if (roll < 0.18f) rgb = PALE_RGB;
-            else if (roll < 0.34f) rgb = DIM_RGB;
-            else rgb = HOLE_RGB;
-            g.fill((int) x, (int) y, (int) x + size, (int) y + size, (alpha << 24) | rgb);
+            int cells = 1 + (int) (unit(ch, 11) * 3f);
+            for (int cell = 0; cell < cells; cell++) {
+                long cb = mix(ch, 20 + cell);
+                float cx = x + (unit(cb, 1) < 0.5f ? 0f : (unit(cb, 2) < 0.5f ? -size : size));
+                float cy = y + (unit(cb, 3) < 0.5f ? 0f : (unit(cb, 4) < 0.5f ? -size : size));
+                if (blocked(avoid, cx, cy, size)) continue;
+                cx = Mth.clamp(cx, 0f, w - size);
+                cy = Mth.clamp(cy, 0f, h - size);
+
+                float roll = unit(cb, 5);
+                int rgb;
+                if (roll < Mth.clamp(red, 0f, 1f) * 0.10f) rgb = ACCENT_RGB;
+                else if (roll < 0.14f) rgb = PALE_RGB;
+                else if (roll < 0.30f) rgb = DIM_RGB;
+                else rgb = HOLE_RGB;
+                int x0 = (int) cx;
+                int y0 = (int) cy;
+                g.fill(x0, y0, x0 + size, y0 + size, (alpha << 24) | rgb);
+                // Светлая кромка у части дыр: эрозия видна и на тёмной земле, и на светлом небе.
+                if (unit(cb, 6) < 0.30f) {
+                    int edgeAlpha = Math.round(alpha * (0.25f + 0.30f * unit(cb, 7)));
+                    g.fill(x0, y0, x0 + size, y0 + 1, (edgeAlpha << 24) | PALE_RGB);
+                    g.fill(x0, y0, x0 + 1, y0 + size, (edgeAlpha << 24) | PALE_RGB);
+                }
+            }
+        }
+        // Полосы-выпадения: редкие тонкие срезы кадра, как потеря строк в старой записи.
+        int bands = Math.round((1f + 5f * amount) * (0.35f + 0.65f * p));
+        for (int band = 0; band < bands; band++) {
+            long bb = mix(seed ^ 0x5DEECE66DL, band);
+            int bandLife = 240 + (int) (unit(bb, 1) * 520f);
+            long shifted = now + (long) (unit(bb, 2) * bandLife);
+            long cycle = shifted / bandLife;
+            float f = (shifted % bandLife) / (float) bandLife;
+            float env = f < 0.25f ? f / 0.25f : f > 0.65f ? (1f - f) / 0.35f : 1f;
+            long ch = mix(bb, cycle);
+            int alpha = (int) (env * amount * (0.18f + 0.30f * unit(ch, 3)) * 255f);
+            if (alpha < 10) continue;
+            int y = (int) (unit(ch, 4) * h);
+            int height = Math.max(1, Math.round((1f + unit(ch, 5) * 2f) * unitPx));
+            int rgb = unit(ch, 6) < 0.25f ? PALE_RGB : HOLE_RGB;
+            g.fill(0, y, w, Math.min(h, y + height), (alpha << 24) | rgb);
         }
     }
 
