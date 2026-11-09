@@ -11,6 +11,8 @@ import net.minecraft.client.gui.components.PlainTextButton;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.LoadingOverlay;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -19,6 +21,7 @@ import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import java.io.IOException;
@@ -162,6 +165,32 @@ public final class HauntedTitle {
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
         layout(screen);
+    }
+
+    /** Экран, спрятанный на время кадра с LoadingOverlay. */
+    private static Screen withheldScreen;
+
+    /**
+     * LoadingOverlay (загрузка игры и смена ресурсов) рисует текущий экран напрямую через screen.render,
+     * минуя ScreenEvent. Поэтому на время его анимации (0,5–1 с) поверх чёрного кадра проступает ванильный
+     * титульный экран с панорамой. Прячем screen только на время кадра: сам оверлей с логотипом и полосой
+     * прогресса остаётся, а ванильный экран не рисуется. Внутри мира поведение не меняем.
+     */
+    @SubscribeEvent
+    public static void onRenderFramePre(RenderFrameEvent.Pre event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!haunted() || mc.level != null || !(mc.getOverlay() instanceof LoadingOverlay)) return;
+        if (mc.screen == null) return;
+        withheldScreen = mc.screen;
+        mc.screen = null;
+    }
+
+    @SubscribeEvent
+    public static void onRenderFramePost(RenderFrameEvent.Post event) {
+        if (withheldScreen == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen == null) mc.screen = withheldScreen;
+        withheldScreen = null;
     }
 
     /**
