@@ -210,6 +210,20 @@ public final class ChaseTuning {
     public static final double WHISPER_HEAD_DIST = 4.0;
     public static final double WHISPER_HEAD_OFFSET = 1.2;
 
+    // ---- Субтитры голоса осколка (client/ChaseSubtitles) ----
+    /** Дрожание ванильной строки субтитров, px (умножается на панику). */
+    public static final float SUBTITLE_SHAKE_X = 1.8f;
+    public static final float SUBTITLE_SHAKE_Y = 1.2f;
+    /** Каждый N-й кадр (20 fps) — глитч: двойник и смещённые полосы. */
+    public static final int SUBTITLE_GLITCH_EVERY = 5;
+    /** Смещение красного двойника, px, и его прозрачность. */
+    public static final float SUBTITLE_GHOST_OFFSET = 2.5f;
+    public static final float SUBTITLE_GHOST_ALPHA = 0.45f;
+    /** Прозрачность полос и их высота, px. */
+    public static final int SUBTITLE_BAND_ALPHA = 0x55;
+    public static final int SUBTITLE_BAND_MIN = 3;
+    public static final int SUBTITLE_BAND_MAX = 7;
+
     // ------------------------------------------------------------------
     // Пиксельная эрозия кадра и редкие фразы вместо глаз по углам (client/ChaseText,
     // client/PixelDecay, client/TextSwarm) [новое]
