@@ -100,6 +100,12 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
         exposurePoints = Math.max(0, exposurePoints - ObserverTuning.EXPOSURE_REST_REDUCTION);
         dirty = true;
     }
+    /** Отладка: задать накопленное влияние бодрствования; дробный счётчик до следующего очка сбрасывается. */
+    public void setExposure(int points) {
+        exposurePoints = Math.max(0, Math.min(ObserverTuning.EXPOSURE_MAX_POINTS, points));
+        exposureTicks = 0;
+        dirty = true;
+    }
     public int stageOverride() { return stageOverride; }
     /** -1 = снова по формуле. */
     public void setStageOverride(int s) { stageOverride = s < 0 ? -1 : Math.min(5, s); dirty = true; }

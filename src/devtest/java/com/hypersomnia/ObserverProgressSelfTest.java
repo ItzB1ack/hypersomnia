@@ -73,6 +73,27 @@ public final class ObserverProgressSelfTest {
         }
         check(com.hypersomnia.trace.TraceTuning.writingVariant(12, 5)
                 == com.hypersomnia.trace.TraceTuning.writingVariant(0, 5), "writing order wraps");
+
+        // Влияние бодрствования: копится по тикам, ограничено, снимается сном и переживает NBT.
+        ObserverProgressData exposure = new ObserverProgressData();
+        for (int i = 0; i < ObserverTuning.EXPOSURE_AWAKE_TICKS_PER_POINT; i++) exposure.addExposureTick();
+        check(exposure.exposurePoints() == 1, "awake ticks give one exposure point");
+        exposure.registerSyringeExposure();
+        check(exposure.exposurePoints() == 2, "syringe adds one exposure point");
+        for (int i = 0; i < 20; i++) exposure.registerSyringeExposure();
+        check(exposure.exposurePoints() == ObserverTuning.EXPOSURE_MAX_POINTS, "exposure is capped");
+        exposure.restExposure();
+        check(exposure.exposurePoints() == ObserverTuning.EXPOSURE_MAX_POINTS - 1, "sleep removes one exposure point");
+        exposure.setExposure(3);
+        check(exposure.exposurePoints() == 3, "debug exposure set");
+        var exposureTag = exposure.serializeNBT(null);
+        ObserverProgressData exposureLoaded = new ObserverProgressData();
+        exposureLoaded.deserializeNBT(null, exposureTag);
+        check(exposureLoaded.exposurePoints() == 3, "exposure survives reload");
+        check(ObserverTuning.stage(0, 0, ObserverTuning.EXPOSURE_MAX_POINTS) == 1, "exposure counts toward stage");
+        check(ObserverTuning.stage(0, 0, 99) == 1, "exposure stage clamps");
+        check(ObserverTuning.stage(28, 3, 0) == 4, "stage 5 needs four memories");
+        check(ObserverTuning.stage(28, 4, 0) == 5, "stage 5 with four memories");
         System.out.println("ObserverProgressSelfTest: " + checks + " checks passed.");
     }
 }

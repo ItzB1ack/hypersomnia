@@ -11,7 +11,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-/** Отладка: /hypersomnia_progress days <n> | memories <0-7> | status | habits [clear|here|bed|seen] | gift [now|reset] | hint <0-2> */
+/** Отладка: /hypersomnia_progress days <n> | memories <0-7> | exposure <0-8> | stage <0-5|auto> | status | habits [clear|here|bed|seen] | gift [now|reset] | hint <0-2> */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class ObserverProgressCommand {
     private ObserverProgressCommand() {}
@@ -30,6 +30,14 @@ public final class ObserverProgressCommand {
                         .executes(ctx -> {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();
                             p.getData(ModAttachments.OBSERVER).setMemoriesCount(IntegerArgumentType.getInteger(ctx, "n"));
+                            return status(ctx.getSource(), p);
+                        })))
+                // Отладка: очки бодрствования (шприцы/долгая усталость) для проверки ускорения стадии.
+                .then(Commands.literal("exposure").then(Commands.argument("n",
+                                IntegerArgumentType.integer(0, com.hypersomnia.ObserverTuning.EXPOSURE_MAX_POINTS))
+                        .executes(ctx -> {
+                            ServerPlayer p = ctx.getSource().getPlayerOrException();
+                            p.getData(ModAttachments.OBSERVER).setExposure(IntegerArgumentType.getInteger(ctx, "n"));
                             return status(ctx.getSource(), p);
                         })))
                 // Отладка: стадия вручную, без изменения дней и воспоминаний; auto = снова по формуле
