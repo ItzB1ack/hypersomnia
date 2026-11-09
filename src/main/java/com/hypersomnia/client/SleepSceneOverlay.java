@@ -51,12 +51,10 @@ public final class SleepSceneOverlay {
     /** Общий размер глаз (1 = как нарисованы в текстуре). Больше 1.25 уже не помещаются в голову. */
     private static final float EYE_SCALE = 1.2f;
     /**
-     * Вертикальная поправка пары в меню паузы: холст склеры/век шире раскрытия, поэтому без неё
-     * глаз читается как сплющенная щель. Растягиваем склеру и веки; зрачок остаётся круглым.
+     * Вертикальная поправка пары в меню паузы: холст склеры шире раскрытия, поэтому без неё
+     * глаз читается как сплющенная щель. Растягиваем только склеру; зрачок остаётся круглым.
      */
     private static final float PAUSE_EYE_VSCALE = 1.3f;
-    /** Веки пары в меню паузы: лица вокруг нет, поэтому тёмное кольцо иначе читается как обводка. */
-    private static final float PAUSE_LIDS_ALPHA = 0.55f;
     private static final float EYE_Y = 5.4f;
 
     /** Пикселей на юнит у текстур глаз (выше, чем у тела: нужны блики и кромка). Должно совпадать с EYE_PX в скрипте. */
@@ -388,7 +386,7 @@ public final class SleepSceneOverlay {
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
             layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
-            layer(g, right ? EYE_LIDS_R : EYE_LIDS_L, cxU, cyU, k, size, size * sy * PAUSE_EYE_VSCALE, PAUSE_LIDS_ALPHA);
+            // Век у пары нет: лицо вокруг не рисуется, и тёмный ореол читался как обводка.
         }
         g.pose().popPose();
         RenderSystem.disableBlend();
@@ -398,6 +396,11 @@ public final class SleepSceneOverlay {
 
     /** Пара глаз сцены поверх кадра (испуг ObserverScare): затемнение, оба глаза открыты и смотрят в зрителя. */
     static void drawScareEyes(GuiGraphics g, int w, int h) {
+        drawScareEyes(g, w, h, false);
+    }
+
+    /** frozen: взгляд в зрителя без моргания и случайных уходов — для скримера поимки. */
+    static void drawScareEyes(GuiGraphics g, int w, int h, boolean frozen) {
         g.fill(0, 0, w, h, (120 << 24) | 0x03050A);
         float k = h / 18f;
         RenderSystem.disableDepthTest();
@@ -406,7 +409,7 @@ public final class SleepSceneOverlay {
         RenderSystem.defaultBlendFunc();
         g.pose().pushPose();
         g.pose().translate(w / 2f, h * 0.42f - EYE_Y * k, 0f);
-        drawEyes(g, 3, 0f, System.currentTimeMillis(), k, false, RandomSource.create(System.nanoTime()));
+        drawEyes(g, 3, 0f, System.currentTimeMillis(), k, frozen, RandomSource.create(System.nanoTime()));
         g.pose().popPose();
         RenderSystem.disableBlend();
         RenderSystem.depthMask(true);

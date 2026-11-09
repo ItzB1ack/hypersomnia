@@ -95,6 +95,7 @@ public final class ChaseClient {
         target = 1f;
         panic = 1f;
         ObserverClient.hushWorld(mc);
+        CaughtScare.trigger(mc);
         ChaseMusic.caught();
         ChaseVoice.caught();
         beat(mc, false);

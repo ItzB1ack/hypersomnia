@@ -39,8 +39,11 @@ public final class ChaseOverlay {
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_text"), ChaseText::render);
         event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY,
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_rage"), ChaseOverlay::renderRage);
-        event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY,
-                ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_black"), ChaseOverlay::renderBlack);
+        ResourceLocation black = ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_black");
+        event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY, black, ChaseOverlay::renderBlack);
+        // Скример поимки — сразу над чёрным кадром и под субтитрами: голос осколка остаётся виден.
+        event.registerAbove(black,
+                ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "caught_scare"), CaughtScareOverlay::render);
     }
 
     /** F3+T и смена пакетов ресурсов: тайминги реплик перечитываются. */
