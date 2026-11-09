@@ -9,11 +9,16 @@ import com.hypersomnia.chase.ChaseHandler;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import com.hypersomnia.scene.SceneAttachments;
@@ -88,6 +93,30 @@ public final class DreamHandler {
         if (dream.getTicksLeft() <= 0) {
             if (!DreamTransition.exit(player)) dream.setTicksLeft(DreamTuning.WAKE_RETRY_TICKS);
         }
+    }
+
+    /**
+     * [новое] Днём кровать закрыта только из-за времени. Если игрок уже сильно устал,
+     * разрешаем лечь и днём: иначе до ночи остаётся только ждать или падать на 100%.
+     * Погоня, падение и завершённый финал по-прежнему не дают лечь.
+     */
+    @SubscribeEvent
+    public static void onCanSleep(CanPlayerSleepEvent event) {
+        if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
+        ServerPlayer player = event.getEntity();
+        if (com.hypersomnia.finale.FinaleLogic.completed(player)) return;
+        if (player.isCreative() || player.isSpectator()) return;
+        if (ChaseHandler.activeFor(player)) return;
+        FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
+        if (fatigue.getCollapseTimer() > 0) return;
+        if (!FatigueTuning.canSleepAtAnyTime(fatigue.getFatigue())) return;
+        // Днём ванильные проверки до монстров не доходят: не обходим «рядом монстры».
+        Vec3 bed = Vec3.atBottomCenterOf(event.getPos());
+        AABB area = new AABB(bed.x() - 8.0, bed.y() - 5.0, bed.z() - 8.0,
+                bed.x() + 8.0, bed.y() + 5.0, bed.z() + 8.0);
+        if (!player.level().getEntitiesOfClass(Monster.class, area, m -> m.isPreventingPlayerRest(player)).isEmpty())
+            return;
+        event.setProblem(null);
     }
 
     /** Выход из игры во время сна не должен оставлять захваченный дом в памяти сервера. */

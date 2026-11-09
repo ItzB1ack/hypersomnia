@@ -94,6 +94,10 @@ public final class ObserverProgressSelfTest {
         check(ObserverTuning.stage(0, 0, 99) == 1, "exposure stage clamps");
         check(ObserverTuning.stage(28, 3, 0) == 4, "stage 5 needs four memories");
         check(ObserverTuning.stage(28, 4, 0) == 5, "stage 5 with four memories");
+        int sleepAt = Math.round(FatigueTuning.MAX_FATIGUE * FatigueTuning.SLEEP_ANYTIME_FATIGUE);
+        check(!FatigueTuning.canSleepAtAnyTime(sleepAt - 1), "day sleep locked below fatigue threshold");
+        check(FatigueTuning.canSleepAtAnyTime(sleepAt), "day sleep allowed at fatigue threshold");
+        check(FatigueTuning.canSleepAtAnyTime(FatigueTuning.MAX_FATIGUE), "day sleep allowed at max fatigue");
         System.out.println("ObserverProgressSelfTest: " + checks + " checks passed.");
     }
 }

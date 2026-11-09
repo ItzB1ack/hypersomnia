@@ -20,6 +20,8 @@ public final class FatigueTuning {
     public static final int FORCED_SLEEP_RETRY_TICKS = 20;
     public static final int FORCED_SLEEP_MAX_ATTEMPTS = 5;
     public static final float FAILED_SLEEP_FATIGUE = 0.80f;
+    /** С этой усталости кровать доступна и днём: иначе игрок просто ждёт ночи без причины. */
+    public static final float SLEEP_ANYTIME_FATIGUE = 0.75f;
 
     // ---- Пороги (доля от максимума) ----
     public static final float BLACKOUT_START = 0.45f;   // потемнения в глазах
@@ -41,6 +43,11 @@ public final class FatigueTuning {
 
     public static float ratio(int fatigue) {
         return Mth.clamp(fatigue / (float) MAX_FATIGUE, 0f, 1f);
+    }
+
+    /** Можно ли лечь в кровать днём: да, если усталость уже дошла до порога. */
+    public static boolean canSleepAtAnyTime(int fatigue) {
+        return ratio(fatigue) >= SLEEP_ANYTIME_FATIGUE;
     }
 
     /** 0..1: насколько ratio продвинулся от порога start до максимума. */
