@@ -17,6 +17,7 @@ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.WeighedSoundEvents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -64,6 +65,8 @@ public final class FragmentVoice {
     private static SoundInstance sound;
     /** Время последнего обновления ванильного субтитра: он виден ещё ~3 с после этого. */
     private static long lastSubtitleMs;
+    /** Текст последней реплики: нужен, когда line уже null, а субтитр ещё гаснет. */
+    private static Component lastSubtitleText;
 
     private static Field overlayField;
     private static boolean overlayTried;
@@ -90,6 +93,11 @@ public final class FragmentVoice {
         return lastSubtitleMs != 0L && Util.getMillis() - lastSubtitleMs < 3200L;
     }
 
+    /** Текст последней реплики (компонент ванильного субтитра): по нему эффект находит нужную строку. */
+    public static Component subtitleText() {
+        return lastSubtitleText;
+    }
+
     /** Звук — реплика осколка (её не глушит тишина сцены у кровати). */
     public static boolean isVoice(SoundInstance s) {
         if (s == null) return false;
@@ -113,6 +121,11 @@ public final class FragmentVoice {
                     at.x, at.y, at.z);
             mc.getSoundManager().play(s);
             sound = s;
+            // Субтитр появляется в этом же кадре: запоминаем его текст, чтобы эффект нашёл строку
+            // даже в паузе, когда тик речи не обновляет субтитр.
+            WeighedSoundEvents events = mc.getSoundManager().getSoundEvent(s.getLocation());
+            if (events != null) lastSubtitleText = events.getSubtitle();
+            lastSubtitleMs = Util.getMillis();
         }
         line = l;
         time = timing(mc, l);
@@ -126,6 +139,7 @@ public final class FragmentVoice {
         sound = null;
         line = null;
         lastSubtitleMs = 0L;
+        lastSubtitleText = null;
     }
 
     /** Перезагрузка ресурсов: тайминги перечитаются при следующей реплике. */
@@ -145,7 +159,7 @@ public final class FragmentVoice {
         g.pose().pushPose();
         g.pose().translate(0f, 0f, 500f);
         if (ChaseSubtitles.effectsActive()) {
-            ChaseSubtitles.render(g, () -> o.render(g));
+            ChaseSubtitles.render(g, o);
         } else {
             o.render(g);
         }
@@ -220,10 +234,11 @@ public final class FragmentVoice {
         else if (sound.getSound() != null) range = Math.max(sound.getVolume(), 1f) * sound.getSound().getAttenuationDistance();
         o.onPlaySound(sound, events, range);
         lastSubtitleMs = Util.getMillis();
+        lastSubtitleText = events.getSubtitle();
     }
 
     /** SubtitleOverlay в Gui: поле private, геттера нет — ищем по типу (не зависит от имён). */
-    private static SubtitleOverlay overlay(Minecraft mc) {
+    static SubtitleOverlay overlay(Minecraft mc) {
         if (!overlayTried) {
             overlayTried = true;
             for (Field f : Gui.class.getDeclaredFields()) {

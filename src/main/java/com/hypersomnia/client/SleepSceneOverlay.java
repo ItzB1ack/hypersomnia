@@ -408,6 +408,10 @@ public final class SleepSceneOverlay {
      * совпадает с краем склеры. Концы гаснут, чтобы не было обрубленных стыков.
      */
     private static void drawPauseLids(GuiGraphics g, float cx, float cy, float k, float size, float sy) {
+        // cx/cy — в юнитах от начала координат позы (как dxU/dyU в layer), поэтому в пиксели их
+        // переводит тот же множитель k; иначе дуги рисуются у верхнего края по центру.
+        float cxPx = cx * k;
+        float cyPx = cy * k;
         float kx = k * size;
         float ky = k * size * sy * PAUSE_EYE_VSCALE;
         int steps = 32;
@@ -420,17 +424,17 @@ public final class SleepSceneOverlay {
             float u = (ua + ub) * 0.5f;
             float fade = Mth.clamp((1f - Math.abs(u) / 1.8f) * 6f, 0f, 1f);
             if (fade <= 0f) continue;
-            int ax = Math.round(cx + ua * kx);
-            int bx = Math.max(ax + 1, Math.round(cx + ub * kx));
+            int ax = Math.round(cxPx + ua * kx);
+            int bx = Math.max(ax + 1, Math.round(cxPx + ub * kx));
 
-            int ty = Math.round(cy + lidTop(u) * ky);
+            int ty = Math.round(cyPx + lidTop(u) * ky);
             int topA = (int) (((PAUSE_LID_TOP >>> 24) & 0xFF) * fade);
             g.fill(ax, ty - thick / 2, bx, ty + (thick + 1) / 2, (topA << 24) | (PAUSE_LID_TOP & 0xFFFFFF));
             // мягкая тень под верхним веком: глубина чтения, но без широкой полосы
             int shA = (int) (0x38 * fade);
             g.fill(ax, ty + (thick + 1) / 2, bx, ty + (thick + 1) / 2 + thick, (shA << 24));
 
-            int by = Math.round(cy + lidBottom(u) * ky);
+            int by = Math.round(cyPx + lidBottom(u) * ky);
             int botA = (int) (((PAUSE_LID_BOTTOM >>> 24) & 0xFF) * fade);
             g.fill(ax, by, bx, by + Math.max(1, thick / 2), (botA << 24) | (PAUSE_LID_BOTTOM & 0xFFFFFF));
         }
