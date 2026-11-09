@@ -363,7 +363,7 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   исчезновение игрока снова открывают её (SeatEntity.removePassenger/tick).
   Сон не начинается; закрытая снаружи отвечает «КАПСУЛА ЗАКРЫТА». Якорь,
   FACING и лежание сиденья хранятся в NBT. Ставит LabBuilder; предмет ModItems.CAPSULE — только для творческой вкладки (тройка целиком, крышка открыта);
-  lab_check.py проверяет ровно тройку CCC и достижимость.
+  lab_check.py проверяет ровно тройку CCC и достижимость. Ключ-карта ModItems.KEYCARD (только креатив): ПКМ переключает тройку/колонку (CHANGES_keycard.txt).
   Внешний вид [новое]: все 12 capsule_*.json генерирует src/tools/make_capsule_models.py целиком (руками не править):
   лежачая — мастер, стоячая — та же геометрия, повёрнутая на конец ((x,y,z)->(x,16-z,16-y)), текстуры — make_furniture.py: capsule_frame/pad/pillow цельные (без швов),
   новые capsule_rim, capsule_plinth (прорези цоколя), capsule_trim (полоса с лампами на бортах), capsule_console (экран

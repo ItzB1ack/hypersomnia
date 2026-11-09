@@ -41,6 +41,7 @@ public final class ModTabs {
                             output.accept(ModItems.LIGHT_TUBE.get());
                             output.accept(ModItems.UNLIT_TUBE.get());
                             output.accept(ModItems.LAB_SIGN.get());
+                            output.accept(ModItems.KEYCARD.get());
                             output.accept(ModItems.CAPSULE.get());
                             output.accept(ModItems.CAPSULE_UPRIGHT.get());
                             output.accept(ModItems.DREAM_CLOCK.get());

@@ -1,5 +1,6 @@
 package com.hypersomnia.lab;
 
+import com.hypersomnia.ModItems;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -8,7 +9,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.StringRepresentable;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -229,6 +232,18 @@ public final class CapsuleBlock extends HorizontalDirectionalBlock {
             return isPart(neighbor, prev, facing) ? state : Blocks.AIR.defaultBlockState();
         }
         return super.updateShape(state, dir, neighbor, level, pos, neighborPos);
+    }
+
+    /** Ключ-карта (ModItems.KEYCARD): ПКМ открывает или закрывает всю тройку, в том числе закрытую снаружи. */
+    @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+                                              InteractionHand hand, BlockHitResult hit) {
+        if (!stack.is(ModItems.KEYCARD.get())) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        Direction facing = state.getValue(FACING);
+        BlockPos foot = pos.relative(facing.getOpposite(), state.getValue(PART).ordinal());
+        if (!isIntact(level, foot, facing)) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        if (!level.isClientSide) setOpen(level, foot, facing, !level.getBlockState(foot).getValue(OPEN));
+        return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Override

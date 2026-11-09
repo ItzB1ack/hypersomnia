@@ -63,6 +63,8 @@ public final class ModItems {
             ITEMS.registerSimpleBlockItem("light_tube", ModBlocks.LIGHT_TUBE);
 
     /** [новое] Остальные блоки мода для творческой вкладки. Многоблочные (капсулы, часы) ставят себя целиком сами. */
+    /** [новое] Ключ-карта капсул: ПКМ по капсуле (лежачей или стоячей) открывает/закрывает её целиком. Выдаётся из творческой вкладки. */
+    public static final DeferredItem<Item> KEYCARD = ITEMS.registerSimpleItem("keycard", new Item.Properties().stacksTo(1));
     public static final DeferredItem<net.minecraft.world.item.BlockItem> CAPSULE =
             ITEMS.registerSimpleBlockItem("capsule", ModBlocks.CAPSULE);
     public static final DeferredItem<net.minecraft.world.item.BlockItem> CAPSULE_UPRIGHT =

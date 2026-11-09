@@ -946,5 +946,6 @@
   "hypersomnia.lab.sign.round_check_hold_position": "КОНТРОЛЬ ОБХОДА|НЕ ДВИГАТЬСЯ",
   "block.hypersomnia.capsule": "Капсула сна",
   "block.hypersomnia.capsule_upright": "Стоячая капсула",
-  "block.hypersomnia.ward_bed": "Койка палаты"
+  "block.hypersomnia.ward_bed": "Койка палаты",
+  "item.hypersomnia.keycard": "Ключ-карта капсул"
 }

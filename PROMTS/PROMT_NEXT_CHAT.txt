@@ -21,6 +21,8 @@ HYPERSOMNIA — ПРОМТ ДЛЯ НОВОГО ЧАТА (обновлено 2026
 - Расширять существующие системы, не плодить параллельные. Числа в *Tuning, сервер авторитетен, сеть в *Network, client-only классы не импортировать из common. playToClient регистрировать в common на обеих сторонах через ClientPayloadBridge; RegisterClientPayloadHandlersEvent не использовать. При смене wire-формата думать о версии канала. Старые сохранения не терять. LabAmbient развивать, отдельный LabEpisode не создавать.
 
 ЧТО СДЕЛАНО В ЭТОЙ СЕССИИ (вид капсул и творческая вкладка; только ресурсы, Java не менялась, check_resources.py OK, в игре НЕ проверено; CHANGES/CHANGES_capsule_models.txt)
+000. [новое] Ключ-карта ModItems.KEYCARD (творческая вкладка): ПКМ открывает/закрывает лежачую тройку и стоячую колонку
+   (CapsuleBlock/UprightCapsuleBlock.useItemOn, у стоячей новый setOpen). Сборка не проверена; CHANGES/CHANGES_keycard.txt.
 00. [новое] Творческая вкладка: добавлены предметы capsule, capsule_upright, unlit_tube, lab_sign, dream_clock, ward_bed.
    Капсулы и койка ставятся целиком (getStateForPlacement/setPlacedBy: тройка вперёд по взгляду с открытой крышкой, колонка вверх,
    койка ногами в клике). Gradle НЕ запускался (нет дистрибутива) — СБОРКА НЕ ПРОВЕРЕНА, первым делом попросить локальный

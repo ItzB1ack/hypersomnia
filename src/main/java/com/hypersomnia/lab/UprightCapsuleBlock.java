@@ -1,12 +1,17 @@
 package com.hypersomnia.lab;
 
 import com.hypersomnia.ModBlocks;
+import com.hypersomnia.ModItems;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.StringRepresentable;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -185,6 +190,41 @@ public final class UprightCapsuleBlock extends HorizontalDirectionalBlock {
             return isPart(neighbor, prev, facing) ? state : Blocks.AIR.defaultBlockState();
         }
         return super.updateShape(state, dir, neighbor, level, pos, neighborPos);
+    }
+
+    /** Открыть или закрыть всю колонку (дверца снимается/встаёт на место). false — колонка не цела. */
+    public static boolean setOpen(Level level, BlockPos base, Direction facing, boolean open) {
+        Part[] parts = Part.values();
+        for (int i = 0; i < HEIGHT; i++) {
+            if (!isPart(level.getBlockState(base.above(i)), parts[i], facing)) return false;
+        }
+        boolean changed = false;
+        for (int i = 0; i < HEIGHT; i++) {
+            BlockPos p = base.above(i);
+            BlockState st = level.getBlockState(p);
+            if (st.getValue(OPEN) != open) {
+                level.setBlock(p, st.setValue(OPEN, open), Block.UPDATE_ALL);
+                changed = true;
+            }
+        }
+        if (changed) {
+            level.playSound(null, base, open ? SoundEvents.IRON_TRAPDOOR_OPEN : SoundEvents.IRON_TRAPDOOR_CLOSE,
+                    SoundSource.BLOCKS, LabTuning.CAPSULE_LID_VOLUME,
+                    open ? LabTuning.CAPSULE_LID_OPEN_PITCH : LabTuning.CAPSULE_LID_CLOSE_PITCH);
+        }
+        return true;
+    }
+
+    /** Ключ-карта (ModItems.KEYCARD): ПКМ открывает или закрывает всю колонку. */
+    @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+                                              InteractionHand hand, BlockHitResult hit) {
+        if (!stack.is(ModItems.KEYCARD.get())) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        BlockPos base = pos.below(state.getValue(PART).ordinal());
+        if (!level.isClientSide && !setOpen(level, base, state.getValue(FACING), !state.getValue(OPEN))) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Override
