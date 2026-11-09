@@ -4,7 +4,7 @@
   "textures": {
     "particle": "hypersomnia:block/capsule_frame",
     "frame": "hypersomnia:block/capsule_frame",
-    "lid": "hypersomnia:block/capsule_lid",
+    "rim": "hypersomnia:block/capsule_rim",
     "pad": "hypersomnia:block/capsule_pad",
     "plinth": "hypersomnia:block/capsule_plinth",
     "trim": "hypersomnia:block/capsule_trim"
@@ -19,7 +19,7 @@
       ],
       "to": [
         15,
-        2,
+        1.5,
         16
       ],
       "faces": {
@@ -59,11 +59,41 @@
             2
           ]
         },
-        "up": {
-          "texture": "#frame"
-        },
         "down": {
           "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "lip",
+      "from": [
+        0.5,
+        1.5,
+        0
+      ],
+      "to": [
+        15.5,
+        3,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#rim"
+        },
+        "south": {
+          "texture": "#rim"
+        },
+        "east": {
+          "texture": "#rim"
+        },
+        "west": {
+          "texture": "#rim"
+        },
+        "up": {
+          "texture": "#rim"
+        },
+        "down": {
+          "texture": "#rim"
         }
       }
     },
@@ -71,7 +101,7 @@
       "name": "pad",
       "from": [
         3,
-        2,
+        3,
         0
       ],
       "to": [
@@ -104,7 +134,7 @@
       "name": "wall_west",
       "from": [
         1,
-        2,
+        3,
         0
       ],
       "to": [
@@ -137,7 +167,7 @@
       "name": "wall_east",
       "from": [
         13,
-        2,
+        3,
         0
       ],
       "to": [
@@ -167,11 +197,185 @@
       }
     },
     {
+      "name": "belt_west",
+      "from": [
+        0.5,
+        4.5,
+        0
+      ],
+      "to": [
+        1,
+        10.5,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        },
+        "down": {
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "belt_east",
+      "from": [
+        15,
+        4.5,
+        0
+      ],
+      "to": [
+        15.5,
+        10.5,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "east": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        },
+        "down": {
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "trim_west",
+      "from": [
+        0.45,
+        6.5,
+        0
+      ],
+      "to": [
+        0.5,
+        9.5,
+        16
+      ],
+      "faces": {
+        "west": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "trim_east",
+      "from": [
+        15.5,
+        6.5,
+        0
+      ],
+      "to": [
+        15.55,
+        9.5,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "rail_west",
+      "from": [
+        0.5,
+        12,
+        0
+      ],
+      "to": [
+        3.5,
+        12.75,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#rim"
+        },
+        "south": {
+          "texture": "#rim"
+        },
+        "east": {
+          "texture": "#rim"
+        },
+        "west": {
+          "texture": "#rim"
+        },
+        "up": {
+          "texture": "#rim"
+        },
+        "down": {
+          "texture": "#rim"
+        }
+      }
+    },
+    {
+      "name": "rail_east",
+      "from": [
+        12.5,
+        12,
+        0
+      ],
+      "to": [
+        15.5,
+        12.75,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#rim"
+        },
+        "south": {
+          "texture": "#rim"
+        },
+        "east": {
+          "texture": "#rim"
+        },
+        "west": {
+          "texture": "#rim"
+        },
+        "up": {
+          "texture": "#rim"
+        },
+        "down": {
+          "texture": "#rim"
+        }
+      }
+    },
+    {
       "name": "footboard",
       "from": [
         3,
         6,
-        14
+        13
       ],
       "to": [
         13,
@@ -200,50 +404,35 @@
       }
     },
     {
-      "name": "detail_trim_west",
+      "name": "footboard_cap",
       "from": [
-        0.95,
-        6.5,
-        0
+        3,
+        12,
+        13
       ],
       "to": [
-        1,
-        9.5,
+        13,
+        12.75,
         16
       ],
       "faces": {
-        "west": {
-          "texture": "#trim",
-          "uv": [
-            0,
-            0,
-            16,
-            3
-          ]
-        }
-      }
-    },
-    {
-      "name": "detail_trim_east",
-      "from": [
-        15,
-        6.5,
-        0
-      ],
-      "to": [
-        15.05,
-        9.5,
-        16
-      ],
-      "faces": {
+        "north": {
+          "texture": "#rim"
+        },
+        "south": {
+          "texture": "#rim"
+        },
         "east": {
-          "texture": "#trim",
-          "uv": [
-            0,
-            0,
-            16,
-            3
-          ]
+          "texture": "#rim"
+        },
+        "west": {
+          "texture": "#rim"
+        },
+        "up": {
+          "texture": "#rim"
+        },
+        "down": {
+          "texture": "#rim"
         }
       }
     }

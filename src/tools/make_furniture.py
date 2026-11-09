@@ -15,7 +15,7 @@ crac_* / ups_* / battery_* — оборудование серверной B3 (L
 Кондиционер — светлый корпус, пульт и жалюзи; ИБП — тёмный шкаф, экран, вентиляция; батарейный шкаф — щели, знак.
 Новые текстуры генерируются после старых (общий rnd): старые не меняются.
 capsule_frame / capsule_lid / capsule_lid_inner / capsule_pad — капсула сна B5 (CapsuleBlock): корпус, стекло купола, опалубок, ложе.
-capsule_pillow / capsule_plinth / capsule_trim / capsule_console — подушка, цоколь с прорезями, полоса-акцент на бортах,
+capsule_rim (светлая окантовка), capsule_pillow / capsule_plinth / capsule_trim / capsule_console — подушка, цоколь с прорезями, полоса-акцент на бортах,
 консоль изголовья (экран пульса и порт капельницы; области uv заданы в models/block/capsule_*.json, делает make_capsule_models.py).
 Корпус монитора — workstation_case из make_workstation.py (тот же ЭЛТ).
 Раскладка областей совпадает с uv в models/block/*.json: менять только вместе.
@@ -614,22 +614,26 @@ CAPSULE_GLASS = (12, 19, 27)
 
 
 def capsule_frame():
-    im = img(CAPSULE_FRAME, 2)
+    # Корпус: цельный матовый металл без швов, заклёпок и рамок по краю (формой занимается геометрия моделей).
+    im = img(CAPSULE_FRAME, 1)
     px = im.load()
-    for x in range(16):                            # шлифовка металла: вертикальные штрихи
-        d = rnd.randint(-3, 3)
+    for x in range(16):                            # едва заметная шлифовка: вертикальные штрихи
+        d = rnd.randint(-2, 2)
         for y in range(16):
             r, g, b, _ = px[x, y]
             px[x, y] = (max(0, min(255, r + d)), max(0, min(255, g + d)), max(0, min(255, b + d)), 255)
-    for i in range(16):                            # фальц по краю
-        px[i, 0] = noisy(CAPSULE_EDGE, 2)
-        px[i, 15] = noisy(CAPSULE_SHADE, 2)
-        px[0, i] = noisy(CAPSULE_SHADE, 2)
-        px[15, i] = noisy(CAPSULE_SHADE, 2)
-    for y in range(16):                            # стык половин корпуса
-        px[8, y] = noisy(CAPSULE_SHADE, 1)
-    for x, y in ((3, 3), (12, 3), (3, 12), (12, 12)):  # заклёпки
-        px[x, y] = noisy(CAPSULE_EDGE, 1)
+    return im
+
+
+def capsule_rim():
+    # Окантовка (цоколь-кант, рельсы, торцевые планки): тот же металл, но светлее — читается отдельной деталью.
+    im = img(CAPSULE_EDGE, 1)
+    px = im.load()
+    for y in range(16):
+        d = rnd.randint(-2, 2)
+        for x in range(16):
+            r, g, b, _ = px[x, y]
+            px[x, y] = (max(0, min(255, r + d)), max(0, min(255, g + d)), max(0, min(255, b + d)), 255)
     return im
 
 
@@ -669,34 +673,22 @@ def capsule_lid_inner():
 
 
 def capsule_pad():
-    # Ложе капсулы: светлая ткань с поперечным швом и мягким краем.
-    im = img((188, 192, 195), 2)
+    # Ложе капсулы: цельная светлая ткань, едва заметный мягкий край.
+    im = img((188, 192, 195), 1)
     px = im.load()
     for i in range(16):
-        px[i, 0] = noisy((206, 210, 213), 2)
-        px[i, 15] = noisy((166, 171, 175), 2)
-        px[0, i] = noisy((172, 177, 181), 2)
-        px[15, i] = noisy((172, 177, 181), 2)
-    for y in range(1, 15):                         # стёжка ромбом: мягкая обивка
-        for x in range(1, 15):
-            if (x + y) % 8 == 0 or (x - y) % 8 == 0:
-                px[x, y] = noisy((170, 175, 179), 1)
-    for x in range(1, 15):                         # шов поперёк ложа
-        px[x, 8] = noisy((158, 164, 169), 1)
+        px[i, 0] = noisy((196, 200, 203), 1)
+        px[i, 15] = noisy((180, 185, 188), 1)
     return im
 
 
 def capsule_pillow():
-    # Подушка изголовья: светлее ложа, складка по центру, тень снизу и справа.
-    im = img((206, 209, 212), 2)
+    # Подушка изголовья: цельная, чуть светлее ложа.
+    im = img((206, 209, 212), 1)
     px = im.load()
     for i in range(16):
-        px[i, 0] = noisy((222, 225, 228), 2)
-        px[i, 15] = noisy((170, 175, 179), 2)
-        px[15, i] = noisy((176, 181, 185), 2)
-    for y in range(2, 14):                         # складка
-        px[7, y] = noisy((184, 189, 193), 1)
-        px[8, y] = noisy((192, 197, 200), 1)
+        px[i, 0] = noisy((214, 217, 220), 1)
+        px[i, 15] = noisy((196, 200, 203), 1)
     return im
 
 
@@ -755,6 +747,7 @@ def capsule_console():
 for name, fn in (("capsule_frame", capsule_frame), ("capsule_lid", capsule_lid),
                  ("capsule_pad", capsule_pad), ("capsule_lid_inner", capsule_lid_inner),
                  ("capsule_pillow", capsule_pillow), ("capsule_plinth", capsule_plinth),
-                 ("capsule_trim", capsule_trim), ("capsule_console", capsule_console)):
+                 ("capsule_trim", capsule_trim), ("capsule_console", capsule_console),
+                 ("capsule_rim", capsule_rim)):
     fn().save(os.path.join(OUT, name + ".png"))
 print("furniture ok")

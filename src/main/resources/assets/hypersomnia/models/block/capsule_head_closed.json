@@ -4,13 +4,14 @@
   "textures": {
     "particle": "hypersomnia:block/capsule_frame",
     "frame": "hypersomnia:block/capsule_frame",
+    "rim": "hypersomnia:block/capsule_rim",
     "lid": "hypersomnia:block/capsule_lid",
     "lid_inner": "hypersomnia:block/capsule_lid_inner",
     "pad": "hypersomnia:block/capsule_pad",
+    "pillow": "hypersomnia:block/capsule_pillow",
     "plinth": "hypersomnia:block/capsule_plinth",
     "trim": "hypersomnia:block/capsule_trim",
-    "console": "hypersomnia:block/capsule_console",
-    "pillow": "hypersomnia:block/capsule_pillow"
+    "console": "hypersomnia:block/capsule_console"
   },
   "elements": [
     {
@@ -22,7 +23,7 @@
       ],
       "to": [
         15,
-        2,
+        1.5,
         16
       ],
       "faces": {
@@ -62,11 +63,41 @@
             2
           ]
         },
-        "up": {
-          "texture": "#frame"
-        },
         "down": {
           "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "lip",
+      "from": [
+        0.5,
+        1.5,
+        0
+      ],
+      "to": [
+        15.5,
+        3,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#rim"
+        },
+        "south": {
+          "texture": "#rim"
+        },
+        "east": {
+          "texture": "#rim"
+        },
+        "west": {
+          "texture": "#rim"
+        },
+        "up": {
+          "texture": "#rim"
+        },
+        "down": {
+          "texture": "#rim"
         }
       }
     },
@@ -74,7 +105,7 @@
       "name": "pad",
       "from": [
         3,
-        2,
+        3,
         0
       ],
       "to": [
@@ -107,7 +138,7 @@
       "name": "wall_west",
       "from": [
         1,
-        2,
+        3,
         0
       ],
       "to": [
@@ -140,7 +171,7 @@
       "name": "wall_east",
       "from": [
         13,
-        2,
+        3,
         0
       ],
       "to": [
@@ -166,6 +197,180 @@
         },
         "down": {
           "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "belt_west",
+      "from": [
+        0.5,
+        4.5,
+        0
+      ],
+      "to": [
+        1,
+        10.5,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        },
+        "down": {
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "belt_east",
+      "from": [
+        15,
+        4.5,
+        0
+      ],
+      "to": [
+        15.5,
+        10.5,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "east": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        },
+        "down": {
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "trim_west",
+      "from": [
+        0.45,
+        6.5,
+        0
+      ],
+      "to": [
+        0.5,
+        9.5,
+        16
+      ],
+      "faces": {
+        "west": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "trim_east",
+      "from": [
+        15.5,
+        6.5,
+        0
+      ],
+      "to": [
+        15.55,
+        9.5,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "rail_west",
+      "from": [
+        0.5,
+        12,
+        0
+      ],
+      "to": [
+        3.5,
+        12.75,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#rim"
+        },
+        "south": {
+          "texture": "#rim"
+        },
+        "east": {
+          "texture": "#rim"
+        },
+        "west": {
+          "texture": "#rim"
+        },
+        "up": {
+          "texture": "#rim"
+        },
+        "down": {
+          "texture": "#rim"
+        }
+      }
+    },
+    {
+      "name": "rail_east",
+      "from": [
+        12.5,
+        12,
+        0
+      ],
+      "to": [
+        15.5,
+        12.75,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#rim"
+        },
+        "south": {
+          "texture": "#rim"
+        },
+        "east": {
+          "texture": "#rim"
+        },
+        "west": {
+          "texture": "#rim"
+        },
+        "up": {
+          "texture": "#rim"
+        },
+        "down": {
+          "texture": "#rim"
         }
       }
     },
@@ -203,7 +408,7 @@
       }
     },
     {
-      "name": "console",
+      "name": "console_base",
       "from": [
         3,
         12,
@@ -211,8 +416,41 @@
       ],
       "to": [
         13,
-        16,
+        14,
         3
+      ],
+      "faces": {
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        },
+        "down": {
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "console_top",
+      "from": [
+        3.5,
+        14,
+        0
+      ],
+      "to": [
+        12.5,
+        16,
+        2
       ],
       "faces": {
         "north": {
@@ -234,7 +472,7 @@
           "texture": "#frame"
         },
         "up": {
-          "texture": "#frame"
+          "texture": "#rim"
         },
         "down": {
           "texture": "#frame"
@@ -250,7 +488,7 @@
       ],
       "to": [
         13,
-        7,
+        7.5,
         5
       ],
       "faces": {
@@ -275,137 +513,14 @@
       }
     },
     {
-      "name": "lid_top",
+      "name": "iv_port",
       "from": [
-        1,
-        14,
-        3.02
-      ],
-      "to": [
-        15,
-        16,
-        16
-      ],
-      "faces": {
-        "up": {
-          "texture": "#lid"
-        },
-        "down": {
-          "texture": "#lid_inner"
-        },
-        "east": {
-          "texture": "#lid"
-        },
-        "west": {
-          "texture": "#lid"
-        }
-      }
-    },
-    {
-      "name": "lid_wall_west",
-      "from": [
-        1,
-        12,
-        3.02
-      ],
-      "to": [
-        3,
-        14,
-        16
-      ],
-      "faces": {
-        "west": {
-          "texture": "#lid"
-        },
-        "east": {
-          "texture": "#lid_inner"
-        },
-        "north": {
-          "texture": "#lid"
-        }
-      }
-    },
-    {
-      "name": "lid_wall_east",
-      "from": [
-        13,
-        12,
-        3.02
-      ],
-      "to": [
-        15,
-        14,
-        16
-      ],
-      "faces": {
-        "east": {
-          "texture": "#lid"
-        },
-        "west": {
-          "texture": "#lid_inner"
-        },
-        "north": {
-          "texture": "#lid"
-        }
-      }
-    },
-    {
-      "name": "detail_trim_west",
-      "from": [
-        0.95,
-        6.5,
-        0
-      ],
-      "to": [
-        1,
-        9.5,
-        16
-      ],
-      "faces": {
-        "west": {
-          "texture": "#trim",
-          "uv": [
-            0,
-            0,
-            16,
-            3
-          ]
-        }
-      }
-    },
-    {
-      "name": "detail_trim_east",
-      "from": [
-        15,
-        6.5,
-        0
-      ],
-      "to": [
-        15.05,
-        9.5,
-        16
-      ],
-      "faces": {
-        "east": {
-          "texture": "#trim",
-          "uv": [
-            0,
-            0,
-            16,
-            3
-          ]
-        }
-      }
-    },
-    {
-      "name": "detail_iv_port",
-      "from": [
-        15,
+        15.5,
         7,
         1
       ],
       "to": [
-        15.8,
+        16,
         9,
         3
       ],
@@ -454,6 +569,111 @@
             4,
             12
           ]
+        }
+      }
+    },
+    {
+      "name": "lid_wall_west",
+      "from": [
+        1,
+        12.75,
+        3.02
+      ],
+      "to": [
+        3,
+        14,
+        16
+      ],
+      "faces": {
+        "west": {
+          "texture": "#lid"
+        },
+        "east": {
+          "texture": "#lid_inner"
+        },
+        "north": {
+          "texture": "#lid"
+        }
+      }
+    },
+    {
+      "name": "lid_wall_east",
+      "from": [
+        13,
+        12.75,
+        3.02
+      ],
+      "to": [
+        15,
+        14,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#lid"
+        },
+        "west": {
+          "texture": "#lid_inner"
+        },
+        "north": {
+          "texture": "#lid"
+        }
+      }
+    },
+    {
+      "name": "lid_roof_low",
+      "from": [
+        1,
+        14,
+        3.02
+      ],
+      "to": [
+        15,
+        15,
+        16
+      ],
+      "faces": {
+        "up": {
+          "texture": "#lid"
+        },
+        "down": {
+          "texture": "#lid_inner"
+        },
+        "east": {
+          "texture": "#lid"
+        },
+        "west": {
+          "texture": "#lid"
+        },
+        "north": {
+          "texture": "#lid"
+        }
+      }
+    },
+    {
+      "name": "lid_roof_high",
+      "from": [
+        3,
+        15,
+        3.02
+      ],
+      "to": [
+        13,
+        16,
+        16
+      ],
+      "faces": {
+        "up": {
+          "texture": "#lid"
+        },
+        "east": {
+          "texture": "#lid"
+        },
+        "west": {
+          "texture": "#lid"
+        },
+        "north": {
+          "texture": "#lid"
         }
       }
     }
