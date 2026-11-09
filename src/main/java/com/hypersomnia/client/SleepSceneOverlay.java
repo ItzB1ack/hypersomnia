@@ -401,8 +401,6 @@ public final class SleepSceneOverlay {
             float fullH = sclera.h() * k / sclera.px() * size * PAUSE_EYE_VSCALE;
             int half = Math.max(1, Math.round(fullH * vis * 0.5f));
             int cyPx = Math.round(h * 0.42f + (cyU - EYE_Y) * k);
-            g.enableScissor(0, cyPx - half, w, cyPx + half);
-            layer(g, sclera, cxU, cyU, k, size, size * PAUSE_EYE_VSCALE, alpha);
             long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
             int si = right ? 1 : 0;
             float tx = Mth.clamp((mx - w / 2f) / (w * 0.5f), -1f, 1f) * SleepSceneTuning.PAUSE_PAIR_LOOK_X
@@ -413,8 +411,31 @@ public final class SleepSceneOverlay {
             PAIR_Y[si] += (ty - PAIR_Y[si]) * gazeF;
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
-            layer(g, right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L, cxU + tx * size, cyU + ty * size, k, size, size, alpha);
-            g.disableScissor();
+            Part iris = right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L;
+            // Мягкая кромка щели: центр непрозрачный, у верхней и нижней кромок альфа плавно
+            // гаснет на feather пикселей. Жёсткий scissor давал прямоугольный пиксельный край.
+            int feather = Math.min(half, Math.max(1, Math.round(fullH * 0.06f)));
+            int top = cyPx - half;
+            int bot = cyPx + half;
+            for (int y = top; y < bot; ) {
+                int y1;
+                float a;
+                if (y < top + feather) {
+                    y1 = y + 1;
+                    a = (y - top + 0.5f) / feather;
+                } else if (y >= bot - feather) {
+                    y1 = y + 1;
+                    a = (bot - y - 0.5f) / feather;
+                } else {
+                    y1 = bot - feather;
+                    a = 1f;
+                }
+                g.enableScissor(0, y, w, y1);
+                layer(g, sclera, cxU, cyU, k, size, size * PAUSE_EYE_VSCALE, alpha * a);
+                layer(g, iris, cxU + tx * size, cyU + ty * size, k, size, size, alpha * a);
+                g.disableScissor();
+                y = y1;
+            }
             // Отдельного слоя век нет: у пары тень века, линия ресниц и влажная кромка
             // запечены в сам белок silhouette_eye_sclera_pause. Так они не могут вылезти
             // за раскрытие и над глазом не появляется ни дуга, ни ореол.
