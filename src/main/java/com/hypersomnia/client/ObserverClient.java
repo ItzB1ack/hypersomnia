@@ -153,6 +153,8 @@ public final class ObserverClient {
             clearAll();
             return;
         }
+        // Главное меню запоминает, что в этом клиенте уже была стадия 3+ (config/hypersomnia_title.txt).
+        HauntedTitle.observe(ObserverState.stage());
         if (mc.isPaused() && player.isAlive()) return;
         // Финал: в детской он стоит между кроватью и дверью и не мешает; после финала его нет совсем
         if (FinaleClientState.inside && isDream(mc) && player.isAlive()) {
