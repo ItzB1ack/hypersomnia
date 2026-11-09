@@ -262,8 +262,9 @@ public final class HauntedTitle {
         // 2) Мягкое свечение вокруг глаза: чёрный экран остаётся чёрным, но центр получает глубину.
         drawGlow(g, eyeX, eyeY, eyeW, now, level);
 
-        // 3) Глаз осколка в центре. Зрачок поворачивается к выбранной кнопке и не выходит за белок.
-        drawEye(g, eyeX, eyeY, eyeW, selected, now, level);
+        // 3) Глаз осколка в центре. По умолчанию смотрит прямо на игрока (в центр кадра),
+        // а зрачок уходит к кнопке только когда на неё наведена мышь.
+        drawEye(g, eyeX, eyeY, eyeW, hover, now, level);
 
         // 4) Фиксируем всю графику, чтобы буквы гарантированно легли сверху.
         g.flush();
@@ -392,9 +393,9 @@ public final class HauntedTitle {
         return null;
     }
 
-    /** Ширина глаза: как в референсе, примерно шестая часть кадра по ширине. */
+    /** Ширина глаза: крупный объект в центре титульного экрана. */
     private static float eyeWidth(int w, int h) {
-        return Math.max(48f, Math.min(w * 0.17f, h * 0.30f));
+        return Math.max(56f, Math.min(w * 0.21f, h * 0.36f));
     }
 
     private static void drawGlow(GuiGraphics g, float cx, float cy, float eyeW, long now, float level) {
@@ -545,10 +546,10 @@ public final class HauntedTitle {
         return lines.isEmpty() ? null : lines;
     }
 
-    private static void drawEye(GuiGraphics g, float ex, float ey, float eyeW, AbstractWidget selected,
+    private static void drawEye(GuiGraphics g, float ex, float ey, float eyeW, AbstractWidget hover,
                                 long now, float level) {
-        float tx = selected == null ? ex : selected.getX() + selected.getWidth() / 2f;
-        float ty = selected == null ? ey : selected.getY() + selected.getHeight() / 2f;
+        float tx = hover == null ? ex : hover.getX() + hover.getWidth() / 2f;
+        float ty = hover == null ? ey : hover.getY() + hover.getHeight() / 2f;
         float wantX = Mth.clamp((tx - ex) / (eyeW * 0.72f), -0.75f, 0.75f);
         float wantY = Mth.clamp((ty - ey) / (eyeW * 0.62f), -0.42f, 0.42f);
         // Белок миндалевидный: при одновременном смещении по обеим осям зрачок вылезал бы за его край.
