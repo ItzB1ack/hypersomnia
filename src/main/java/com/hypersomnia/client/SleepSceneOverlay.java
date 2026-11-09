@@ -318,9 +318,10 @@ public final class SleepSceneOverlay {
     }
 
     /**
-     * Глаза осколка поверх меню паузы, по шагам (SleepSceneTuning.PAUSE_*): экран темнеет и медленно открывается
-     * один глаз, за ним второй (оба смотрят в зрителя), потом со всех сторон проступает толпа глаз разного
-     * размера — все смотрят на курсор. Когда он заговорит, зрачки дрожат. t — тики с открытия меню (дробные).
+     * Осколок поверх меню паузы, по шагам (SleepSceneTuning.PAUSE_*): экран темнеет и медленно открывается
+     * один глаз, за ним второй (оба смотрят в зрителя), потом со всех сторон проступает рой мечущегося текста —
+     * вопросы, обвинения и знаки вопроса (TextSwarm; вместо толпы глаз [новое]). Когда он заговорит, зрачки пары
+     * и рой дрожат сильнее. Глаза остаются только на лице Фрагмента в центре. t — тики с открытия меню (дробные).
      */
     static void drawPauseEyes(GuiGraphics g, int w, int h, float t, int mx, int my) {
         if (t < SleepSceneTuning.PAUSE_EYE1_TICKS) return;
@@ -342,7 +343,13 @@ public final class SleepSceneOverlay {
         float dt = Mth.clamp((nn - gazeNanos) / 1.0e9f, 0f, 0.1f);
         gazeNanos = nn;
         gazeF = 1f - (float) Math.exp(-dt * 1000f / SleepSceneTuning.PAUSE_GAZE_TAU_MS);
-        if (t >= SleepSceneTuning.PAUSE_CROWD_TICKS) drawCrowd(g, w, h, t, mx, my, rage, now, rnd);
+        if (t >= SleepSceneTuning.PAUSE_CROWD_TICKS) {
+            // Рой не заходит на пару в центре и на место под субтитром (как раньше толпа глаз).
+            float[] avoid = {w / 2f, h * 0.42f, w * 0.17f, h * 0.14f, w / 2f, h * 0.855f, w * 0.38f, h * 0.095f};
+            TextSwarm.draw(g, w, h, now, SleepSceneState.seed * 31L + SleepSceneState.scoldCount * 7919L + 17L,
+                    Math.round(SleepSceneTuning.PAUSE_SWARM_MAX * crowd), SleepSceneTuning.PAUSE_SWARM_ALPHA,
+                    rage ? 1f : 0.35f, 0f, avoid);
+        }
 
         // Пара глаз сцены: сначала левый, потом правый
         float k = h / 18f;
@@ -393,75 +400,6 @@ public final class SleepSceneOverlay {
         RenderSystem.disableBlend();
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
-    }
-
-    /**
-     * Толпа глаз: сетка клеток, в клетке глаз в случайном месте (раскладка постоянна для этого раза), не на паре
-     * в центре и не под субтитром. Проступают по одному, всё чаще; моргают вразнобой; смотрят на курсор.
-     */
-    private static void drawCrowd(GuiGraphics g, int w, int h, float t, int mx, int my, boolean rage, long now,
-                                  RandomSource jitter) {
-        RandomSource r = RandomSource.create(SleepSceneState.seed * 31L + SleepSceneState.scoldCount * 7919L + 17L);
-        int cols = SleepSceneTuning.PAUSE_CROWD_COLS;
-        int rows = SleepSceneTuning.PAUSE_CROWD_ROWS;
-        int n = cols * rows;
-        int[] rank = new int[n];
-        int[] order = new int[n];
-        for (int i = 0; i < n; i++) order[i] = i;
-        for (int i = n - 1; i > 0; i--) {
-            int j = r.nextInt(i + 1);
-            int tmp = order[i];
-            order[i] = order[j];
-            order[j] = tmp;
-        }
-        for (int i = 0; i < n; i++) rank[order[i]] = i;
-        float cw = w / (float) cols;
-        float ch = h / (float) rows;
-        float span = SleepSceneTuning.PAUSE_CROWD_FULL_TICKS - SleepSceneTuning.PAUSE_CROWD_TICKS;
-        for (int c = 0; c < n; c++) {
-            // Одинаковое число бросков на клетку: раскладка не зависит от пропусков
-            float fill = r.nextFloat();
-            float px = r.nextFloat();
-            float py = r.nextFloat();
-            float sr = r.nextFloat();
-            float tilt = r.nextFloat();
-            float mir = r.nextFloat();
-            float period = r.nextFloat();
-            float phase = r.nextFloat();
-            float al = r.nextFloat();
-            if (fill > SleepSceneTuning.PAUSE_CROWD_FILL) continue;
-            float size = Mth.lerp((float) Math.pow(sr, 1.6), SleepSceneTuning.PAUSE_CROWD_SIZE_MIN,
-                    SleepSceneTuning.PAUSE_CROWD_SIZE_MAX) * h;
-            // С запасом под наклон: сохраняем области центральной пары и прежнюю область под субтитр.
-            float marginX = size * 0.60f;
-            float marginY = size * 0.49f;
-            float x = Mth.clamp((c % cols + 0.15f + 0.7f * px) * cw, marginX, w - marginX);
-            float y = Mth.clamp((c / cols + 0.15f + 0.7f * py) * ch, marginY, h - marginY);
-            if (Math.abs(x - w / 2f) < w * 0.17f + marginX && Math.abs(y - h * 0.42f) < h * 0.14f + marginY) continue;
-            if (Math.abs(x - w / 2f) < w * 0.38f + marginX && y > h * 0.76f - marginY && y < h * 0.95f + marginY) continue;
-            float appear = SleepSceneTuning.PAUSE_CROWD_TICKS + span * (float) Math.pow(rank[c] / (float) n, 0.6);
-            float o = ease((t - appear) / SleepSceneTuning.PAUSE_CROWD_OPEN_TICKS);
-            if (o <= 0.03f) continue;
-            o *= blinkFactor(now, 2600 + (int) (period * 4000f), (int) (phase * 5000f));
-            float dx = mx - x;
-            float dy = my - y;
-            float len = Mth.sqrt(dx * dx + dy * dy) + 1e-3f;
-            float reach = Mth.clamp(len / (h * 0.2f), 0.25f, 1f);
-            float gx = dx / len * reach;
-            float gy = dy / len * reach;
-            if (rage) {
-                long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
-                gx += (noise(q, c * 2) - 0.5f) * 0.5f;
-                gy += (noise(q, c * 2 + 1) - 0.5f) * 0.5f;
-            }
-            if (gazeX.length != n) {
-                gazeX = new float[n];
-                gazeY = new float[n];
-            }
-            gazeX[c] += (gx - gazeX[c]) * gazeF;
-            gazeY[c] += (gy - gazeY[c]) * gazeF;
-            EyeSprite.draw(g, x, y, size, o, gazeX[c], gazeY[c], 0.72f + 0.28f * al, mir < 0.5f, (tilt * 2f - 1f) * 18f, 1f);
-        }
     }
 
     private static float ease(float x) {
@@ -577,9 +515,7 @@ public final class SleepSceneOverlay {
         }
     }
 
-    /** Взгляд глаз в меню паузы: сглаженные зрачки толпы и пары, время прошлого кадра, коэффициент догоняния за кадр. */
-    private static float[] gazeX = new float[0];
-    private static float[] gazeY = new float[0];
+    /** Взгляд глаз в меню паузы: сглаженные зрачки пары, время прошлого кадра, коэффициент догоняния за кадр. */
     private static final float[] PAIR_X = new float[2];
     private static final float[] PAIR_Y = new float[2];
     private static long gazeNanos;

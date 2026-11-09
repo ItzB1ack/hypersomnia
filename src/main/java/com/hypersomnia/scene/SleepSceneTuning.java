@@ -49,8 +49,8 @@ public final class SleepSceneTuning {
     public static final float TEXT_DRIFT = 5f;
     /**
      * Меню паузы во время сцены, по шагам (тики с открытия меню): темнеет и открывается один глаз (EYE1), за ним
-     * второй (EYE2), каждый за EYE_OPEN_TICKS; потом проступает толпа глаз (CROWD..CROWD_FULL, каждый за
-     * CROWD_OPEN_TICKS); на VOICE он говорит (client/FragmentVoice, реплики VoiceLine.PAUSE_*). Меню он закрывает
+     * второй (EYE2), каждый за EYE_OPEN_TICKS; потом проступает рой мечущегося текста (CROWD..CROWD_FULL,
+     * до PAUSE_SWARM_MAX строк; TextSwarm); на VOICE он говорит (client/FragmentVoice, реплики VoiceLine.PAUSE_*). Меню он закрывает
      * сам через AFTER_VOICE тиков после конца речи, но не раньше PAUSE_CLOSE_TICKS и не позже CLOSE_MAX;
      * потом ярость в сцене (дрожь зрачков, красная вспышка) держится SCOLD_SHOW_TICKS.
      */
@@ -59,19 +59,15 @@ public final class SleepSceneTuning {
     public static final int PAUSE_EYE_OPEN_TICKS = 12;
     public static final int PAUSE_CROWD_TICKS = 42;
     public static final int PAUSE_CROWD_FULL_TICKS = 74;
-    public static final int PAUSE_CROWD_OPEN_TICKS = 6;
     public static final int PAUSE_VOICE_TICKS = 52;
     public static final int PAUSE_AFTER_VOICE_TICKS = 8;
     public static final int PAUSE_CLOSE_TICKS = 70;
     public static final int PAUSE_CLOSE_MAX_TICKS = 170;
     public static final int SCOLD_SHOW_TICKS = 80;
-    /** Толпа: сетка COLS x ROWS, в клетке глаз с шансом FILL; ширина SIZE_MIN..SIZE_MAX (доля высоты экрана, крупных мало). */
-    public static final int PAUSE_CROWD_COLS = 22;
-    public static final int PAUSE_CROWD_ROWS = 13;
-    public static final float PAUSE_CROWD_FILL = 0.94f;
-    public static final float PAUSE_CROWD_SIZE_MIN = 0.025f;
-    public static final float PAUSE_CROWD_SIZE_MAX = 0.22f;
-    /** Затемнение поверх меню (0..1): когда открыты оба глаза и когда проступила вся толпа. */
+    /** Рой текста в меню: число строк в пике и общая яркость [новое, вместо толпы глаз]. */
+    public static final int PAUSE_SWARM_MAX = 56;
+    public static final float PAUSE_SWARM_ALPHA = 0.9f;
+    /** Затемнение поверх меню (0..1): когда открыты оба глаза и когда проступил весь рой. */
     public static final float PAUSE_DARK_EYES = 0.55f;
     public static final float PAUSE_DARK_CROWD = 0.85f;
     /** Дрожь зрачков в гневе: шум меняется раз в PAUSE_TREMOR_MS, а не каждый кадр. Взгляд догоняет цель с постоянной PAUSE_GAZE_TAU_MS. */

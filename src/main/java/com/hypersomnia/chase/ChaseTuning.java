@@ -211,43 +211,19 @@ public final class ChaseTuning {
     public static final double WHISPER_HEAD_OFFSET = 1.2;
 
     // ------------------------------------------------------------------
-    // Глаза по углам экрана (client/ChaseEyes)
+    // Рой мечущегося текста вместо глаз по углам экрана (client/ChaseText, client/TextSwarm) [новое]
     // ------------------------------------------------------------------
-    /** В каждом углу MIN..MAX глаз в четверти эллипса SPREAD_X x SPREAD_Y от угла (доли высоты экрана), не ближе EDGE к краю. */
-    public static final int EYES_PER_CORNER_MIN = 18;
-    public static final int EYES_PER_CORNER_MAX = 24;
-    public static final float EYES_SPREAD_X = 0.53f;
-    public static final float EYES_SPREAD_Y = 0.40f;
-    public static final float EYES_EDGE = 0.03f;
-    /** Ширина глаза (доля высоты экрана): случайный размер от SIZE_MIN до SIZE_MAX, крупные чаще ближе к углу. */
-    public static final float EYES_SIZE_MIN = 0.025f;
-    public static final float EYES_SIZE_MAX = 0.22f;
-    /** Начальная цель — WARN, затем за FILL_TICKS она вырастает до всех глаз; паника немного опережает рост. */
-    public static final int EYES_WARN = 12;
-    public static final int EYES_FILL_TICKS = 480;
-    public static final float EYES_PANIC_BOOST = 0.18f;
-    /** Первый глаз через FIRST_DELAY тиков, следующие раз в OPEN_EVERY_MIN..MAX; открывается за OPEN_TICKS, закрывается за CLOSE_TICKS. */
-    public static final int EYES_FIRST_DELAY = 12;
-    public static final int EYES_OPEN_EVERY_MIN = 2;
-    public static final int EYES_OPEN_EVERY_MAX = 3;
-    public static final int EYES_OPEN_TICKS = 14;
-    public static final int EYES_CLOSE_TICKS = 9;
-    /** Устаревшие параметры уменьшения глаз; сохранены для совместимости, в новой логике не используются. */
-    public static final int EYES_HYSTERESIS = 3;
-    public static final int EYES_CLOSE_EVERY = 6;
-    /** Погоня кончилась: закрываются по одному раз в END_EVERY_MIN..MAX тиков. */
-    public static final int EYES_END_EVERY_MIN = 1;
-    public static final int EYES_END_EVERY_MAX = 3;
-    /** Моргание раз в BLINK_MIN..MAX тиков, длится BLINK_TICKS; взгляд чуть сдвигается раз в LOOK_MIN..MAX. */
-    public static final int EYES_BLINK_MIN = 50;
-    public static final int EYES_BLINK_MAX = 160;
-    public static final int EYES_BLINK_TICKS = 4;
-    public static final int EYES_LOOK_MIN = 20;
-    public static final int EYES_LOOK_MAX = 70;
-    /** Радужка вздрагивает с ударом сердца (доля размера); наклон глаз до TILT градусов. */
-    public static final float EYES_PULSE = 0.07f;
-    public static final float EYES_TILT = 16f;
-    /** Взгляд глаз в углах догоняет цель мягче (было 0.35) и рисуется с интерполяцией; паника расширяет радужки. */
-    public static final float EYES_GAZE_FOLLOW = 0.22f;
-    public static final float EYES_PANIC_IRIS = 0.12f;
+    /** Строк в начале погони и в пике; за FILL_TICKS число растёт до пика, паника немного опережает рост. */
+    public static final int SWARM_START = 8;
+    public static final int SWARM_MAX = 48;
+    public static final int SWARM_FILL_TICKS = 480;
+    public static final float SWARM_PANIC_BOOST = 0.18f;
+    /** Появление роя при начале погони и затухание после конца (тики). */
+    public static final int SWARM_FADE_IN_TICKS = 20;
+    public static final int SWARM_END_FADE_TICKS = 24;
+    /** Общая яркость роя 0..1. */
+    public static final float SWARM_ALPHA = 0.85f;
+    /** Свободный центр кадра: полуширина и полувысота в долях экрана (прицел и то, что впереди, остаются читаемыми). */
+    public static final float SWARM_AVOID_X = 0.16f;
+    public static final float SWARM_AVOID_Y = 0.20f;
 }

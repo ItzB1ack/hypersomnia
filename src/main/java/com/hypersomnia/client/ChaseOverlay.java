@@ -16,7 +16,7 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /**
- * Погоня на экране (ChaseClient): виньетка в такт сердцу (под интерфейсом), глаза по углам (ChaseEyes, над
+ * Погоня на экране (ChaseClient): виньетка в такт сердцу (под интерфейсом), рой текста (ChaseText, над
  * виньеткой) и чёрный кадр поимки — поверх интерфейса, но под ванильными субтитрами: его слова при поимке
  * (FragmentVoice) читаются на чёрном. Слои регистрируются в одном месте, чтобы порядок был точным.
  */
@@ -36,7 +36,7 @@ public final class ChaseOverlay {
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_vignette"), ChaseOverlay::renderVignette);
         ResourceLocation vignette = ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_vignette");
         event.registerAbove(vignette,
-                ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_eyes"), ChaseEyes::render);
+                ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_text"), ChaseText::render);
         event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY,
                 ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "chase_rage"), ChaseOverlay::renderRage);
         event.registerBelow(VanillaGuiLayers.SUBTITLE_OVERLAY,

@@ -1,0 +1,24 @@
+HYPERSOMNIA — рой мечущегося текста вместо толпы глаз (погоня и антипауза)
+Дата: 2026-11-09. Gradle в среде недоступен. check_resources.py OK. TextSwarm скомпилирован с заглушками классов Minecraft и
+прогнан харнессом (детерминизм, границы экрана, зоны-исключения, число строк, все 20 ключей). В игре НЕ проверено.
+
+Зачем: автор счёл, что глаз слишком много (до 18-24 в каждом углу в погоне и толпа 22x13 в меню паузы).
+
+Что сделано [новое]
+- client/TextSwarm (новый): общий рисовальщик роя; слот выводится из (seed, номер, время). Фразы hypersomnia.swarm.0..19
+  (вопросы 0..9, обвинения 10..19), ~34% слотов — знаки вопроса без lang. Дрожь/скорость растут с паникой, размер толкается в такт
+  сердцу. Зоны-исключения, g.flush() после текста.
+- client/ChaseText (новый) вместо ChaseEyes (удалён): тот же жизненный цикл begin/end/reset/render. Слой chase_text.
+  ChaseClient/ChaseOverlay переключены.
+- chase/ChaseTuning: блок EYES_* заменён на SWARM_START/MAX/FILL_TICKS/PANIC_BOOST/FADE_IN_TICKS/END_FADE_TICKS/ALPHA/AVOID_X/AVOID_Y.
+- client/SleepSceneOverlay: drawCrowd удалён, рой через TextSwarm; пара глаз на лице Фрагмента осталась. EyeSprite удалён.
+- scene/SleepSceneTuning: PAUSE_SWARM_MAX=56, PAUSE_SWARM_ALPHA=.9; удалены PAUSE_CROWD_COLS/ROWS/FILL/SIZE_MIN/SIZE_MAX/OPEN_TICKS.
+- lang: 20 ключей hypersomnia.swarm.N в en_us.json и ru_ru.json.
+
+Канон: без глаз, без слова «insomnia», без красного #8A2030 (читаемость); читается двояко: вопросы/мольба и обвинения.
+
+Не менялось: сеть, NBT, ассеты, текстуры глаз пары (silhouette_eye_*), ObserverScare, финал.
+
+Проверить в игре
+- Плотность и читаемость в погоне (до 48) и в паузе (до 56), центр кадра свободен; GUI scale 1..4; FPS; порядок слоёв
+  (текст под чёрным кадром поимки, пара глаз над роем в паузе); не режут ли строки края экрана; русский текст по ширине.
