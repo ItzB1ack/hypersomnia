@@ -101,11 +101,12 @@ def eye_grid():
     return W, H, (xx - W / 2) / EYE_PX, (yy - H / 2) / EYE_PX
 
 
-def eye_sclera(path, seed=21, lid=0.0, lower=0.0):
+def eye_sclera(path, seed=21, lid=0.0, lower=0.0, lash=0.0):
     """Белок с прожилками. lid/lower — добавочная тень верхнего/нижнего века (0 = как на лице).
 
     Для пары в меню паузы лица вокруг нет, и отдельный слой век оставлял над глазом светлую
-    дугу; поэтому тень века запекается прямо в белок паузного варианта.
+    дугу; поэтому тень века запекается прямо в белок паузного варианта. lash — линия ресниц
+    у самого верхнего края: без неё глаз читался «лысым» во время раскрытия.
     """
     rng = np.random.default_rng(seed)
     W, H, x, y = eye_grid()
@@ -119,6 +120,9 @@ def eye_sclera(path, seed=21, lid=0.0, lower=0.0):
         v *= 1 - lid * np.clip(1 - (y - top) / 0.40, 0, 1) ** 1.3
     if lower > 0:
         v *= 1 - lower * np.clip(1 - (bot - y) / 0.18, 0, 1) ** 1.4
+    if lash > 0:
+        # линия ресниц: у верхнего края почти чёрная, к 0.13 юнита сходит на нет
+        v *= 1 - lash * np.clip(1 - (y - top) / 0.13, 0, 1) ** 0.6
     v *= 1 - 0.55 * (np.abs(x) / A) ** 4                  # края глаза темнее
     veins = gaussian_filter(rng.standard_normal((H, W)), 2.2)
     v += 0.09 * veins / (np.abs(veins).max() + 1e-9)
@@ -182,31 +186,6 @@ def eye_lids(path, seed=23):
     return (W, H)
 
 
-def eye_lids_pause(path):
-    """Веко для пары в меню паузы: только внутри раскрытия, без кожи и ореола.
-
-    У обычной eye_lids вокруг раскрытия лежит тёмная кожа: без лица в паузе она читалась
-    дугой над глазом. Здесь снаружи раскрытия альфа ровно 0, но у самого верхнего края
-    альфа максимальна: тёмная линия ресниц перекрывает и кромку склеры, и радужку, которая
-    иначе торчит над глазом. Именно нулевая альфа на краю (как было с edge_fade) оставляла
-    светлую дугу — полупрозрачную кромку склеры. Светлых пикселей в текстуре нет.
-    """
-    W, H, x, y = eye_grid()
-    top, bot = lid_curves(x)
-    d = np.minimum(y - top, bot - y)                      # >0 внутри раскрытия
-    # мягкая маска чуть заходит наружу, чтобы накрыть полупрозрачный край склеры
-    inside = np.clip((d + 0.02) / 0.05, 0, 1) * (np.abs(x) < A + 0.08)
-    lash = np.clip(1 - (y - top) / 0.10, 0, 1) ** 0.7      # линия ресниц у верхнего края
-    shadow = np.clip(1 - (y - top) / 0.52, 0, 1) ** 1.6    # тень века вниз по склере
-    lower = 0.50 * np.clip(1 - (bot - y) / 0.20, 0, 1) ** 1.5
-    a = np.maximum(0.95 * lash + 0.50 * shadow, lower) * inside
-    a = gaussian_filter(np.clip(a, 0, 0.95).astype(np.float32), 0.7)
-    rgb = np.broadcast_to(BODY_RGB, (H, W, 3)).copy()
-    out = np.dstack([rgb, a * 255.0]).clip(0, 255).astype(np.uint8)
-    Image.fromarray(out, "RGBA").save(path)
-    return (W, H)
-
-
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out, exist_ok=True)
@@ -226,7 +205,7 @@ if __name__ == "__main__":
     n = "silhouette_eye_sclera_pause"
     pth = os.path.join(out, n + ".png")
     src = os.path.join(out, "_sclera_pause_base.png")
-    print(n, eye_sclera(src, lid=0.50, lower=0.28))
+    print(n, eye_sclera(src, lid=0.38, lower=0.20, lash=0.97))
     Image.open(src).resize((round(5 * EYE_PX * 4), round(3.4 * EYE_PX * 4)), Image.BILINEAR).save(pth)
     os.remove(src)
     names.append(n)
@@ -236,15 +215,6 @@ if __name__ == "__main__":
     pth = os.path.join(out, n + ".png")
     Image.open(os.path.join(out, "silhouette_eye_iris.png")).resize(
             (round(2.2 * EYE_PX * 4), round(2.2 * EYE_PX * 4)), Image.BILINEAR).save(pth)
-    names.append(n)
-    Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
-    # Верхнее веко пары: тёмная линия ресниц и тень только внутри раскрытия, тоже в 4×.
-    n = "silhouette_eye_lids_pause"
-    pth = os.path.join(out, n + ".png")
-    src = os.path.join(out, "_lids_pause_base.png")
-    print(n, eye_lids_pause(src))
-    Image.open(src).resize((round(5 * EYE_PX * 4), round(3.4 * EYE_PX * 4)), Image.BILINEAR).save(pth)
-    os.remove(src)
     names.append(n)
     Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля
