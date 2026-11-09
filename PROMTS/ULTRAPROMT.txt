@@ -479,7 +479,8 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   ScreenEvent.Opening не даёт уйти в настройки, достижения, LAN, выход и другие экраны, пока идёт антипауза
   (SleepSceneState.pauseTicks>0). ESC закрывает меню штатно (SceneBedScreen или мир). 5 ключей EN/RU.
 - [новое] Главное меню после стадии 3+ по референсу: client/HauntedTitle на ScreenEvent.Init.Post,
-  ScreenEvent.Render.Pre (отмена ванильного рендера TitleScreen) и Render.Post для TitleScreen. Отмена Pre убирает
+  ScreenEvent.Render.Pre (отмена ванильного рендера TitleScreen), Render.Post для TitleScreen и BackgroundRendered
+  для остальных меню вне мира. Отмена Pre убирает
   панораму, логотип, сплэш, версию Minecraft, брендинг, копирайт и подписи — чёрный кадр pure black #03050A
   в Render.Post больше не борется с текстом. PixelDecay на титульном экране убран; вместо него мягкое голубое свечение
   вокруг глаза (title_glow.png). Рамок больше нет: подписи плавают вокруг центрального глаза двумя колонками
@@ -494,7 +495,9 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   начинается заново; тултипы перерисовываются поверх. Глаз (EyeGlyphs) в центре
   (w/2, h*0.47): зрачок плавно смотрит на выбранную подпись, моргает; смещение ограничено по осям и суммарному радиусу,
   а радужка уменьшена до 0.84, чтобы не вылезать за миндалевидный белок. В углах — три обрывка hypersomnia.swarm.0..19 ванильным шрифтом
-  Minecraft (FragmentFont здесь не используется). Память — config/hypersomnia_title.txt (`max_stage=N`), пишется из
+  Minecraft (FragmentFont здесь не используется). Панорама убрана и в остальных меню вне мира: BackgroundRendered
+  после ванильного фона, но до виджетов, заливает экран тем же #03050A (выбор/создание мира, настройки, язык,
+  доступность, моды), кнопки/списки/поля ввода остаются поверх; внутри мира фон не меняется. Память — config/hypersomnia_title.txt (`max_stage=N`), пишется из
   ObserverClient.onClientTick через HauntedTitle.observe(ObserverState.stage()); после 3+ эффект остаётся, пока
   файл не удалён. Новые ассеты title_black.png и title_glow.png; новых ключей lang нет.
 - [новое] Тихие эпизоды лаборатории (LabAmbient) расширены: у каждого этажа B1–B5
@@ -552,7 +555,8 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   полностью ли скрыты версия/брендинг/сплэш,
   отсутствие вылезания зрачка за белок, вид title_glow, новые позиции подписей без
   наложений на глаз, читаются ли рябь и дрожь букв как эффект, ванильный шрифт в углах,
-  иконки, обрывки фраз, GUI scale 1..4.
+  иконки, обрывки фраз, GUI scale 1..4; чёрный фон в остальных меню вне мира — перекрывает
+  ли панораму и меню-текстуру, но не виджеты, приходит ли BackgroundRendered на всех экранах.
 
 ======================================================================================================================
 7. ЧТО ОСТАЛОСЬ

@@ -178,6 +178,29 @@ public final class HauntedTitle {
     }
 
     /**
+     * Панорама есть только вне мира, но её рисуют не только титульный экран, а все меню: выбор мира,
+     * создание мира, настройки, язык, доступность и т.д. После стадии 3+ осколок уже смотрит с титульного
+     * экрана, поэтому фон остальных меню тоже становится чёрным. Событие приходит после ванильного фона,
+     * но до виджетов, так что кнопки, списки и поля ввода остаются поверх и продолжают работать.
+     *
+     * Event помечен deprecated (NeoForge считает его хрупким), но в 1.21.1 он единственный, кто даёт точку
+     * между фоном и виджетами без миксинов; для ванильных экранов он срабатывает стабильно.
+     */
+    @SuppressWarnings("removal")
+    @SubscribeEvent
+    public static void onBackgroundRendered(ScreenEvent.BackgroundRendered event) {
+        if (!haunted() || event.getScreen() instanceof TitleScreen) return;
+        // Внутри мира панорамы нет: там свой фон и своя сцена, их не трогаем.
+        if (Minecraft.getInstance().level != null) return;
+        int w = event.getScreen().width;
+        int h = event.getScreen().height;
+        if (w <= 0 || h <= 0) return;
+        GuiGraphics g = event.getGuiGraphics();
+        g.flush();
+        g.fill(0, 0, w, h, 0xFF03050A);
+    }
+
+    /**
      * Ванильный рендер отменён, поэтому рисуем титульный экран сами: чёрный кадр, глаз, подписи и тултипы.
      * Кнопки остаются рабочими — их прямоугольники задаёт layout().
      */
