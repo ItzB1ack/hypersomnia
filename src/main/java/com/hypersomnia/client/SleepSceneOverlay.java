@@ -59,6 +59,12 @@ public final class SleepSceneOverlay {
 
     /** Пикселей на юнит у текстур глаз (выше, чем у тела: нужны блики и кромка). Должно совпадать с EYE_PX в скрипте. */
     private static final int EYE_TEX_PX = 24;
+    /**
+     * Пара в паузе рисуется крупно, и при 24 px/юнит край склеры и круг радужки шли ступеньками:
+     * GUI-блит не сглаживает низкое разрешение, даже с blur в .mcmeta. Поэтому у пары текстуры
+     * в 4× разрешении; px=96 при том же размере в юнитах даёт тот же размер на экране.
+     */
+    private static final int EYE_TEX_PX_HI = EYE_TEX_PX * 4;
 
     /** Текстура: размер холста и точка привязки (всё в юнитах), px — пикселей на юнит. Для тела (0,0) = середина макушки. */
     private record Part(ResourceLocation tex, float wU, float hU, float ox, float oy, int px) {
@@ -88,15 +94,27 @@ public final class SleepSceneOverlay {
     private static final Part EYE_SCLERA_L = eye("sclera", 5f, 3.4f, true);
     private static final Part EYE_SCLERA_R = eye("sclera", 5f, 3.4f, false);
     /** Белок с запечённой тенью век: для пары в меню паузы, где нет лица вокруг. */
-    private static final Part EYE_SCLERA_PAUSE_L = eye("sclera_pause", 5f, 3.4f, true);
-    private static final Part EYE_SCLERA_PAUSE_R = eye("sclera_pause", 5f, 3.4f, false);
+    private static final Part EYE_SCLERA_PAUSE_L = eyeHi("sclera_pause", 5f, 3.4f, true);
+    private static final Part EYE_SCLERA_PAUSE_R = eyeHi("sclera_pause", 5f, 3.4f, false);
     private static final Part EYE_IRIS_L = eye("iris", 2.2f, 2.2f, true);
     private static final Part EYE_IRIS_R = eye("iris", 2.2f, 2.2f, false);
+    /** Радужка пары в паузе — та же текстура в 4×, чтобы круг зрачка не был ступенчатым. */
+    private static final Part EYE_IRIS_PAUSE_L = eyeHi("iris_pause", 2.2f, 2.2f, true);
+    private static final Part EYE_IRIS_PAUSE_R = eyeHi("iris_pause", 2.2f, 2.2f, false);
     private static final Part EYE_LIDS_L = eye("lids", 5f, 3.4f, true);
     private static final Part EYE_LIDS_R = eye("lids", 5f, 3.4f, false);
 
     private static Part eye(String layer, float wU, float hU, boolean mirrored) {
-        return new Part(tex("silhouette_eye_" + layer + (mirrored ? "_r" : "")), wU, hU, wU / 2f, hU / 2f, EYE_TEX_PX);
+        return eye(layer, wU, hU, mirrored, EYE_TEX_PX);
+    }
+
+    /** Вариант глаза в 4× разрешении: тот же размер в юнитах, вчетверо больше пикселей в текстуре. */
+    private static Part eyeHi(String layer, float wU, float hU, boolean mirrored) {
+        return eye(layer, wU, hU, mirrored, EYE_TEX_PX_HI);
+    }
+
+    private static Part eye(String layer, float wU, float hU, boolean mirrored, int px) {
+        return new Part(tex("silhouette_eye_" + layer + (mirrored ? "_r" : "")), wU, hU, wU / 2f, hU / 2f, px);
     }
     /** Выпадение кадра при смене стадии (тики). */
     private static final int BLINK_TICKS = 5;
@@ -388,7 +406,7 @@ public final class SleepSceneOverlay {
             PAIR_Y[si] += (ty - PAIR_Y[si]) * gazeF;
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
-            layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
+            layer(g, right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
             // Отдельный слой век не рисуется: у silhouette_eye_lids тень верхнего века тянется
             // от самого края раскрытия и без лица вокруг оставляла над глазом светлую дугу с
             // тёмной полосой. В паре используется silhouette_eye_sclera_pause — та же склера,

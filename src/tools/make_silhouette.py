@@ -196,10 +196,22 @@ if __name__ == "__main__":
         Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     # Пара в меню паузы: белок с запечённой более плотной тенью верхнего и нижнего века.
     # Отдельный слой век без лица вокруг оставлял над глазом светлую дугу, поэтому тень
-    # входит в сам белок и гаснет вместе с его альфой.
+    # входит в сам белок и гаснет вместе с его альфой. Текстуры пары делаются в 4× разрешении:
+    # на большом глазу низкое разрешение давало ступеньки по краю и по радужке.
     n = "silhouette_eye_sclera_pause"
     pth = os.path.join(out, n + ".png")
-    print(n, eye_sclera(pth, lid=0.50, lower=0.28)); names.append(n)
+    src = os.path.join(out, "_sclera_pause_base.png")
+    print(n, eye_sclera(src, lid=0.50, lower=0.28))
+    Image.open(src).resize((round(5 * EYE_PX * 4), round(3.4 * EYE_PX * 4)), Image.BILINEAR).save(pth)
+    os.remove(src)
+    names.append(n)
+    Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
+    # Радужка пары — та же текстура в 4× разрешении, чтобы её круг не был ступенчатым.
+    n = "silhouette_eye_iris_pause"
+    pth = os.path.join(out, n + ".png")
+    Image.open(os.path.join(out, "silhouette_eye_iris.png")).resize(
+            (round(2.2 * EYE_PX * 4), round(2.2 * EYE_PX * 4)), Image.BILINEAR).save(pth)
+    names.append(n)
     Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля
         with open(os.path.join(out, n + ".png.mcmeta"), "w") as fh:
