@@ -5,6 +5,9 @@ import com.hypersomnia.scene.SleepSceneTuning;
 import com.hypersomnia.voice.VoiceLine;
 import com.hypersomnia.voice.VoiceTuning;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -26,6 +29,9 @@ import net.minecraft.client.gui.screens.PauseScreen;
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class SleepSceneClientEvents {
     private SleepSceneClientEvents() {}
+
+    /** Сколько реплик-заглушек в hypersomnia.pause.locked.*. */
+    private static final int PAUSE_LOCK_LINES = 5;
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
@@ -95,6 +101,22 @@ public final class SleepSceneClientEvents {
     private static long pauseTickNanos;
 
     /**
+     * Антипауза: кнопки ванильного меню паузы больше не работают. «Настройки», «Достижения» и прочие экраны
+     * не должны увести игрока с меню и сорвать сцену; вместо подписей — короткие реплики осколка.
+     */
+    @SubscribeEvent
+    public static void onScreenInit(ScreenEvent.Init.Post event) {
+        if (!antiPauseActive() || !(event.getScreen() instanceof PauseScreen)) return;
+        int index = 0;
+        for (GuiEventListener listener : event.getScreen().children()) {
+            if (!(listener instanceof AbstractWidget widget) || !widget.visible) continue;
+            widget.active = false;
+            widget.setMessage(Component.translatable("hypersomnia.pause.locked." + (index % PAUSE_LOCK_LINES)));
+            index++;
+        }
+    }
+
+    /**
      * Пока игрок сидит в меню паузы, поверх него проступают глаза (в меню игра стоит, тики идут от экрана).
      * Его реплику показывает ванильный субтитр: меню размывает интерфейс, поэтому субтитры перерисовываются поверх.
      */
@@ -110,6 +132,15 @@ public final class SleepSceneClientEvents {
     /** Экран кровати во время сцены заменяем на «не могу пошевелиться» (ESC и кнопка не встают). */
     @SubscribeEvent
     public static void onScreenOpening(ScreenEvent.Opening event) {
+        // Из меню антипаузы нельзя уйти в другой экран (настройки, достижения и т.п.).
+        // pauseTicks > 0 отличает это от собственного закрытия меню, когда счётчик уже сброшен.
+        if (antiPauseActive() && SleepSceneState.pauseTicks > 0
+                && event.getCurrentScreen() instanceof PauseScreen
+                && event.getNewScreen() != null
+                && !(event.getNewScreen() instanceof PauseScreen)) {
+            event.setCanceled(true);
+            return;
+        }
         if (event.getNewScreen() instanceof PauseScreen
                 && antiPauseActive()
                 && ((SleepSceneState.active() && SleepSceneState.pauseLocked) || ChaseClient.pauseLocked() || ObserverClient.pendingChasePauseLocked())) {
