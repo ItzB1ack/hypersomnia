@@ -702,7 +702,8 @@ public final class ChaseHandler {
     }
 
     /**
-     * spawnIfNoTrail — тестовая команда (/hypersomnia_shard chase): без следа поставить фигуру за спиной игрока.
+     * spawnIfNoTrail — тестовая команда (/hypersomnia_shard chase): сервер выводит фигуру сам (флаг I_PUSH).
+     * Старт всегда ищется за спиной игрока (ChaseTuning.SPAWN_BEHIND_DIST), след больше не нужен.
      * Остальные проверки (стадия, мир, безопасность, лаборатория) остаются прежними.
      */
     private static int start(ServerPlayer player, int force, boolean spawnIfNoTrail) {
@@ -726,20 +727,10 @@ public final class ChaseHandler {
             if (!dream && outage < 0 && !nightOrDark(level, player)) return ChasePayload.R_CONTEXT;
         }
         if (!safe(player, level)) return ChasePayload.R_SAFETY;
-        List<Vec3> pts = null;
-        int startIdx = -1;
-        Vec3 spawn = null;
-        Trail t = TRAILS.get(player.getUUID());
-        if (t == null || t.points.size() < 2) {
-            if (!spawnIfNoTrail) return ChasePayload.R_TRAIL;
-            spawn = spotAround(player, level, false);
-            if (spawn == null) return ChasePayload.R_TRAIL;
-        } else {
-            pts = new ArrayList<>(t.points);
-            startIdx = pickStart(player, level, pts);
-            if (startIdx == -1) return ChasePayload.R_TRAIL;
-            if (startIdx < 0) return ChasePayload.R_VIEW;
-        }
+        // След больше не нужен: фигура всегда появляется за спиной игрока, независимо от пройденных блоков.
+        Vec3 spawn = spotBehind(player, level, ChaseTuning.SPAWN_BEHIND_DIST);
+        if (spawn == null) spawn = spotAround(player, level, false);
+        if (spawn == null) return ChasePayload.R_TRAIL;
 
         Run run = new Run();
         run.id = nextId++;
@@ -749,16 +740,11 @@ public final class ChaseHandler {
         if (force == 2) run.stage = Math.max(run.stage, ChaseTuning.CATCH_MIN_STAGE);
         run.pushed = spawnIfNoTrail;
         run.warnTicks = Mth.randomBetweenInclusive(player.getRandom(), ChaseTuning.WARN_MIN, ChaseTuning.WARN_MAX);
-        if (spawn != null) {
-            run.pos = spawn;
-        } else {
-            run.pos = pts.get(startIdx);
-            run.path.addAll(pts.subList(startIdx + 1, pts.size()));
-        }
+        run.pos = spawn;
         if (outage >= 0) {
             if (!LabOutage.begin(level, outage, player)) return ChasePayload.R_LAB;
             run.outage = outage;
-            run.warnTicks += LabOutage.flickerTicks(); // стоит на следе, пока мигает свет, и ещё WARN_MIN..MAX в темноте
+            run.warnTicks += LabOutage.flickerTicks(); // стоит на месте, пока мигает свет, и ещё WARN_MIN..MAX в темноте
         }
         // Тестовая погоня не тратит день и не двигает расписание: она не меняет прогресс.
         if (!run.pushed) data.markStarted(prog.getDays());
@@ -791,6 +777,30 @@ public final class ChaseHandler {
         RUNS.put(player.getUUID(), run);
         send(player, run, ChasePayload.PH_WATCH, ChasePayload.O_NONE);
         return 0;
+    }
+
+    /**
+     * Место для погони по умолчанию: за спиной игрока примерно на dist блоков. След не нужен — фигура
+     * появляется независимо от того, сколько игрок прошёл. Сначала строго сзади, потом с небольшим
+     * разворотом (всё ещё вне взгляда) и чуть ближе/дальше, если сзади стена или обрыв.
+     */
+    private static Vec3 spotBehind(ServerPlayer player, ServerLevel level, double dist) {
+        Vec3 look = player.getViewVector(1.0f);
+        Vec3 dir = new Vec3(look.x, 0, look.z);
+        dir = dir.lengthSqr() < 1.0E-4 ? new Vec3(0, 0, 1) : dir.normalize().scale(-1);
+        Vec3 base = player.position();
+        double[] angles = {0, 15, -15, 30, -30, 45, -45, 60, -60};
+        for (double d : new double[]{dist, dist - 2, dist + 2, dist - 4, dist - 6}) {
+            if (d < 4) continue;
+            for (double deg : angles) {
+                double rad = Math.toRadians(deg);
+                double dx = dir.x * Math.cos(rad) - dir.z * Math.sin(rad);
+                double dz = dir.x * Math.sin(rad) + dir.z * Math.cos(rad);
+                Vec3 ground = floorAt(level, base.add(dx * d, 0, dz * d));
+                if (ground != null) return ground;
+            }
+        }
+        return null;
     }
 
     /**
@@ -893,30 +903,6 @@ public final class ChaseHandler {
         RUNS.put(player.getUUID(), run);
         send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
         return true;
-    }
-
-    /** Точка старта на следе: START_PATH_MIN..MAX блоков пути позади, вне взгляда. -1 — следа мало, -2 — всё на виду. */
-    private static int pickStart(ServerPlayer player, ServerLevel level, List<Vec3> pts) {
-        Vec3 feet = player.position();
-        Vec3 eye = player.getEyePosition();
-        Vec3 look = player.getViewVector(1.0f);
-        double cosView = Math.cos(Math.toRadians(ChaseTuning.START_VIEW_HALF_DEG));
-        double acc = 0;
-        Vec3 prev = feet;
-        int best = -1;
-        boolean any = false;
-        for (int i = pts.size() - 1; i >= 0; i--) {
-            Vec3 p = pts.get(i);
-            acc += prev.distanceTo(p);
-            prev = p;
-            if (acc > ChaseTuning.START_PATH_MAX) break;
-            if (acc < ChaseTuning.START_PATH_MIN || p.distanceTo(feet) < ChaseTuning.START_DIST_MIN) continue;
-            if (!level.noCollision(body(p))) continue;
-            any = true;
-            if (visible(player, eye, look, cosView, p)) continue;
-            best = i;
-        }
-        return best >= 0 ? best : (any ? -2 : -1);
     }
 
     private static AABB body(Vec3 p) {

@@ -29,18 +29,16 @@ public final class ChaseTuning {
     public static final int CLIFF_RADIUS = 3;
     public static final int CLIFF_DEPTH = 5;
 
-    // ---- След игрока (по нему он бежит) ----
+    // ---- Появление ----
+    /** Обычная погоня: фигура появляется за спиной игрока на этом расстоянии, след не нужен. */
+    public static final double SPAWN_BEHIND_DIST = 15.0;
+
+    // ---- След игрока (запасной маршрут, если A* не нашёл путь) ----
     /** Точка следа каждые TRAIL_STEP блоков (только на земле, лестнице или в воде), не больше TRAIL_MAX точек. */
     public static final double TRAIL_STEP = 0.5;
     public static final int TRAIL_MAX = 240;
     /** Скачок дальше этого за тик — телепорт: след стирается, погоня прерывается. */
     public static final double TRAIL_TELEPORT = 8.0;
-    /** Старт — точка следа на столько блоков пути позади, не ближе START_DIST_MIN по прямой и вне взгляда игрока. */
-    public static final double START_PATH_MIN = 14.0;
-    public static final double START_PATH_MAX = 30.0;
-    public static final double START_DIST_MIN = 9.0;
-    /** «Вне взгляда» при выборе старта: дальше этого угла от направления взгляда (с запасом на широкий FOV). */
-    public static final double START_VIEW_HALF_DEG = 75.0;
 
     // На последней стадии сильнее паника и короткие реплики ярости [новое].
     public static final float RAGE_MIN_PANIC = .70f;

@@ -33,7 +33,7 @@ public record ChasePayload(int run, int phase, int info, double x, double y, dou
     public static final int R_BUSY = 1, R_STAGE = 2, R_DAYS = 3, R_CONTEXT = 4, R_LAB = 5, R_SAFETY = 6, R_TRAIL = 7,
             R_VIEW = 8;
     private static final String[] REASONS = {"-", "already running", "stage", "days", "not night / not dark",
-            "laboratory (outage: real lab, MAIN FEED, B1-B4, not in the lift)", "unsafe place", "no trail (walk 15+ blocks)", "every start point in view"};
+            "laboratory (outage: real lab, MAIN FEED, B1-B4, not in the lift)", "unsafe place", "no safe spot behind the player", "every start point in view"};
 
     public static String reason(int r) {
         return r >= 0 && r < REASONS.length ? REASONS[r] : "?";
