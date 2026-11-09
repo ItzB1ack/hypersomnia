@@ -4,7 +4,8 @@
   "textures": {
     "particle": "hypersomnia:block/capsule_frame",
     "frame": "hypersomnia:block/capsule_frame",
-    "pad": "hypersomnia:block/capsule_pad"
+    "pad": "hypersomnia:block/capsule_pad",
+    "trim": "hypersomnia:block/capsule_trim"
   },
   "elements": [
     {
@@ -79,6 +80,54 @@
         },
         "south": {
           "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "detail_trim_west",
+      "from": [
+        0.95,
+        6.5,
+        1
+      ],
+      "to": [
+        1,
+        9.5,
+        15
+      ],
+      "faces": {
+        "west": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "detail_trim_east",
+      "from": [
+        15,
+        6.5,
+        1
+      ],
+      "to": [
+        15.05,
+        9.5,
+        15
+      ],
+      "faces": {
+        "east": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
         }
       }
     }

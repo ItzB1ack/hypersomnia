@@ -6,7 +6,9 @@
     "frame": "hypersomnia:block/capsule_frame",
     "pad": "hypersomnia:block/capsule_pad",
     "lid": "hypersomnia:block/capsule_lid",
-    "lid_inner": "hypersomnia:block/capsule_lid_inner"
+    "lid_inner": "hypersomnia:block/capsule_lid_inner",
+    "trim": "hypersomnia:block/capsule_trim",
+    "console": "hypersomnia:block/capsule_console"
   },
   "elements": [
     {
@@ -135,6 +137,78 @@
         },
         "south": {
           "texture": "#lid_inner"
+        }
+      }
+    },
+    {
+      "name": "detail_trim_west",
+      "from": [
+        0.95,
+        6.5,
+        1
+      ],
+      "to": [
+        1,
+        9.5,
+        15
+      ],
+      "faces": {
+        "west": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "detail_trim_east",
+      "from": [
+        15,
+        6.5,
+        1
+      ],
+      "to": [
+        15.05,
+        9.5,
+        15
+      ],
+      "faces": {
+        "east": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "detail_status",
+      "from": [
+        4,
+        12.5,
+        0.95
+      ],
+      "to": [
+        12,
+        15.5,
+        1
+      ],
+      "faces": {
+        "north": {
+          "texture": "#console",
+          "uv": [
+            3,
+            0,
+            13,
+            4
+          ]
         }
       }
     }

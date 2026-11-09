@@ -5,7 +5,9 @@
     "particle": "hypersomnia:block/capsule_frame",
     "frame": "hypersomnia:block/capsule_frame",
     "lid": "hypersomnia:block/capsule_lid",
-    "pad": "hypersomnia:block/capsule_pad"
+    "pad": "hypersomnia:block/capsule_pad",
+    "plinth": "hypersomnia:block/capsule_plinth",
+    "trim": "hypersomnia:block/capsule_trim"
   },
   "elements": [
     {
@@ -22,16 +24,40 @@
       ],
       "faces": {
         "north": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            1,
+            0,
+            15,
+            2
+          ]
         },
         "south": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            1,
+            0,
+            15,
+            2
+          ]
         },
         "east": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
         },
         "west": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
         },
         "up": {
           "texture": "#frame"
@@ -170,6 +196,54 @@
         },
         "down": {
           "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "detail_trim_west",
+      "from": [
+        0.95,
+        6.5,
+        0
+      ],
+      "to": [
+        1,
+        9.5,
+        16
+      ],
+      "faces": {
+        "west": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "detail_trim_east",
+      "from": [
+        15,
+        6.5,
+        0
+      ],
+      "to": [
+        15.05,
+        9.5,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
         }
       }
     }

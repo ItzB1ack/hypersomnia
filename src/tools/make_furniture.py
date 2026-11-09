@@ -14,7 +14,9 @@ cabinet_drawer_inner — выдвинутый ящик шкафа сверху: 
 crac_* / ups_* / battery_* — оборудование серверной B3 (LabEquipmentBlock, 2 блока): лицо верха и низа, бок, верх.
 Кондиционер — светлый корпус, пульт и жалюзи; ИБП — тёмный шкаф, экран, вентиляция; батарейный шкаф — щели, знак.
 Новые текстуры генерируются после старых (общий rnd): старые не меняются.
-capsule_frame / capsule_lid / capsule_pad — капсула сна B5 (CapsuleBlock): корпус, полупрозрачное стекло купола, ложе.
+capsule_frame / capsule_lid / capsule_lid_inner / capsule_pad — капсула сна B5 (CapsuleBlock): корпус, стекло купола, опалубок, ложе.
+capsule_pillow / capsule_plinth / capsule_trim / capsule_console — подушка, цоколь с прорезями, полоса-акцент на бортах,
+консоль изголовья (экран пульса и порт капельницы; области uv заданы в models/block/capsule_*.json, делает make_capsule_models.py).
 Корпус монитора — workstation_case из make_workstation.py (тот же ЭЛТ).
 Раскладка областей совпадает с uv в models/block/*.json: менять только вместе.
 Запуск из корня: python run_tool.py make_furniture"""
@@ -614,6 +616,11 @@ CAPSULE_GLASS = (12, 19, 27)
 def capsule_frame():
     im = img(CAPSULE_FRAME, 2)
     px = im.load()
+    for x in range(16):                            # шлифовка металла: вертикальные штрихи
+        d = rnd.randint(-3, 3)
+        for y in range(16):
+            r, g, b, _ = px[x, y]
+            px[x, y] = (max(0, min(255, r + d)), max(0, min(255, g + d)), max(0, min(255, b + d)), 255)
     for i in range(16):                            # фальц по краю
         px[i, 0] = noisy(CAPSULE_EDGE, 2)
         px[i, 15] = noisy(CAPSULE_SHADE, 2)
@@ -667,13 +674,84 @@ def capsule_pad():
         px[i, 15] = noisy((166, 171, 175), 2)
         px[0, i] = noisy((172, 177, 181), 2)
         px[15, i] = noisy((172, 177, 181), 2)
+    for y in range(1, 15):                         # стёжка ромбом: мягкая обивка
+        for x in range(1, 15):
+            if (x + y) % 8 == 0 or (x - y) % 8 == 0:
+                px[x, y] = noisy((170, 175, 179), 1)
     for x in range(1, 15):                         # шов поперёк ложа
         px[x, 8] = noisy((158, 164, 169), 1)
     return im
 
 
-# capsule_lid_inner — последним: не сдвигать общий rnd у уже существующих текстур.
+def capsule_pillow():
+    # Подушка изголовья: светлее ложа, складка по центру, тень снизу и справа.
+    im = img((206, 209, 212), 2)
+    px = im.load()
+    for i in range(16):
+        px[i, 0] = noisy((222, 225, 228), 2)
+        px[i, 15] = noisy((170, 175, 179), 2)
+        px[15, i] = noisy((176, 181, 185), 2)
+    for y in range(2, 14):                         # складка
+        px[7, y] = noisy((184, 189, 193), 1)
+        px[8, y] = noisy((192, 197, 200), 1)
+    return im
+
+
+def capsule_plinth():
+    # Цоколь капсулы: тёмный металл с вентиляционными прорезями (uv в моделях режет по высоте цоколя).
+    im = img((62, 72, 80), 2)
+    px = im.load()
+    for x in range(16):
+        if x % 3 == 1:                             # прорезь
+            for y in range(1, 16):
+                px[x, y] = noisy(DARK, 1)
+    for i in range(16):
+        px[i, 0] = noisy((84, 95, 104), 2)         # верхняя кромка
+    return im
+
+
+def capsule_trim():
+    # Полоса-акцент на бортах: тёмная окантовка и светлая линия с двумя лампами по краям (область uv 0,0..16,3).
+    im = img((44, 54, 64), 2)
+    px = im.load()
+    for x in range(16):
+        px[x, 0] = noisy((28, 36, 44), 1)
+        px[x, 1] = noisy(LIGHT, 2)
+        px[x, 2] = noisy((28, 36, 44), 1)
+    for x in (2, 13):                              # лампы состояния (холодные, не красные)
+        px[x, 1] = (205, 225, 232, 255)
+    return im
+
+
+def capsule_console():
+    # Консоль изголовья. Экран — область uv 3,0..13,4 (линия пульса с одним всплеском);
+    # порт капельницы — область 0,8..4,12 (светлое кольцо, тёмный центр).
+    im = img(PANEL, 2)
+    px = im.load()
+    for y in range(0, 4):
+        for x in range(3, 13):
+            px[x, y] = noisy((6, 10, 15), 1)
+    for x in range(3, 13):                         # безель экрана
+        px[x, 0] = noisy((16, 22, 28), 1)
+        px[x, 3] = noisy((16, 22, 28), 1)
+    for y in range(0, 4):
+        px[3, y] = noisy((16, 22, 28), 1)
+        px[12, y] = noisy((16, 22, 28), 1)
+    for x in range(4, 12):                         # линия пульса
+        px[x, 2] = noisy((96, 140, 155), 2)
+    px[7, 1] = (150, 200, 212, 255)                # всплеск
+    px[8, 2] = noisy((60, 92, 104), 1)
+    for y in range(8, 12):                         # порт капельницы
+        for x in range(0, 4):
+            edge = x in (0, 3) or y in (8, 11)
+            px[x, y] = noisy((150, 160, 168), 2) if edge else noisy((10, 14, 18), 1)
+    return im
+
+
+# Новые текстуры — после старых: общий rnd у уже существующих не сдвигается.
 for name, fn in (("capsule_frame", capsule_frame), ("capsule_lid", capsule_lid),
-                 ("capsule_pad", capsule_pad), ("capsule_lid_inner", capsule_lid_inner)):
+                 ("capsule_pad", capsule_pad), ("capsule_lid_inner", capsule_lid_inner),
+                 ("capsule_pillow", capsule_pillow), ("capsule_plinth", capsule_plinth),
+                 ("capsule_trim", capsule_trim), ("capsule_console", capsule_console)):
     fn().save(os.path.join(OUT, name + ".png"))
 print("furniture ok")

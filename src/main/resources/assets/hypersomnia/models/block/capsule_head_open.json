@@ -5,7 +5,11 @@
     "particle": "hypersomnia:block/capsule_frame",
     "frame": "hypersomnia:block/capsule_frame",
     "lid": "hypersomnia:block/capsule_lid",
-    "pad": "hypersomnia:block/capsule_pad"
+    "pad": "hypersomnia:block/capsule_pad",
+    "plinth": "hypersomnia:block/capsule_plinth",
+    "trim": "hypersomnia:block/capsule_trim",
+    "console": "hypersomnia:block/capsule_console",
+    "pillow": "hypersomnia:block/capsule_pillow"
   },
   "elements": [
     {
@@ -22,16 +26,40 @@
       ],
       "faces": {
         "north": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            1,
+            0,
+            15,
+            2
+          ]
         },
         "south": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            1,
+            0,
+            15,
+            2
+          ]
         },
         "east": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
         },
         "west": {
-          "texture": "#frame"
+          "texture": "#plinth",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
         },
         "up": {
           "texture": "#frame"
@@ -190,7 +218,13 @@
           "texture": "#frame"
         },
         "south": {
-          "texture": "#frame"
+          "texture": "#console",
+          "uv": [
+            3,
+            0,
+            13,
+            4
+          ]
         },
         "east": {
           "texture": "#frame"
@@ -220,22 +254,130 @@
       ],
       "faces": {
         "north": {
-          "texture": "#pad"
+          "texture": "#pillow"
         },
         "south": {
-          "texture": "#pad"
+          "texture": "#pillow"
         },
         "east": {
-          "texture": "#pad"
+          "texture": "#pillow"
         },
         "west": {
-          "texture": "#pad"
+          "texture": "#pillow"
         },
         "up": {
-          "texture": "#pad"
+          "texture": "#pillow"
         },
         "down": {
-          "texture": "#pad"
+          "texture": "#pillow"
+        }
+      }
+    },
+    {
+      "name": "detail_trim_west",
+      "from": [
+        0.95,
+        6.5,
+        0
+      ],
+      "to": [
+        1,
+        9.5,
+        16
+      ],
+      "faces": {
+        "west": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "detail_trim_east",
+      "from": [
+        15,
+        6.5,
+        0
+      ],
+      "to": [
+        15.05,
+        9.5,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#trim",
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "name": "detail_iv_port",
+      "from": [
+        15,
+        7,
+        1
+      ],
+      "to": [
+        15.8,
+        9,
+        3
+      ],
+      "faces": {
+        "east": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "north": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "south": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "up": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "down": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
         }
       }
     }

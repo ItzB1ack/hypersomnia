@@ -364,6 +364,11 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   Сон не начинается; закрытая снаружи отвечает «КАПСУЛА ЗАКРЫТА». Якорь,
   FACING и лежание сиденья хранятся в NBT. Предмета нет, ставит LabBuilder;
   lab_check.py проверяет ровно тройку CCC и достижимость.
+  Внешний вид [новое]: модели capsule_*.json наполняет src/tools/make_capsule_models.py (элементы detail_*,
+  пересоздаются при запуске; руками их не править), текстуры — make_furniture.py: capsule_frame/pad обновлены,
+  новые capsule_plinth (прорези цоколя), capsule_trim (полоса с лампами на бортах), capsule_console (экран
+  пульса на консоли изголовья + порт капельницы detail_iv_port), capsule_pillow. Габариты и формы столкновения
+  не менялись. Подробности и непроверенное: CHANGES/CHANGES_capsule_models.txt.
 - Стоячая капсула [новое]: UprightCapsuleBlock (capsule_upright), вертикальный вариант CapsuleBlock:
   колонка из трёх блоков BASE/MID/TOP снизу вверх, FACING — куда дверца, OPEN = дверца снята (пустая
   ячейка). Декор: сиденья и сна нет, закрытая отвечает «CAPSULE SEALED». Модели
