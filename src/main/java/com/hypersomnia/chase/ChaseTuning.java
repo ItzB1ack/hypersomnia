@@ -211,19 +211,25 @@ public final class ChaseTuning {
     public static final double WHISPER_HEAD_OFFSET = 1.2;
 
     // ------------------------------------------------------------------
-    // Рой мечущегося текста вместо глаз по углам экрана (client/ChaseText, client/TextSwarm) [новое]
+    // Пиксельная эрозия кадра и редкие фразы вместо глаз по углам (client/ChaseText,
+    // client/PixelDecay, client/TextSwarm) [новое]
     // ------------------------------------------------------------------
     /** Строк в начале погони и в пике; за FILL_TICKS число растёт до пика, паника немного опережает рост. */
-    public static final int SWARM_START = 8;
-    public static final int SWARM_MAX = 48;
+    public static final int SWARM_START = 3;
+    public static final int SWARM_MAX = 12;
     public static final int SWARM_FILL_TICKS = 480;
     public static final float SWARM_PANIC_BOOST = 0.18f;
     /** Появление роя при начале погони и затухание после конца (тики). */
     public static final int SWARM_FADE_IN_TICKS = 20;
     public static final int SWARM_END_FADE_TICKS = 24;
     /** Общая яркость роя 0..1. */
-    public static final float SWARM_ALPHA = 0.85f;
+    public static final float SWARM_ALPHA = 0.8f;
     /** Свободный центр кадра: полуширина и полувысота в долях экрана (прицел и то, что впереди, остаются читаемыми). */
     public static final float SWARM_AVOID_X = 0.16f;
     public static final float SWARM_AVOID_Y = 0.20f;
+    /** Пиксельная эрозия по краям кадра: стартовая доля, прирост за погоню, добавка от паники и редкий красный акцент. */
+    public static final float DECAY_START = 0.30f;
+    public static final float DECAY_GROW = 0.55f;
+    public static final float DECAY_PANIC = 0.15f;
+    public static final float DECAY_RED = 0.06f;
 }

@@ -64,9 +64,11 @@ public final class SleepSceneTuning {
     public static final int PAUSE_CLOSE_TICKS = 70;
     public static final int PAUSE_CLOSE_MAX_TICKS = 170;
     public static final int SCOLD_SHOW_TICKS = 80;
-    /** Рой текста в меню: число строк в пике и общая яркость [новое, вместо толпы глаз]. */
-    public static final int PAUSE_SWARM_MAX = 56;
+    /** Редкие фразы в меню: число строк в пике и общая яркость [новое, вместо толпы глаз]. */
+    public static final int PAUSE_SWARM_MAX = 12;
     public static final float PAUSE_SWARM_ALPHA = 0.9f;
+    /** Пиксельная эрозия краёв экрана и меню (PixelDecay); на гневе она доходит до кнопок [новое]. */
+    public static final float PAUSE_DECAY_MAX = 0.95f;
     /** Затемнение поверх меню (0..1): когда открыты оба глаза и когда проступил весь рой. */
     public static final float PAUSE_DARK_EYES = 0.55f;
     public static final float PAUSE_DARK_CROWD = 0.85f;

@@ -343,10 +343,14 @@ public final class SleepSceneOverlay {
         float dt = Mth.clamp((nn - gazeNanos) / 1.0e9f, 0f, 0.1f);
         gazeNanos = nn;
         gazeF = 1f - (float) Math.exp(-dt * 1000f / SleepSceneTuning.PAUSE_GAZE_TAU_MS);
+        // Эрозия и фразы не заходят на пару в центре и на место под субтитром (как раньше толпа глаз).
+        float[] avoid = {w / 2f, h * 0.42f, w * 0.17f, h * 0.14f, w / 2f, h * 0.855f, w * 0.38f, h * 0.095f};
+        long swarmSeed = SleepSceneState.seed * 31L + SleepSceneState.scoldCount * 7919L + 17L;
         if (t >= SleepSceneTuning.PAUSE_CROWD_TICKS) {
-            // Рой не заходит на пару в центре и на место под субтитром (как раньше толпа глаз).
-            float[] avoid = {w / 2f, h * 0.42f, w * 0.17f, h * 0.14f, w / 2f, h * 0.855f, w * 0.38f, h * 0.095f};
-            TextSwarm.draw(g, w, h, now, SleepSceneState.seed * 31L + SleepSceneState.scoldCount * 7919L + 17L,
+            float decay = crowd * SleepSceneTuning.PAUSE_DECAY_MAX * (rage ? 1f : 0.85f);
+            PixelDecay.draw(g, w, h, now, swarmSeed ^ 0x9E3779B9L, decay, rage ? 1f : 0.35f,
+                    rage ? 1f : 0.2f, avoid);
+            TextSwarm.draw(g, w, h, now, swarmSeed,
                     Math.round(SleepSceneTuning.PAUSE_SWARM_MAX * crowd), SleepSceneTuning.PAUSE_SWARM_ALPHA,
                     rage ? 1f : 0.35f, 0f, avoid);
         }

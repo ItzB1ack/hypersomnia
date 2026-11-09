@@ -64,7 +64,7 @@ cabinet k = plan_l5
 cabinet m = note_l3
 lock J = 4
 gate N = 4
-; финал (канон, пункт 9): детская за воротами N — кровать S (уснуть), дверь O (проснуться), монитор записи M, Фрагмент X
+; финал (канон, пункт 9): детская за воротами N — кровать S (уснуть), дверь O (проснуться), монитор записи M, осколок X
 finale S = bed
 finale O = door
 finale M = recorder
@@ -79,5 +79,5 @@ cabinet t = mem_4_session12
 cabinet q = mem_5_memo
 cabinet y = voss_note
 cabinet x = mem_6_protocol
-; рисунок 4: на красном коврике между кроватью и Фрагментом (FinaleHandler кладёт при входе в детскую)
+; рисунок 4: на красном коврике между кроватью и осколком (FinaleHandler кладёт при входе в детскую)
 finale u = toy

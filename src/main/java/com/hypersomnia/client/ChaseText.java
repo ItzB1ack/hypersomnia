@@ -14,10 +14,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Рой мечущегося текста в погоне [новое, вместо глаз по углам]: вопросы, обвинения и знаки вопроса (TextSwarm).
- * Со временем погони строк становится больше, паника немного опережает рост; открытые строки не пропадают
- * до конца погони. Центр кадра свободен. Погоня кончилась — рой гаснет за SWARM_END_FADE_TICKS.
- * Слой chase_text (ChaseOverlay): над виньеткой, под чёрным кадром поимки. Числа — ChaseTuning.SWARM_*.
+ * Погоня на экране [новое, вместо глаз по углам]: кадр по краям теряет квадратные пиксели (PixelDecay), из них
+ * собираются редкие фразы — вопросы, обвинения и знаки вопроса (TextSwarm). Со временем погони эрозия и число фраз
+ * растут, паника немного опережает рост; центр кадра и путь впереди свободны. Погоня кончилась — всё гаснет за
+ * SWARM_END_FADE_TICKS. Слой chase_text (ChaseOverlay): над виньеткой, под чёрным кадром поимки.
+ * Числа — ChaseTuning.SWARM_* и DECAY_*.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class ChaseText {
@@ -90,12 +91,18 @@ public final class ChaseText {
         int w = g.guiWidth();
         int h = g.guiHeight();
         float[] avoid = {w / 2f, h / 2f, w * ChaseTuning.SWARM_AVOID_X, h * ChaseTuning.SWARM_AVOID_Y};
+        float panic = ChaseClient.panicNow();
+        float grow = Mth.clamp(chaseTicks / (float) ChaseTuning.SWARM_FILL_TICKS, 0f, 1f);
+        float decay = fade * Mth.clamp(ChaseTuning.DECAY_START + ChaseTuning.DECAY_GROW * grow
+                + ChaseTuning.DECAY_PANIC * panic, 0f, 1f);
+        long now = System.currentTimeMillis();
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        TextSwarm.draw(g, w, h, System.currentTimeMillis(), seed, peakWanted, ChaseTuning.SWARM_ALPHA * fade,
-                ChaseClient.panicNow(), ChaseClient.pulse(partial), avoid);
+        PixelDecay.draw(g, w, h, now, seed, decay, panic, ChaseTuning.DECAY_RED, avoid);
+        TextSwarm.draw(g, w, h, now, seed, peakWanted, ChaseTuning.SWARM_ALPHA * fade,
+                panic, ChaseClient.pulse(partial), avoid);
         RenderSystem.disableBlend();
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();

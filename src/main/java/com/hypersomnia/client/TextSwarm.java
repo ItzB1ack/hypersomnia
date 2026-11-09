@@ -27,6 +27,10 @@ public final class TextSwarm {
     private static final float MARK_SHARE = 0.34f;
     /** Шаг дрожи: положение каждого слота меняется раз в JITTER_MS. */
     private static final int JITTER_MS = 70;
+    /** Фраза собирается из кучки пикселей за ASSEMBLE_MS мс, а не появляется готовой строкой [новое]. */
+    private static final int ASSEMBLE_MS = 260;
+    /** Максимум пиксельных точек на одну сборку. */
+    private static final int ASSEMBLE_DOTS = 14;
     private static final int QUESTION_RGB = 0xDDE6EC;
     private static final int ACCUSE_RGB = 0xE0B7BA;
 
@@ -59,6 +63,8 @@ public final class TextSwarm {
             if (unit(mix(base, q), 13) < 0.06f) a *= 0.3f; // редкая вспышка-пропуск
             int alpha = (int) (Mth.clamp(a, 0f, 1f) * 255f);
             if (alpha < 12) continue;
+            // Сборка из пикселей: в начале жизни строка ещё не готова, точки слетаются к её месту.
+            float asm = Mth.clamp(f * lifeMs / ASSEMBLE_MS, 0f, 1f);
 
             Component text;
             float scale;
@@ -85,11 +91,29 @@ public final class TextSwarm {
             if (blocked(avoid, x, y, tw / 2f, th / 2f)) continue;
             float rot = (unit(ch, 10) - 0.5f) * 28f + (unit(mix(base, q), 16) - 0.5f) * 10f * panic;
 
+            // Сборка: точки летят к прямоугольнику будущей строки и гаснут, когда буквы уже проявились.
+            if (asm < 1f) {
+                int dots = Math.min(ASSEMBLE_DOTS, 4 + (int) (tw / 10f));
+                for (int dot = 0; dot < dots; dot++) {
+                    long db = mix(ch, 30 + dot);
+                    float angle = unit(db, 1) * 6.2832f;
+                    float dist = (18f + unit(db, 2) * 46f) * scale * (1f - asm);
+                    float dotX = x + (unit(db, 3) - 0.5f) * tw + (float) Math.cos(angle) * dist;
+                    float dotY = y + (unit(db, 4) - 0.5f) * th + (float) Math.sin(angle) * dist;
+                    int dotAlpha = (int) (alpha * (0.9f - 0.5f * asm));
+                    if (dotAlpha < 12) continue;
+                    int dotSize = 1 + (int) (unit(db, 5) * 2f);
+                    g.fill((int) dotX, (int) dotY, (int) dotX + dotSize, (int) dotY + dotSize,
+                            (dotAlpha << 24) | rgb);
+                }
+            }
+            int textAlpha = Math.round(alpha * (0.25f + 0.75f * asm));
+
             g.pose().pushPose();
             g.pose().translate(x, y, 0f);
             g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
             g.pose().scale(scale, scale, 1f);
-            g.drawString(font, text, -Math.round(textW / 2f), -4, (alpha << 24) | rgb, false);
+            g.drawString(font, text, -Math.round(textW / 2f), -4, (textAlpha << 24) | rgb, false);
             g.pose().popPose();
         }
         // Текст буферизуется: сбрасываем сразу, чтобы он не оказался поверх более поздних слоёв (пара глаз, чёрный кадр).
