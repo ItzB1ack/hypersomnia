@@ -50,6 +50,13 @@ public final class SleepSceneOverlay {
     private static final float EYE_DX = 2.3f;
     /** Общий размер глаз (1 = как нарисованы в текстуре). Больше 1.25 уже не помещаются в голову. */
     private static final float EYE_SCALE = 1.2f;
+    /**
+     * Вертикальная поправка пары в меню паузы: холст склеры/век шире раскрытия, поэтому без неё
+     * глаз читается как сплющенная щель. Растягиваем склеру и веки; зрачок остаётся круглым.
+     */
+    private static final float PAUSE_EYE_VSCALE = 1.3f;
+    /** Веки пары в меню паузы: лица вокруг нет, поэтому тёмное кольцо иначе читается как обводка. */
+    private static final float PAUSE_LIDS_ALPHA = 0.55f;
     private static final float EYE_Y = 5.4f;
 
     /** Пикселей на юнит у текстур глаз (выше, чем у тела: нужны блики и кромка). Должно совпадать с EYE_PX в скрипте. */
@@ -369,7 +376,7 @@ public final class SleepSceneOverlay {
             float alpha = (right ? 0.82f : 1f) * (0.90f + 0.10f * rnd.nextFloat());
             float cxU = side * EYE_DX;
             float cyU = EYE_Y + (right ? 0.35f : 0f);
-            layer(g, right ? EYE_SCLERA_R : EYE_SCLERA_L, cxU, cyU, k, size, size * sy, alpha);
+            layer(g, right ? EYE_SCLERA_R : EYE_SCLERA_L, cxU, cyU, k, size, size * sy * PAUSE_EYE_VSCALE, alpha);
             long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
             int si = right ? 1 : 0;
             float tx = Mth.clamp((mx - w / 2f) / (w * 0.5f), -1f, 1f) * SleepSceneTuning.PAUSE_PAIR_LOOK_X
@@ -381,7 +388,7 @@ public final class SleepSceneOverlay {
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
             layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
-            layer(g, right ? EYE_LIDS_R : EYE_LIDS_L, cxU, cyU, k, size, size * sy, 1f);
+            layer(g, right ? EYE_LIDS_R : EYE_LIDS_L, cxU, cyU, k, size, size * sy * PAUSE_EYE_VSCALE, PAUSE_LIDS_ALPHA);
         }
         g.pose().popPose();
         RenderSystem.disableBlend();
