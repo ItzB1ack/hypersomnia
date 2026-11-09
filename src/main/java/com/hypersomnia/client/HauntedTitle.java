@@ -1,18 +1,21 @@
 package com.hypersomnia.client;
 
 import com.hypersomnia.Hypersomnia;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.PlainTextButton;
+import net.minecraft.client.gui.components.SplashRenderer;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -20,6 +23,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,8 +39,8 @@ import java.util.List;
  * интерфейсе внутри мира: осколок смотрит на игрока снаружи, пока сеанс ещё не начат.
  *
  * Стадия хранится в config/hypersomnia_title.txt и переживает перезапуск. Пока эффект включён, ванильная панорама,
- * логотип и подписи не рисуются; подпись выбранной кнопки показывается внутри её рамки, чтобы меню оставалось
- * рабочим.
+ * логотип, сплэш, версия, копирайт и подписи не рисуются; подпись выбранной кнопки показывается внутри её рамки,
+ * чтобы меню оставалось рабочим. Все надписи — ванильным шрифтом Minecraft.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class HauntedTitle {
@@ -58,6 +62,9 @@ public final class HauntedTitle {
             "I remained here.", "The count was interrupted.", "The door was closed.",
             "You were allowed to forget."
     };
+
+    private static final ResourceLocation TITLE_BLACK = tex("title_black");
+    private static final ResourceLocation TITLE_GLOW = tex("title_glow");
 
     private static boolean loaded;
     private static int maxStage;
@@ -89,6 +96,10 @@ public final class HauntedTitle {
     private static final Box[] ICON_BOXES = {UPPER_LEFT, UPPER_RIGHT};
     /** Уже расставленные виджеты в смысловом порядке: первая — Singleplayer, с неё начинается выбор. */
     private static final List<AbstractWidget> ORDER = new ArrayList<>();
+
+    private static ResourceLocation tex(String name) {
+        return ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "textures/misc/" + name + ".png");
+    }
 
     /** Сервер сообщил стадию: запоминаем максимум. Вызывается из клиентского тика. */
     public static void observe(int stage) {
@@ -138,7 +149,25 @@ public final class HauntedTitle {
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
+        hideSplash(screen);
         layout(screen);
+    }
+
+    /**
+     * Жёлтый сплэш — ванильная шутка, которая не вписывается в пустой экран. Поле приватное, поэтому ищем его
+     * по типу, а не по имени: так рефлексия переживёт смену маппингов.
+     */
+    private static void hideSplash(TitleScreen screen) {
+        for (Field field : TitleScreen.class.getDeclaredFields()) {
+            if (!SplashRenderer.class.isAssignableFrom(field.getType())) continue;
+            try {
+                field.setAccessible(true);
+                field.set(screen, null);
+            } catch (ReflectiveOperationException | RuntimeException ignored) {
+                // Если поле закрыто — чёрный кадр всё равно закроет сплэш.
+            }
+            return;
+        }
     }
 
     /**
@@ -155,31 +184,40 @@ public final class HauntedTitle {
         long now = System.currentTimeMillis();
         float level = Mth.clamp((maxStage - (MIN_STAGE - 1)) / 3f, 0f, 1f);
         GuiGraphics g = event.getGuiGraphics();
+        Font font = Minecraft.getInstance().font;
 
-        // 1) Полный чёрный кадр вместо панорамы, логотипа и сплэша. Референс — именно пустой экран.
-        g.fill(0, 0, w, h, 0xFF03050A);
-
-        // 2) Очень слабая эрозия по краям: кадр не абсолютно чистый, но и не спорит с рамками.
         AbstractWidget selected = selectedButton(event.getMouseX(), event.getMouseY());
         float eyeW = eyeWidth(w, h);
-        float[] avoid = avoid(screen, w / 2f, h * 0.47f, eyeW);
-        PixelDecay.draw(g, w, h, now, 0x7A11C0DEL, 0.09f + 0.07f * level, 0.04f + 0.04f * level,
-                0.01f + 0.02f * level, avoid);
+        float eyeX = w / 2f;
+        float eyeY = h * 0.47f;
 
-        // 3) Обрывки фраз в углах: тонкий шрифт, медленно перебирается и дрожит.
-        drawCorners(g, w, h, now, level);
+        // 1) Сбрасываем накопленные ванильные батчи (версия, брендинг, сплэш), затем закрываем экран чёрным.
+        //    Без flush текст может оказаться в буфере, который отрисуется уже после заливки.
+        g.flush();
+        g.blit(TITLE_BLACK, 0, 0, 0, 0f, 0f, w, h, w, h);
 
-        // 4) Восемь пустых рамок. Подпись видна только у выбранной кнопки, чтобы меню оставалось понятным.
-        Font font = Minecraft.getInstance().font;
+        // 2) Мягкое свечение вокруг глаза: чёрный экран остаётся чёрным, но центр получает глубину.
+        drawGlow(g, eyeX, eyeY, eyeW, now, level);
+
+        // 3) Восемь пустых рамок: неровные штрихи, лёгкое дыхание яркости, подсветка выбранной.
         for (GuiEventListener listener : screen.children()) {
             if (!(listener instanceof AbstractWidget widget) || !widget.visible) continue;
-            drawBox(g, font, widget, widget == selected);
+            drawFrame(g, widget, widget == selected, now);
         }
 
-        // 5) Глаз осколка в центре. Зрачок поворачивается к выбранной кнопке.
-        drawEye(g, w / 2f, h * 0.47f, eyeW, selected, now, level);
+        // 4) Глаз осколка в центре. Зрачок поворачивается к выбранной кнопке и не выходит за белок.
+        drawEye(g, eyeX, eyeY, eyeW, selected, now, level);
 
-        // 6) Тултипы (язык, доступность, отключённый мультиплеер) оказались под чёрным кадром — возвращаем сверху.
+        // 5) Фиксируем всю графику, чтобы буквы гарантированно легли сверху, а не под рамками.
+        g.flush();
+
+        // 6) Обрывки фраз в углах — ванильный шрифт с очень мелкой дрожью.
+        drawCorners(g, font, w, h, now, level);
+
+        // 7) Подпись только у выбранной кнопки: рамки остаются пустыми, как в референсе.
+        if (selected != null) drawLabel(g, font, selected);
+
+        // 8) Тултипы (язык, доступность, отключённый мультиплеер) оказались под чёрным кадром — возвращаем сверху.
         AbstractWidget hover = hovered(event.getMouseX(), event.getMouseY());
         if (hover != null) {
             Tooltip tip = hover.getTooltip();
@@ -288,62 +326,109 @@ public final class HauntedTitle {
         return Math.max(48f, Math.min(w * 0.17f, h * 0.30f));
     }
 
-    /** Рамки кнопок и глаз: сюда эрозия не заходит. */
-    private static float[] avoid(TitleScreen screen, float eyeX, float eyeY, float eyeW) {
-        int n = 0;
-        for (GuiEventListener listener : screen.children()) {
-            if (listener instanceof AbstractWidget widget && widget.visible) n++;
-        }
-        float[] out = new float[(n + 1) * 4];
-        int i = 0;
-        for (GuiEventListener listener : screen.children()) {
-            if (!(listener instanceof AbstractWidget widget) || !widget.visible) continue;
-            out[i++] = widget.getX() + widget.getWidth() / 2f;
-            out[i++] = widget.getY() + widget.getHeight() / 2f;
-            out[i++] = widget.getWidth() / 2f + 6f;
-            out[i++] = widget.getHeight() / 2f + 6f;
-        }
-        out[i++] = eyeX;
-        out[i++] = eyeY;
-        out[i++] = eyeW * 0.55f;
-        out[i] = eyeW * 0.42f;
-        return out;
+    private static void drawGlow(GuiGraphics g, float cx, float cy, float eyeW, long now, float level) {
+        float pulse = (float) Math.sin(now / 1700.0) * 0.03f;
+        float size = eyeW * (3.15f + pulse + 0.10f * level);
+        float alpha = Mth.clamp(0.42f + 0.14f * level, 0f, 0.68f);
+        int s = Math.max(8, Math.round(size));
+        int x = Math.round(cx - s / 2f);
+        int y = Math.round(cy - s / 2f);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        g.setColor(1f, 1f, 1f, alpha);
+        g.blit(TITLE_GLOW, x, y, 0, 0f, 0f, s, s, s, s);
+        g.setColor(1f, 1f, 1f, 1f);
+        RenderSystem.disableBlend();
     }
 
-    private static void drawBox(GuiGraphics g, Font font, AbstractWidget widget, boolean selected) {
+    /**
+     * Рамка нарисована «от руки»: тонкая неровная линия с утолщениями и чуть выходящими углами. Выбранная
+     * кнопка получает мягкое свечение и очень слабую заливку, чтобы взгляд сразу находил её.
+     */
+    private static void drawFrame(GuiGraphics g, AbstractWidget widget, boolean selected, long now) {
         int x = widget.getX();
         int y = widget.getY();
         int w = widget.getWidth();
         int h = widget.getHeight();
         boolean lit = selected && widget.active;
-        int edge = !widget.active ? 0x88 : lit ? 0xFFF4F8FA : 0xB8B6C3C9;
-        int t = lit ? 2 : 1;
-        g.fill(x, y, x + w, y + t, edge);
-        g.fill(x, y + h - t, x + w, y + h, edge);
-        g.fill(x, y, x + t, y + h, edge);
-        g.fill(x + w - t, y, x + w, y + h, edge);
+        int edge = !widget.active ? 0xB85C666B : lit ? 0xFFF3F8FA : 0xC0AEB9BE;
 
-        // Референс оставляет рамки пустыми; подпись появляется только у выбранной кнопки.
-        if (!selected) return;
+        if (lit) {
+            int pulse = (int) Math.round(2.0 + 2.0 * Math.sin(now / 520.0));
+            for (int i = 5; i >= 1; i--) {
+                int a = Math.min(36, 8 + pulse + (5 - i) * 4);
+                outline(g, x - i, y - i, w + i * 2, h + i * 2, (a << 24) | 0xC9E2EA);
+            }
+            // Едва заметная тёплая дымка внутри — пустая рамка не выглядит мёртвой.
+            g.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x07E6F0F2);
+        }
+
+        // Базовая линия и мелкие «перекосы» пера.
+        g.fill(x, y, x + w, y + 1, edge);
+        g.fill(x, y + h - 1, x + w, y + h, edge);
+        g.fill(x, y, x + 1, y + h, edge);
+        g.fill(x + w - 1, y, x + w, y + h, edge);
+
+        int tx = Math.max(6, w / 6);
+        int ty = Math.max(4, h / 5);
+        g.fill(x + w / 5, y, x + w / 5 + tx, y + 2, edge);
+        g.fill(x + w - w / 4, y + h - 2, x + w - w / 4 + tx, y + h, edge);
+        g.fill(x, y + h / 2, x + 2, y + h / 2 + ty, edge);
+        g.fill(x + w - 2, y + h / 6, x + w, y + h / 6 + ty, edge);
+
+        // Углы чуть выходят за прямоугольник, как у настоящего наброска.
+        g.fill(x - 1, y - 1, x + 3, y, edge);
+        g.fill(x + w - 3, y - 1, x + w + 1, y, edge);
+        g.fill(x - 1, y + h, x + 3, y + h + 1, edge);
+        g.fill(x + w - 3, y + h, x + w + 1, y + h + 1, edge);
+    }
+
+    private static void outline(GuiGraphics g, int x, int y, int w, int h, int color) {
+        g.fill(x, y, x + w, y + 1, color);
+        g.fill(x, y + h - 1, x + w, y + h, color);
+        g.fill(x, y, x + 1, y + h, color);
+        g.fill(x + w - 1, y, x + w, y + h, color);
+    }
+
+    private static void drawLabel(GuiGraphics g, Font font, AbstractWidget widget) {
         String label = widget.getMessage().getString();
         if (label.isBlank()) return;
-        int color = !widget.active ? 0xFF7E8A90 : 0xFFE9F0F3;
+        int x = widget.getX();
+        int y = widget.getY();
+        int w = widget.getWidth();
+        int h = widget.getHeight();
+        int color = !widget.active ? 0xFF7C878C : 0xFFEDF4F6;
         // Подпись может быть шире рамки (особенно при GUI scale 4): сжимаем, чтобы не вылезала за края.
         int textW = font.width(label);
-        float scale = Math.min(1f, (w - 6f) / Math.max(1, textW));
+        float scale = Math.min(1f, (w - 8f) / Math.max(1, textW));
+        float baseY = y + (h - font.lineHeight * scale) / 2f;
         g.pose().pushPose();
-        g.pose().translate(x + w / 2f, y + (h - font.lineHeight * scale) / 2f, 0f);
+        g.pose().translate(x + w / 2f, baseY, 0f);
         g.pose().scale(scale, scale, 1f);
         g.drawString(font, label, -textW / 2, 0, color, false);
         g.pose().popPose();
+
+        int underline = Math.min(w - 10, textW + 8);
+        if (underline > 0) {
+            int ux = x + (w - underline) / 2;
+            int uy = y + h - 5;
+            g.fill(ux, uy, ux + underline, uy + 1, (color & 0x00FFFFFF) | 0x50000000);
+        }
     }
 
     private static void drawEye(GuiGraphics g, float ex, float ey, float eyeW, AbstractWidget selected,
                                 long now, float level) {
         float tx = selected == null ? ex : selected.getX() + selected.getWidth() / 2f;
         float ty = selected == null ? ey : selected.getY() + selected.getHeight() / 2f;
-        float wantX = Mth.clamp((tx - ex) / (eyeW * 0.58f), -1f, 1f);
-        float wantY = Mth.clamp((ty - ey) / (eyeW * 0.42f), -0.9f, 0.9f);
+        float wantX = Mth.clamp((tx - ex) / (eyeW * 0.72f), -0.75f, 0.75f);
+        float wantY = Mth.clamp((ty - ey) / (eyeW * 0.62f), -0.42f, 0.42f);
+        // Белок миндалевидный: при одновременном смещении по обеим осям зрачок вылезал бы за его край.
+        // Поэтому держим суммарное смещение внутри единичного радиуса.
+        float r = Mth.sqrt((wantX / 0.75f) * (wantX / 0.75f) + (wantY / 0.42f) * (wantY / 0.42f));
+        if (r > 1f) {
+            wantX /= r;
+            wantY /= r;
+        }
         if (Float.isNaN(gazeX) || now - gazeAt > 500L) {
             gazeX = wantX;
             gazeY = wantY;
@@ -353,11 +438,12 @@ public final class HauntedTitle {
         }
         gazeAt = now;
         // Живая мелкая поправка: зрачок не стоит идеально ровно.
-        float dx = gazeX + (float) Math.sin(now / 890.0) * 0.02f;
-        float dy = gazeY + (float) Math.sin(now / 1130.0) * 0.015f;
+        float dx = gazeX + (float) Math.sin(now / 890.0) * 0.012f;
+        float dy = gazeY + (float) Math.sin(now / 1130.0) * 0.010f;
         float blink = blink(now, 5600, 0);
         float open = Mth.clamp((0.97f + 0.03f * level) * blink, 0.08f, 1f);
-        EyeGlyphs.draw(g, ex, ey, eyeW, open, dx, dy, 0.90f, 0f);
+        // Радужка чуть меньше проёма: белок миндалевидный, и при повороте зрачка полный круг вылезал бы за него.
+        EyeGlyphs.draw(g, ex, ey, eyeW, open, dx, dy, 0.90f, 0f, 0.84f);
     }
 
     /** 1 = глаз открыт, ~0.08 = закрыт. Моргание 170 мс раз в period мс. */
@@ -367,15 +453,16 @@ public final class HauntedTitle {
         return 1f - 0.92f * (float) Math.sin(Math.PI * ph / 170.0);
     }
 
-    private static void drawCorners(GuiGraphics g, int w, int h, long now, float level) {
-        // Три места как в референсе: верх, низ слева, низ справа.
-        drawCorner(g, w, h, now, level, 0, w * 0.24f, h * 0.145f, -4.5f);
-        drawCorner(g, w, h, now, level, 1, w * 0.03f, h * 0.93f, 2.0f);
-        drawCorner(g, w, h, now, level, 2, w * 0.69f, h * 0.94f, -2.5f);
+    private static void drawCorners(GuiGraphics g, Font font, int w, int h, long now, float level) {
+        // Три места как в референсе: верх по центру, низ слева, низ справа.
+        drawCorner(g, font, now, level, 0, w * 0.50f, h * 0.135f, -4.5f, 0);
+        drawCorner(g, font, now, level, 1, w * 0.03f, h * 0.93f, 2.0f, -1);
+        drawCorner(g, font, now, level, 2, w * 0.97f, h * 0.94f, -2.5f, 1);
     }
 
-    private static void drawCorner(GuiGraphics g, int w, int h, long now, float level,
-                                   int corner, float x, float y, float angle) {
+    /** align: -1 слева, 0 по центру, 1 справа. Шрифт — ванильный Minecraft, с лёгкой дрожью букв. */
+    private static void drawCorner(GuiGraphics g, Font font, long now, float level,
+                                   int corner, float x, float y, float angle, int align) {
         // Сдвиг по фазе: углы меняют фразу не одновременно.
         long local = now + corner * 2400L;
         int idx = (int) Math.floorMod(local / PHRASE_MS + corner * 3L, LINES);
@@ -386,42 +473,41 @@ public final class HauntedTitle {
         long ph = Math.floorMod(local, PHRASE_MS);
         float f = ph / (float) PHRASE_MS;
         float env = f < 0.16f ? f / 0.16f : f > 0.78f ? (1f - f) / 0.22f : 1f;
-        float alpha = Mth.clamp((0.34f + 0.20f * level) * env, 0f, 0.62f);
+        float alpha = Mth.clamp((0.40f + 0.20f * level) * env, 0f, 0.66f);
         if (alpha <= 0.01f) return;
-        float px = Mth.clamp(h * 0.050f, 15f, 40f);
-        boolean smooth = FragmentFont.ready();
-        Font mcFont = Minecraft.getInstance().font;
-        long q = now / JITTER_MS;
+
+        float tracking = 0.45f;
+        float width = 0f;
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            i += Character.charCount(cp);
+            width += font.width(new String(Character.toChars(cp))) + tracking;
+        }
+        float startX = align < 0 ? 0f : align > 0 ? -width : -width / 2f;
 
         g.pose().pushPose();
         g.pose().translate(x, y, 0f);
         g.pose().mulPose(Axis.ZP.rotationDegrees(angle));
-        g.setColor(0.90f, 0.93f, 0.95f, alpha);
-        if (smooth) {
-            float pen = 0f;
-            int i = 0;
-            while (i < text.length()) {
-                int cp = text.codePointAt(i);
-                i += Character.charCount(cp);
-                if (cp == ' ') {
-                    pen += FragmentFont.advance(cp, px);
-                    continue;
-                }
-                long hash = mix(corner * 131L + idx, i) ^ q;
-                float jx = (((hash) & 15L) - 7.5f) / 7.5f * 0.55f;
-                float jy = (((hash >>> 4) & 15L) - 7.5f) / 7.5f * 0.55f;
-                float rot = (((hash >>> 8) & 15L) - 7.5f) / 7.5f * 3.0f;
-                g.pose().pushPose();
-                g.pose().translate(pen, 0f, 0f);
-                g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
-                FragmentFont.glyph(g, cp, jx, jy, px);
-                g.pose().popPose();
-                pen += FragmentFont.advance(cp, px);
-            }
-        } else {
-            g.drawString(mcFont, text, 0, 0, (int) (alpha * 255f) << 24 | 0xDCE6EA, false);
+
+        int color = ((int) (alpha * 255f) << 24) | 0xE4EDF0;
+        long q = now / JITTER_MS;
+        float pen = startX;
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            i += Character.charCount(cp);
+            String glyph = new String(Character.toChars(cp));
+            long hash = mix(corner * 131L + idx, i) ^ q;
+            float jx = ((hash & 15L) - 7.5f) / 7.5f * 0.45f;
+            float jy = (((hash >>> 4) & 15L) - 7.5f) / 7.5f * 0.55f;
+            float rot = (((hash >>> 8) & 15L) - 7.5f) / 7.5f * 1.8f;
+            g.pose().pushPose();
+            g.pose().translate(pen + jx, jy, 0f);
+            g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
+            g.drawString(font, glyph, 0, 0, color, false);
+            g.pose().popPose();
+            pen += font.width(glyph) + tracking;
         }
-        g.setColor(1f, 1f, 1f, 1f);
         g.pose().popPose();
     }
 

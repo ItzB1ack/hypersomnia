@@ -36,6 +36,15 @@ public final class EyeGlyphs {
     /** То же с наклоном всего глаза (градусы): третий признак глазного алфавита. */
     public static void draw(GuiGraphics g, float cx, float cy, float widthPx,
                             float open, float dx, float dy, float alpha, float tiltDeg) {
+        draw(g, cx, cy, widthPx, open, dx, dy, alpha, tiltDeg, 1f);
+    }
+
+    /**
+     * irisScale &lt; 1 уменьшает радужку. Нужен титульному экрану: у миндалевидного белка радужка почти
+     * равна проёму по высоте, и при смещении зрачка любая её часть выходила бы за глаз.
+     */
+    public static void draw(GuiGraphics g, float cx, float cy, float widthPx,
+                            float open, float dx, float dy, float alpha, float tiltDeg, float irisScale) {
         open = Mth.clamp(open, 0.08f, 1f);
         float unit = widthPx / W_U;
         float sc = unit / PX;
@@ -46,7 +55,9 @@ public final class EyeGlyphs {
         g.pose().translate(cx, cy, 0f);
         if (tiltDeg != 0f) g.pose().mulPose(Axis.ZP.rotationDegrees(tiltDeg));
         layer(g, SCLERA, W_U, H_U, 0f, 0f, sc, open, alpha);
-        layer(g, IRIS, IRIS_U, IRIS_U, dx * unit * 1.0f, dy * unit * 0.6f * open, sc, open, alpha);
+        float iris = Mth.clamp(irisScale, 0.25f, 1f);
+        scaled(g, IRIS, IRIS_U, IRIS_U, dx * unit * 1.0f, dy * unit * 0.6f * open,
+                sc * iris, sc * iris * open, alpha);
         layer(g, LIDS, W_U, H_U, 0f, 0f, sc, open, 1f);
         g.pose().popPose();
         g.setColor(1f, 1f, 1f, 1f);
@@ -55,11 +66,16 @@ public final class EyeGlyphs {
 
     private static void layer(GuiGraphics g, ResourceLocation t, float wU, float hU,
                               float offX, float offY, float sc, float open, float alpha) {
+        scaled(g, t, wU, hU, offX, offY, sc, sc * open, alpha);
+    }
+
+    private static void scaled(GuiGraphics g, ResourceLocation t, float wU, float hU,
+                               float offX, float offY, float sx, float sy, float alpha) {
         int w = Math.round(wU * PX);
         int h = Math.round(hU * PX);
         g.pose().pushPose();
         g.pose().translate(offX, offY, 0f);
-        g.pose().scale(sc, sc * open, 1f);
+        g.pose().scale(sx, sy, 1f);
         g.setColor(1f, 1f, 1f, Mth.clamp(alpha, 0f, 1f));
         g.blit(t, -w / 2, -h / 2, 0, 0f, 0f, w, h, w, h);
         g.pose().popPose();
