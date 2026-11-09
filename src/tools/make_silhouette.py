@@ -95,21 +95,24 @@ def lid_curves(x):
     return top, bot
 
 
-def eye_grid():
-    W, H = int(EYE_W * EYE_PX), int(EYE_H * EYE_PX)
+def eye_grid(px=EYE_PX):
+    W, H = int(EYE_W * px), int(EYE_H * px)
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    return W, H, (xx - W / 2) / EYE_PX, (yy - H / 2) / EYE_PX
+    return W, H, (xx - W / 2) / px, (yy - H / 2) / px
 
 
-def eye_sclera(path, seed=21, lid=0.0, lower=0.0, lash=0.0):
+def eye_sclera(path, seed=21, lid=0.0, lower=0.0, lash=0.0, px=EYE_PX):
     """Белок с прожилками. lid/lower — добавочная тень верхнего/нижнего века (0 = как на лице).
 
     Для пары в меню паузы лица вокруг нет, и отдельный слой век оставлял над глазом светлую
     дугу; поэтому тень века запекается прямо в белок паузного варианта. lash — линия ресниц
     у самого верхнего края: без неё глаз читался «лысым» во время раскрытия.
+    px — пикселей на юнит: для пары в паузе картинка считается сразу в 4× разрешении,
+    а не растягивается из 1× (растягивание оставляло «ступеньки» на кромке).
     """
     rng = np.random.default_rng(seed)
-    W, H, x, y = eye_grid()
+    ss = px / EYE_PX
+    W, H, x, y = eye_grid(px)
     top, bot = lid_curves(x)
     d = np.minimum(y - top, bot - y)                      # >0 внутри раскрытия
     mask = np.clip(d / 0.05, 0, 1) * (np.abs(x) < A + 0.15)
@@ -124,35 +127,44 @@ def eye_sclera(path, seed=21, lid=0.0, lower=0.0, lash=0.0):
         # линия ресниц: у верхнего края почти чёрная, к 0.13 юнита сходит на нет
         v *= 1 - lash * np.clip(1 - (y - top) / 0.13, 0, 1) ** 0.6
     v *= 1 - 0.55 * (np.abs(x) / A) ** 4                  # края глаза темнее
-    veins = gaussian_filter(rng.standard_normal((H, W)), 2.2)
+    veins = gaussian_filter(rng.standard_normal((H, W)), 2.2 * ss)
     v += 0.09 * veins / (np.abs(veins).max() + 1e-9)
-    v *= 1 + 0.10 * gaussian_filter(rng.standard_normal((H, W)), 0.6) * 2.0
-    v = gaussian_filter(np.clip(v, 0, 1), 0.7)
-    mask = gaussian_filter(mask.astype(np.float32), 0.8)
+    if ss > 1:
+        # Крупный глаз рисуется крупно: мелкое зерно при уменьшении рассыпается в «пиксели»,
+        # поэтому у 4× варианта шум реже и слабее.
+        v *= 1 + 0.07 * gaussian_filter(rng.standard_normal((H, W)), 1.1 * ss) * 2.0
+    else:
+        v *= 1 + 0.10 * gaussian_filter(rng.standard_normal((H, W)), 0.6 * ss) * 2.0
+    v = gaussian_filter(np.clip(v, 0, 1), 0.7 * ss)
+    mask = gaussian_filter(mask.astype(np.float32), 0.8 * ss)
     g = (np.clip(v, 0, 1) * 255.0)
     out = np.dstack([g, g, g, mask * 255.0]).clip(0, 255).astype(np.uint8)
     Image.fromarray(out, "RGBA").save(path)
     return (W, H)
 
 
-def eye_iris(path, seed=22):
-    """Огромный тёмный зрачок/радужка с тремя бликами. Центр холста = центр зрачка."""
+def eye_iris(path, seed=22, px=EYE_PX, edge=0.045, glint=1.0):
+    """Огромный тёмный зрачок/радужка с бликами. Центр холста = центр зрачка.
+    edge — ширина мягкой кромки диска (юниты): у пары в паузе шире, иначе при уменьшении
+    круг выходит ступеньками. glint — во сколько раз крупнее блики.
+    """
     rng = np.random.default_rng(seed)
-    W = H = int(IRIS_W * EYE_PX)
+    ss = px / EYE_PX
+    W = H = int(IRIS_W * px)
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    x, y = (xx - W / 2) / EYE_PX, (yy - H / 2) / EYE_PX
+    x, y = (xx - W / 2) / px, (yy - H / 2) / px
     r = np.sqrt(x * x + y * y)
     R = 0.74
-    disc = np.clip((R - r) / 0.045, 0, 1)
+    disc = np.clip((R - r) / edge, 0, 1)
     v = 0.03 + 0.06 * np.clip((r - 0.50) / 0.24, 0, 1) ** 2    # к краю радужка чуть светлее
-    v += gaussian_filter(rng.standard_normal((H, W)), 0.9) * 0.012
+    v += gaussian_filter(rng.standard_normal((H, W)), 0.9 * ss) * 0.012
     # три мелких блика в верхней части (как на референсе)
     for cx, cy, rr, inten in ((-0.22, -0.34, 0.058, 1.0), (0.02, -0.33, 0.050, 0.9), (0.42, -0.36, 0.044, 0.65)):
-        glint = np.clip(1 - np.sqrt((x - cx) ** 2 + (y - cy) ** 2) / rr, 0, 1) ** 0.7
-        v = np.maximum(v, glint * inten)
-    v = gaussian_filter(np.clip(v, 0, 1), 0.45)
+        gl = np.clip(1 - np.sqrt((x - cx) ** 2 + (y - cy) ** 2) / (rr * glint), 0, 1) ** 0.7
+        v = np.maximum(v, gl * inten)
+    v = gaussian_filter(np.clip(v, 0, 1), 0.45 * ss)
     g = np.clip(v, 0, 1) * 255.0
-    out = np.dstack([g, g, g, gaussian_filter(disc, 0.6) * 255.0]).clip(0, 255).astype(np.uint8)
+    out = np.dstack([g, g, g, gaussian_filter(disc, 0.6 * ss) * 255.0]).clip(0, 255).astype(np.uint8)
     Image.fromarray(out, "RGBA").save(path)
     return (W, H)
 
@@ -200,21 +212,18 @@ if __name__ == "__main__":
         Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     # Пара в меню паузы: белок с запечённой более плотной тенью верхнего и нижнего века.
     # Отдельный слой век без лица вокруг оставлял над глазом светлую дугу, поэтому тень
-    # входит в сам белок и гаснет вместе с его альфой. Текстуры пары делаются в 4× разрешении:
-    # на большом глазу низкое разрешение давало ступеньки по краю и по радужке.
+    # входит в сам белок и гаснет вместе с его альфой. Текстуры пары считаются сразу в 4×
+    # разрешении (px=96), а не растягиваются из 1×: растянутая кромка давала ступеньки.
     n = "silhouette_eye_sclera_pause"
     pth = os.path.join(out, n + ".png")
-    src = os.path.join(out, "_sclera_pause_base.png")
-    print(n, eye_sclera(src, lid=0.38, lower=0.20, lash=0.97))
-    Image.open(src).resize((round(5 * EYE_PX * 4), round(3.4 * EYE_PX * 4)), Image.BILINEAR).save(pth)
-    os.remove(src)
+    print(n, eye_sclera(pth, lid=0.38, lower=0.20, lash=0.97, px=EYE_PX * 4))
     names.append(n)
     Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
-    # Радужка пары — та же текстура в 4× разрешении, чтобы её круг не был ступенчатым.
+    # Радужка пары — тоже сразу в 4×; кромка диска шире, блики крупнее, чтобы круг не
+    # распадался на ступеньки при уменьшении до экранного размера.
     n = "silhouette_eye_iris_pause"
     pth = os.path.join(out, n + ".png")
-    Image.open(os.path.join(out, "silhouette_eye_iris.png")).resize(
-            (round(2.2 * EYE_PX * 4), round(2.2 * EYE_PX * 4)), Image.BILINEAR).save(pth)
+    print(n, eye_iris(pth, px=EYE_PX * 4, edge=0.07, glint=1.25))
     names.append(n)
     Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля

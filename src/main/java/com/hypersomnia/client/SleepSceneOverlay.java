@@ -60,9 +60,9 @@ public final class SleepSceneOverlay {
     /** Пикселей на юнит у текстур глаз (выше, чем у тела: нужны блики и кромка). Должно совпадать с EYE_PX в скрипте. */
     private static final int EYE_TEX_PX = 24;
     /**
-     * Пара в паузе рисуется крупно, и при 24 px/юнит край склеры и круг радужки шли ступеньками:
-     * GUI-блит не сглаживает низкое разрешение, даже с blur в .mcmeta. Поэтому у пары текстуры
-     * в 4× разрешении; px=96 при том же размере в юнитах даёт тот же размер на экране.
+     * Пара в паузе рисуется крупно. Текстуры пары считаются сразу в 4× разрешении
+     * (make_silhouette.py: px=96): при 24 px/юнит край склеры и круг радужки выходили
+     * ступеньками. Небольшая ширина в юнитах та же, поэтому на экране размер не меняется.
      */
     private static final int EYE_TEX_PX_HI = EYE_TEX_PX * 4;
 
@@ -412,6 +412,10 @@ public final class SleepSceneOverlay {
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
             Part iris = right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L;
+            // Линейная фильтрация принудительно: если ресурспак подменил текстуру без .mcmeta
+            // (blur), блит по умолчанию берёт nearest и кромка глаза снова идёт ступеньками.
+            filterLinear(sclera);
+            filterLinear(iris);
             // Мягкая кромка щели: центр непрозрачный, у верхней и нижней кромок альфа плавно
             // гаснет на feather пикселей. Жёсткий scissor давал прямоугольный пиксельный край.
             int feather = Math.min(half, Math.max(1, Math.round(fullH * 0.06f)));
@@ -600,6 +604,14 @@ public final class SleepSceneOverlay {
         long ph = (now + phaseMs) % periodMs;
         if (ph > 160) return 1f;
         return 1f - 0.92f * (float) Math.sin(Math.PI * ph / 160.0);
+    }
+
+    /**
+     * Включает у текстуры линейную фильтрацию (blur) без мипмапов. Повторять каждый кадр не жалко:
+     * после перезагрузки ресурсов у текстуры новый GL-id и настройка сбрасывается.
+     */
+    private static void filterLinear(Part p) {
+        Minecraft.getInstance().getTextureManager().getTexture(p.tex()).setFilter(true, false);
     }
 
     /**
