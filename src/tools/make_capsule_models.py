@@ -5,7 +5,8 @@
 - полоса-акцент на внешних гранях бортов (capsule_trim) — детали detail_trim_*; на 0.05 впереди борта, без z-fighting;
 - изголовье: экран пульса на консоли (capsule_console, uv 3,0..13,4) и порт капельницы на восточном борту (detail_iv_port);
 - подушка (capsule_pillow) вместо общей обивки ложа;
-- стоячая капсула: прорези цоколя base, полоса на бортах, экран-табло на шапке top (detail_status).
+- стоячая капсула: прорези цоколя base, полоса на бортах, порт капельницы на mid, экран-табло на шапке top (detail_status).
+Стекло у обеих капсул общее: capsule_lid снаружи и capsule_lid_inner изнутри, оба прозрачные (make_furniture.py).
 Текстуры рисует make_furniture.py. Запуск из корня: python run_tool.py make_capsule_models"""
 import glob
 import json
@@ -84,6 +85,12 @@ def upright(d, part):
         for side in ("north", "south", "east", "west"):
             plinth["faces"][side] = face("plinth", [1, 0, 15, 6])
     strips(d, 6.5, 9.5, 1, 15)
+    if part == "mid":                                  # тот же порт капельницы, что у изголовья лежачей
+        use(d, "console")
+        d["elements"].append(element("detail_iv_port", [15, 7, 1], [15.8, 9, 3], {
+            "east": face("console", PORT_UV), "north": face("console", PORT_UV),
+            "south": face("console", PORT_UV), "up": face("console", PORT_UV),
+            "down": face("console", PORT_UV)}))
     if part == "top":
         use(d, "console")
         d["elements"].append(element("detail_status", [4, 12.5, 0.95], [12, 15.5, 1],

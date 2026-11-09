@@ -634,34 +634,37 @@ def capsule_frame():
 
 
 def capsule_lid():
-    # Стекло крышки: полупрозрачное (render_type translucent), блик по диагонали и тёмная рамка.
-    im = Image.new("RGBA", (16, 16), CAPSULE_GLASS + (130,))
+    # Стекло крышки/дверцы: тонированное, прозрачное (render_type translucent), блик по диагонали, рамка плотнее.
+    # Вместе с внутренним слоем (capsule_lid_inner) пропускает ~25-30% света: внутри капсулы видно.
+    im = Image.new("RGBA", (16, 16), CAPSULE_GLASS + (90,))
     px = im.load()
     for y in range(16):                            # блик стекла по диагонали
         for x in range(16):
             v = 8 + max(0, 7 - abs((x + y) - 12))
-            px[x, y] = (v + 40, v + 50, v + 62, 195)
+            px[x, y] = (v + 40, v + 50, v + 62, 85 + 4 * max(0, 7 - abs((x + y) - 12)))
     for i in range(16):                            # тёмная рамка стекла
-        px[i, 0] = px[i, 15] = (6, 10, 15, 235)
-        px[0, i] = px[15, i] = (6, 10, 15, 235)
+        px[i, 0] = px[i, 15] = (6, 10, 15, 215)
+        px[0, i] = px[15, i] = (6, 10, 15, 215)
     for x in range(2, 14):                         # поперечная стяжка
-        px[x, 7] = noisy((40, 52, 64), 1)[:3] + (180,)
+        px[x, 7] = (40, 52, 64, 170)
     return im
 
 
 def capsule_lid_inner():
-    # Опалубок крышки изнутри: тот же тёмный лист, но непрозрачный — лежащий не видит зал сквозь стекло.
-    im = img(CAPSULE_GLASS, 2)
+    # Внутренний слой стекла: тот же тонированный лист, но темнее и плотнее внешнего (alpha ~140), чтобы лежащий
+    # видел зал лишь смутно, а снаружи сквозь стекло было видно ложе. Свой генератор шума: общий rnd не сдвигается.
+    r = random.Random(61)
+    im = Image.new("RGBA", (16, 16))
     px = im.load()
-    for y in range(16):                            # мягкий отсвет ложа на потолке
+    for y in range(16):
         for x in range(16):
-            v = max(0, 5 - abs((x + y) - 12))
-            px[x, y] = noisy((CAPSULE_GLASS[0] + v, CAPSULE_GLASS[1] + v, CAPSULE_GLASS[2] + v), 2)
+            v = max(0, 5 - abs((x + y) - 12)) + r.randint(-2, 2)
+            px[x, y] = (max(0, CAPSULE_GLASS[0] + v), max(0, CAPSULE_GLASS[1] + v), max(0, CAPSULE_GLASS[2] + v), 140)
     for i in range(16):                            # тёмная кромка
-        px[i, 0] = px[i, 15] = noisy((5, 8, 12), 1)
-        px[0, i] = px[15, i] = noisy((5, 8, 12), 1)
-    for x in range(2, 14):                         # стяжка, как на стекле
-        px[x, 7] = noisy((34, 44, 55), 1)
+        px[i, 0] = px[i, 15] = (5, 8, 12, 225)
+        px[0, i] = px[15, i] = (5, 8, 12, 225)
+    for x in range(2, 14):                         # стяжка, как на внешнем слое
+        px[x, 7] = (34, 44, 55, 170)
     return im
 
 

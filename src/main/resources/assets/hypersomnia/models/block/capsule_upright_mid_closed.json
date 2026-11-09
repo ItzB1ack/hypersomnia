@@ -7,7 +7,8 @@
     "pad": "hypersomnia:block/capsule_pad",
     "lid": "hypersomnia:block/capsule_lid",
     "lid_inner": "hypersomnia:block/capsule_lid_inner",
-    "trim": "hypersomnia:block/capsule_trim"
+    "trim": "hypersomnia:block/capsule_trim",
+    "console": "hypersomnia:block/capsule_console"
   },
   "elements": [
     {
@@ -150,6 +151,66 @@
             0,
             16,
             3
+          ]
+        }
+      }
+    },
+    {
+      "name": "detail_iv_port",
+      "from": [
+        15,
+        7,
+        1
+      ],
+      "to": [
+        15.8,
+        9,
+        3
+      ],
+      "faces": {
+        "east": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "north": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "south": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "up": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
+          ]
+        },
+        "down": {
+          "texture": "#console",
+          "uv": [
+            0,
+            8,
+            4,
+            12
           ]
         }
       }
