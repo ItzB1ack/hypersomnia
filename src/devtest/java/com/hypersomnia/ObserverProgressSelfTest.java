@@ -42,6 +42,37 @@ public final class ObserverProgressSelfTest {
         loaded.setNoteThisSleep(true);
         loaded.resetNotes();
         check(loaded.getPendingNote() == -1 && !loaded.noteThisSleep(), "reset clears sleep flags");
+
+        // Личные надписи: шаг переживает перезагрузку, порядок покрывает все 12 вариантов ровно по разу,
+        // а стадия не даёт выбрать строку, которая ещё не положена.
+        for (int i = 0; i < 5; i++) loaded.advanceWriting();
+        check(loaded.writingStep() == 5, "writing step advances");
+        tag = loaded.serializeNBT(null);
+        ObserverProgressData writing = new ObserverProgressData();
+        writing.deserializeNBT(null, tag);
+        check(writing.writingStep() == 5, "writing step survives reload");
+        tag.putInt("writing_step", -3);
+        writing.deserializeNBT(null, tag);
+        check(writing.writingStep() == 0, "negative writing step clamped");
+        boolean[] seenVariant = new boolean[12];
+        for (int[] e : com.hypersomnia.trace.TraceTuning.WRITING_ORDER) {
+            check(e[0] >= 0 && e[0] < seenVariant.length, "writing variant in range");
+            check(!seenVariant[e[0]], "writing variant listed once: " + e[0]);
+            seenVariant[e[0]] = true;
+            check(e[1] >= 3 && e[1] <= 5, "writing min stage 3..5");
+        }
+        for (boolean seen : seenVariant) check(seen, "writing order covers all variants");
+        boolean[] atStage3 = new boolean[12], atStage5 = new boolean[12];
+        for (int step = 0; step < 12; step++) {
+            atStage3[com.hypersomnia.trace.TraceTuning.writingVariant(step, 3)] = true;
+            atStage5[com.hypersomnia.trace.TraceTuning.writingVariant(step, 5)] = true;
+        }
+        for (int v = 0; v < 12; v++) {
+            if (v >= 3) check(!atStage3[v], "stage 3 must not show later variant " + v);
+            check(atStage5[v], "stage 5 cycle must show variant " + v);
+        }
+        check(com.hypersomnia.trace.TraceTuning.writingVariant(12, 5)
+                == com.hypersomnia.trace.TraceTuning.writingVariant(0, 5), "writing order wraps");
         System.out.println("ObserverProgressSelfTest: " + checks + " checks passed.");
     }
 }
