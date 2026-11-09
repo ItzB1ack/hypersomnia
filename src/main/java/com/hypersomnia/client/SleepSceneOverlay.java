@@ -55,6 +55,14 @@ public final class SleepSceneOverlay {
      * глаз читается как сплющенная щель. Растягиваем только склеру; зрачок остаётся круглым.
      */
     private static final float PAUSE_EYE_VSCALE = 1.3f;
+    /**
+     * Веки пары в меню паузы рисуются тонкой дугой по кривой раскрытия, а не текстурой век:
+     * у текстуры есть тёмный ореол вокруг глаза, и без лица он читался как жирная обводка.
+     * Толщина в юнитах (1 юнит = k пикселей), не меньше 2 px.
+     */
+    private static final float PAUSE_LID_THICK = 0.05f;
+    private static final int PAUSE_LID_TOP = 0xB803050A;
+    private static final int PAUSE_LID_BOTTOM = 0x7003050A;
     private static final float EYE_Y = 5.4f;
 
     /** Пикселей на юнит у текстур глаз (выше, чем у тела: нужны блики и кромка). Должно совпадать с EYE_PX в скрипте. */
@@ -386,12 +394,56 @@ public final class SleepSceneOverlay {
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
             layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
-            // Век у пары нет: лицо вокруг не рисуется, и тёмный ореол читался как обводка.
+            drawPauseLids(g, cxU, cyU, k, size, sy);
         }
         g.pose().popPose();
         RenderSystem.disableBlend();
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
+    }
+
+    /**
+     * Тонкие веки пары: дуга по верхней границе раскрытия (с мягкой тенью внутрь) и едва заметная
+     * нижняя кромка. Кривые те же, что в tools/make_silhouette.py (lid_curves), поэтому дуга
+     * совпадает с краем склеры. Концы гаснут, чтобы не было обрубленных стыков.
+     */
+    private static void drawPauseLids(GuiGraphics g, float cx, float cy, float k, float size, float sy) {
+        float kx = k * size;
+        float ky = k * size * sy * PAUSE_EYE_VSCALE;
+        int steps = 32;
+        float x0 = -1.75f;
+        float x1 = 1.75f;
+        int thick = Math.max(2, Math.round(k * PAUSE_LID_THICK));
+        for (int i = 0; i < steps; i++) {
+            float ua = x0 + (x1 - x0) * i / steps;
+            float ub = x0 + (x1 - x0) * (i + 1) / steps;
+            float u = (ua + ub) * 0.5f;
+            float fade = Mth.clamp((1f - Math.abs(u) / 1.8f) * 6f, 0f, 1f);
+            if (fade <= 0f) continue;
+            int ax = Math.round(cx + ua * kx);
+            int bx = Math.max(ax + 1, Math.round(cx + ub * kx));
+
+            int ty = Math.round(cy + lidTop(u) * ky);
+            int topA = (int) (((PAUSE_LID_TOP >>> 24) & 0xFF) * fade);
+            g.fill(ax, ty - thick / 2, bx, ty + (thick + 1) / 2, (topA << 24) | (PAUSE_LID_TOP & 0xFFFFFF));
+            // мягкая тень под верхним веком: глубина чтения, но без широкой полосы
+            int shA = (int) (0x38 * fade);
+            g.fill(ax, ty + (thick + 1) / 2, bx, ty + (thick + 1) / 2 + thick, (shA << 24));
+
+            int by = Math.round(cy + lidBottom(u) * ky);
+            int botA = (int) (((PAUSE_LID_BOTTOM >>> 24) & 0xFF) * fade);
+            g.fill(ax, by, bx, by + Math.max(1, thick / 2), (botA << 24) | (PAUSE_LID_BOTTOM & 0xFFFFFF));
+        }
+    }
+
+    private static float lidTop(float x) {
+        float t = 1f - Mth.square((x - 0.18f) / 1.9f);
+        return t <= 0f ? 0f : -0.82f * (float) Math.pow(t, 0.75);
+    }
+
+    private static float lidBottom(float x) {
+        float t = 1f - Mth.square((x + 0.10f) / 1.85f);
+        return t <= 0f ? 0f : 0.58f * (float) Math.pow(t, 0.9);
     }
 
     /** Пара глаз сцены поверх кадра (испуг ObserverScare): затемнение, оба глаза открыты и смотрят в зрителя. */

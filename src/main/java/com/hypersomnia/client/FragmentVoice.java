@@ -8,6 +8,7 @@ import com.hypersomnia.ModSounds;
 import com.hypersomnia.voice.VoiceLine;
 import com.hypersomnia.voice.VoiceTuning;
 import com.mojang.logging.LogUtils;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
@@ -61,6 +62,8 @@ public final class FragmentVoice {
     private static int age;
     private static boolean pauseProof;
     private static SoundInstance sound;
+    /** Время последнего обновления ванильного субтитра: он виден ещё ~3 с после этого. */
+    private static long lastSubtitleMs;
 
     private static Field overlayField;
     private static boolean overlayTried;
@@ -77,6 +80,14 @@ public final class FragmentVoice {
     /** Сколько тиков он ещё говорит (0 и меньше — уже молчит). */
     public static int speechLeft() {
         return line == null ? 0 : time.end() - age;
+    }
+
+    /**
+     * Ванильный субтитр реплики ещё на экране: он живёт 3 с после последнего обновления
+     * (в том числе после конца речи). Нужен эффектам субтитров, чтобы не гаснуть раньше текста.
+     */
+    public static boolean subtitleShowing() {
+        return lastSubtitleMs != 0L && Util.getMillis() - lastSubtitleMs < 3200L;
     }
 
     /** Звук — реплика осколка (её не глушит тишина сцены у кровати). */
@@ -114,6 +125,7 @@ public final class FragmentVoice {
         if (sound != null) mc.getSoundManager().stop(sound);
         sound = null;
         line = null;
+        lastSubtitleMs = 0L;
     }
 
     /** Перезагрузка ресурсов: тайминги перечитаются при следующей реплике. */
@@ -124,14 +136,19 @@ public final class FragmentVoice {
 
     /**
      * Ванильные субтитры поверх открытого экрана: меню паузы размывает и затемняет интерфейс под собой, а его
-     * реплику в паузе (сцена у кровати) надо прочесть. Рисует тот же SubtitleOverlay, что и слой интерфейса.
+     * реплику в паузе (сцена у кровати) надо прочесть. Рисует тот же SubtitleOverlay, что и слой интерфейса;
+     * в погоне к нему применяются те же дрожь и глитч (ChaseSubtitles), иначе в паузе эффект терялся.
      */
     public static void renderSubtitlesOnTop(GuiGraphics g) {
         SubtitleOverlay o = overlay(Minecraft.getInstance());
         if (o == null) return;
         g.pose().pushPose();
         g.pose().translate(0f, 0f, 500f);
-        o.render(g);
+        if (ChaseSubtitles.effectsActive()) {
+            ChaseSubtitles.render(g, () -> o.render(g));
+        } else {
+            o.render(g);
+        }
         g.pose().popPose();
     }
 
@@ -202,6 +219,7 @@ public final class FragmentVoice {
         if (sound instanceof HeadSound head) head.follow();
         else if (sound.getSound() != null) range = Math.max(sound.getVolume(), 1f) * sound.getSound().getAttenuationDistance();
         o.onPlaySound(sound, events, range);
+        lastSubtitleMs = Util.getMillis();
     }
 
     /** SubtitleOverlay в Gui: поле private, геттера нет — ищем по типу (не зависит от имён). */

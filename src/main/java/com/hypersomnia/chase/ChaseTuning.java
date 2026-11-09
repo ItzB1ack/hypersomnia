@@ -212,17 +212,23 @@ public final class ChaseTuning {
 
     // ---- Субтитры голоса осколка (client/ChaseSubtitles) ----
     /** Дрожание ванильной строки субтитров, px (умножается на панику). */
-    public static final float SUBTITLE_SHAKE_X = 1.8f;
-    public static final float SUBTITLE_SHAKE_Y = 1.2f;
-    /** Каждый N-й кадр (20 fps) — глитч: двойник и смещённые полосы. */
-    public static final int SUBTITLE_GLITCH_EVERY = 5;
+    public static final float SUBTITLE_SHAKE_X = 4.0f;
+    public static final float SUBTITLE_SHAKE_Y = 2.6f;
+    /** Цикл глитча в кадрах (20 fps): первые 2 кадра из N — сбой. */
+    public static final int SUBTITLE_GLITCH_EVERY = 6;
     /** Смещение красного двойника, px, и его прозрачность. */
-    public static final float SUBTITLE_GHOST_OFFSET = 2.5f;
-    public static final float SUBTITLE_GHOST_ALPHA = 0.45f;
+    public static final float SUBTITLE_GHOST_OFFSET = 4.5f;
+    public static final float SUBTITLE_GHOST_ALPHA = 0.65f;
+    /** Голубой двойник с другой стороны (цветовой раскол), px. */
+    public static final float SUBTITLE_CHROMA_OFFSET = 3.5f;
+    /** Рывок строки на кадре сбоя, px. */
+    public static final float SUBTITLE_JOLT = 7.0f;
     /** Прозрачность полос и их высота, px. */
-    public static final int SUBTITLE_BAND_ALPHA = 0x55;
-    public static final int SUBTITLE_BAND_MIN = 3;
-    public static final int SUBTITLE_BAND_MAX = 7;
+    public static final int SUBTITLE_BAND_ALPHA = 0x88;
+    public static final int SUBTITLE_BAND_MIN = 4;
+    public static final int SUBTITLE_BAND_MAX = 11;
+    /** Максимальный сдвиг полосы по горизонтали, px. */
+    public static final int SUBTITLE_BAND_SHIFT = 11;
 
     // ------------------------------------------------------------------
     // Пиксельная эрозия кадра и редкие фразы вместо глаз по углам (client/ChaseText,
