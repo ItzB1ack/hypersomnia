@@ -389,13 +389,20 @@ public final class SleepSceneOverlay {
             boolean right = side > 0;
             float o = ease((t - (right ? SleepSceneTuning.PAUSE_EYE2_TICKS : SleepSceneTuning.PAUSE_EYE1_TICKS))
                     / SleepSceneTuning.PAUSE_EYE_OPEN_TICKS);
-            if (o <= 0.03f) continue;
-            float sy = o * blinkFactor(now, right ? 4300 : 3700, right ? 900 : 0);
+            // Открытие и моргание — растущая горизонтальная щель, а не сжатие текстуры: глаз всегда
+            // рисуется в полный размер, поэтому при появлении он такой же тёмный и чёткий, как в конце.
+            float vis = o * blinkFactor(now, right ? 4300 : 3700, right ? 900 : 0);
+            if (vis <= 0.03f) continue;
             float size = EYE_SCALE * (right ? 0.94f : 1f);
             float alpha = (right ? 0.82f : 1f) * (0.90f + 0.10f * rnd.nextFloat());
             float cxU = side * EYE_DX;
             float cyU = EYE_Y + (right ? 0.35f : 0f);
-            layer(g, right ? EYE_SCLERA_PAUSE_R : EYE_SCLERA_PAUSE_L, cxU, cyU, k, size, size * sy * PAUSE_EYE_VSCALE, alpha);
+            Part sclera = right ? EYE_SCLERA_PAUSE_R : EYE_SCLERA_PAUSE_L;
+            float fullH = sclera.h() * k / sclera.px() * size * PAUSE_EYE_VSCALE;
+            int half = Math.max(1, Math.round(fullH * vis * 0.5f));
+            int cyPx = Math.round(h * 0.42f + (cyU - EYE_Y) * k);
+            g.enableScissor(0, cyPx - half, w, cyPx + half);
+            layer(g, sclera, cxU, cyU, k, size, size * PAUSE_EYE_VSCALE, alpha);
             long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
             int si = right ? 1 : 0;
             float tx = Mth.clamp((mx - w / 2f) / (w * 0.5f), -1f, 1f) * SleepSceneTuning.PAUSE_PAIR_LOOK_X
@@ -406,7 +413,8 @@ public final class SleepSceneOverlay {
             PAIR_Y[si] += (ty - PAIR_Y[si]) * gazeF;
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
-            layer(g, right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
+            layer(g, right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L, cxU + tx * size, cyU + ty * size, k, size, size, alpha);
+            g.disableScissor();
             // Отдельного слоя век нет: у пары тень века, линия ресниц и влажная кромка
             // запечены в сам белок silhouette_eye_sclera_pause. Так они не могут вылезти
             // за раскрытие и над глазом не появляется ни дуга, ни ореол.
