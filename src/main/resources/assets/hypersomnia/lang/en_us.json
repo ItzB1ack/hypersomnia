@@ -293,8 +293,8 @@
   "block.hypersomnia.ward_bed": "Ward Bed",
   "item.hypersomnia.keycard": "Capsule Keycard",
   "hypersomnia.pause.locked.0": "No pause.",
-  "hypersomnia.pause.locked.1": "Stay.",
-  "hypersomnia.pause.locked.2": "Not yet.",
-  "hypersomnia.pause.locked.3": "Look at me.",
-  "hypersomnia.pause.locked.4": "You can't leave."
+  "hypersomnia.pause.locked.1": "Don't go.",
+  "hypersomnia.pause.locked.2": "I'm still here.",
+  "hypersomnia.pause.locked.3": "Don't close it.",
+  "hypersomnia.pause.locked.4": "Wait."
 }
