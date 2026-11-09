@@ -478,13 +478,18 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   «Не закрывай.», «Подожди.»);
   ScreenEvent.Opening не даёт уйти в настройки, достижения, LAN, выход и другие экраны, пока идёт антипауза
   (SleepSceneState.pauseTicks>0). ESC закрывает меню штатно (SceneBedScreen или мир). 5 ключей EN/RU.
-- [новое] Главное меню после стадии 3+: client/HauntedTitle на ScreenEvent.Render.Post для TitleScreen. Панорама
-  почти гаснет (вуаль #03050A alpha 234..248), поверх виньетка и слабый PixelDecay; кнопки — чёрные коробки с бледной
-  рамкой, подписи перерисовываются (выбранная ярче и редко дёргается), иконки SpriteIconButton остаются видимыми.
-  Рядом с выбранной кнопкой стоит глаз осколка (EyeGlyphs): плавно переезжает, моргает, зрачок смотрит в её центр.
-  В углах — три обрывка hypersomnia.swarm.0..19 тонким FragmentFont. Память — config/hypersomnia_title.txt
-  (`max_stage=N`), пишется из ObserverClient.onClientTick через HauntedTitle.observe(ObserverState.stage());
-  после 3+ эффект остаётся, пока файл не удалён. Новых ключей lang и ассетов нет.
+- [новое] Главное меню после стадии 3+ по референсу: client/HauntedTitle на ScreenEvent.Init.Post и Render.Post для
+  TitleScreen. Кадр pure black #03050A, по краям очень слабый PixelDecay. Восемь пустых белых рамок по долям
+  экрана вокруг центра (TOP, UPPER_LEFT, UPPER_RIGHT, MID_LEFT, MID_RIGHT, LOWER_LEFT, LOWER_RIGHT, BOTTOM —
+  координаты в HauntedTitle.Box). Порядок смысловой: Singleplayer → TOP, Multiplayer → MID_LEFT, Realms → MID_RIGHT,
+  Mods → LOWER_LEFT, Options → LOWER_RIGHT, Quit → BOTTOM; иконки языка/доступности → UPPER_LEFT/RIGHT. Ванильные
+  кнопки переставляются в эти рамки через setX/setY/setWidth/setHeight, поэтому клики и фокус работают; лишние
+  виджеты и копирайт PlainTextButton скрыты. Подпись — только у выбранной кнопки внутри рамки (сжимается, если не
+  влезает); тултипы перерисовываются поверх. Глаз (EyeGlyphs) в центре
+  (w/2, h*0.47): зрачок плавно смотрит на выбранную рамку, моргает. В углах — три обрывка hypersomnia.swarm.0..19
+  тонким FragmentFont. Память — config/hypersomnia_title.txt (`max_stage=N`), пишется из
+  ObserverClient.onClientTick через HauntedTitle.observe(ObserverState.stage()); после 3+ эффект остаётся, пока
+  файл не удалён. Новых ключей lang и ассетов нет.
 - [новое] Тихие эпизоды лаборатории (LabAmbient) расширены: у каждого этажа B1–B5
   свой пул сцен вместо одной, прошлая сцена не повторяется, выбор по стадии и
   питанию. Сцены 0–10: щелчки/обрыв/шипение, стук за стеной, шаги по потолку,
@@ -534,8 +539,9 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   у закрытой капсулы B5; пиксельная эрозия в погоне и антипаузе — плотность,
   путь и кнопки, сборка фраз, FPS, GUI scale 1..4, порядок слоёв; блокировка
   кнопок паузы — все пункты, LAN и выход, подписи при GUI scale 1..4; главное
-  меню после 3+ — включение и сброс через config/hypersomnia_title.txt, глаз
-  у кнопки, подписи/рамки, иконки, обрывки фраз, GUI scale 1..4.
+  меню после 3+ — включение и сброс через config/hypersomnia_title.txt, совпадение
+  рамок с кликабельными областями, глаз в центре, подпись выбранной кнопки,
+  иконки, обрывки фраз, GUI scale 1..4.
 
 ======================================================================================================================
 7. ЧТО ОСТАЛОСЬ

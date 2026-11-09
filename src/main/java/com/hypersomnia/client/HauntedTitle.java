@@ -1,17 +1,18 @@
 package com.hypersomnia.client;
 
 import com.hypersomnia.Hypersomnia;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.PlainTextButton;
 import net.minecraft.client.gui.components.SpriteIconButton;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -22,15 +23,20 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Главное меню после стадии 3+ [новое].
  *
- * Игрок дошёл до стадии 3 хотя бы в одном мире — и главное меню перестаёт быть обычным. Панорама уходит в чёрный,
- * кнопки становятся пустыми рамками, а рядом с выбранной кнопкой появляется глаз осколка: он смотрит на неё, моргает
- * и ждёт, пока игрок нажмёт. Это не толпа глаз и не глаз в интерфейсе в мире: осколок смотрит на игрока снаружи,
- * когда тот ещё не начал сеанс. Полученная стадия хранится в config/hypersomnia_title.txt и переживает перезапуск,
- * поэтому эффект включается один раз и остаётся.
+ * Игрок дошёл до стадии 3 хотя бы в одном мире — и главное меню перестаёт быть обычным, как в референсе автора:
+ * чёрный экран, пустые белые рамки кнопок, глаз осколка в центре и редкие рукописные обрывки по углам. Кнопки
+ * расставляются вокруг глаза, поэтому зрачок может смотреть на любую из них. Это не толпа глаз и не глаз в
+ * интерфейсе внутри мира: осколок смотрит на игрока снаружи, пока сеанс ещё не начат.
+ *
+ * Стадия хранится в config/hypersomnia_title.txt и переживает перезапуск. Пока эффект включён, ванильная панорама,
+ * логотип и подписи не рисуются; подпись выбранной кнопки показывается внутри её рамки, чтобы меню оставалось
+ * рабочим.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class HauntedTitle {
@@ -39,10 +45,8 @@ public final class HauntedTitle {
     /** С этой стадии главное меню считается «испорченным». */
     private static final int MIN_STAGE = 3;
     private static final String FILE_NAME = "hypersomnia_title.txt";
-    private static final ResourceLocation VIGNETTE =
-            ResourceLocation.fromNamespaceAndPath(Hypersomnia.MOD_ID, "textures/misc/fatigue_vignette.png");
 
-    /** 20 строк роя в lang; здесь используются как редкие обрывки в углах меню. */
+    /** 20 строк роя в lang; здесь они используются как редкие обрывки в углах меню. */
     private static final int LINES = 20;
     private static final int PHRASE_MS = 7200;
     /** Запасной английский текст, если ключей нет в lang (не даёт светиться именам ключей). */
@@ -59,10 +63,32 @@ public final class HauntedTitle {
     private static int maxStage;
     /** Шаг времени для мелкой дрожи букв в углах: обновляется редко, чтобы не было ряби каждый кадр. */
     private static final int JITTER_MS = 110;
-    /** Плавное перемещение глаза между кнопками, чтобы он не телепортировался. */
-    private static float slideX = Float.NaN;
-    private static float slideY = Float.NaN;
-    private static long slideAt;
+    /** Сглаженный взгляд зрачка: цель меняется при смене кнопки. */
+    private static float gazeX = Float.NaN;
+    private static float gazeY = Float.NaN;
+    private static long gazeAt;
+
+    /**
+     * Раскладка из референса: восемь рамок вокруг центрального глаза. Координаты — доли экрана, чтобы меню
+     * одинаково выглядело на 720p, 1080p и 4K.
+     */
+    private record Box(float x, float y, float w, float h) {}
+
+    private static final Box TOP = new Box(0.409f, 0.190f, 0.187f, 0.106f);
+    private static final Box UPPER_LEFT = new Box(0.284f, 0.269f, 0.088f, 0.083f);
+    private static final Box UPPER_RIGHT = new Box(0.630f, 0.278f, 0.078f, 0.083f);
+    private static final Box MID_LEFT = new Box(0.206f, 0.417f, 0.192f, 0.102f);
+    private static final Box MID_RIGHT = new Box(0.632f, 0.417f, 0.188f, 0.102f);
+    private static final Box LOWER_LEFT = new Box(0.281f, 0.574f, 0.102f, 0.093f);
+    private static final Box LOWER_RIGHT = new Box(0.625f, 0.574f, 0.115f, 0.102f);
+    private static final Box BOTTOM = new Box(0.414f, 0.639f, 0.182f, 0.111f);
+
+    /** Куда ставить текстовые кнопки: Singleplayer, Multiplayer, Realms, Mods, Options, Quit. */
+    private static final Box[] TEXT_BOXES = {TOP, MID_LEFT, MID_RIGHT, LOWER_LEFT, LOWER_RIGHT, BOTTOM};
+    /** Куда ставить иконки: Language и Accessibility. */
+    private static final Box[] ICON_BOXES = {UPPER_LEFT, UPPER_RIGHT};
+    /** Уже расставленные виджеты в смысловом порядке: первая — Singleplayer, с неё начинается выбор. */
+    private static final List<AbstractWidget> ORDER = new ArrayList<>();
 
     /** Сервер сообщил стадию: запоминаем максимум. Вызывается из клиентского тика. */
     public static void observe(int stage) {
@@ -108,9 +134,16 @@ public final class HauntedTitle {
         }
     }
 
+    /** Рамки ставятся сразу при открытии меню, чтобы первый клик попал в новую раскладку. */
+    @SubscribeEvent
+    public static void onScreenInit(ScreenEvent.Init.Post event) {
+        if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
+        layout(screen);
+    }
+
     /**
-     * Рисуем поверх ванильного заголовка: гасим панораму, обводим кнопки, ставим глаз у выбранной.
-     * Кнопки остаются рабочими — меняется только их вид.
+     * Рисуем поверх ванильного заголовка: чёрный кадр, пустые рамки, глаз в центре и обрывки фраз.
+     * Кнопки остаются рабочими — меняются только их места, размеры и вид.
      */
     @SubscribeEvent
     public static void onScreenRender(ScreenEvent.Render.Post event) {
@@ -118,69 +151,121 @@ public final class HauntedTitle {
         int w = screen.width;
         int h = screen.height;
         if (w <= 0 || h <= 0) return;
+        layout(screen);
         long now = System.currentTimeMillis();
         float level = Mth.clamp((maxStage - (MIN_STAGE - 1)) / 3f, 0f, 1f);
         GuiGraphics g = event.getGuiGraphics();
 
-        // 1) Панорама почти гаснет: остаются только силуэты, как за выключенным монитором.
-        int veil = (int) (Mth.lerp(level, 234f, 248f));
-        g.fill(0, 0, w, h, (veil << 24) | 0x03050A);
+        // 1) Полный чёрный кадр вместо панорамы, логотипа и сплэша. Референс — именно пустой экран.
+        g.fill(0, 0, w, h, 0xFF03050A);
 
-        // 2) Тоннель по краям: меню сжимается, как кадр записи.
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        g.setColor(1f, 1f, 1f, 0.62f + 0.18f * level);
-        g.blit(VIGNETTE, 0, 0, -90, 0f, 0f, w, h, w, h);
-        g.setColor(1f, 1f, 1f, 1f);
-        RenderSystem.disableBlend();
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
+        // 2) Очень слабая эрозия по краям: кадр не абсолютно чистый, но и не спорит с рамками.
+        AbstractWidget selected = selectedButton(event.getMouseX(), event.getMouseY());
+        float eyeW = eyeWidth(w, h);
+        float[] avoid = avoid(screen, w / 2f, h * 0.47f, eyeW);
+        PixelDecay.draw(g, w, h, now, 0x7A11C0DEL, 0.09f + 0.07f * level, 0.04f + 0.04f * level,
+                0.01f + 0.02f * level, avoid);
 
-        // 3) Пиксельная эрозия по краям. Центр не трогаем: там кнопки и глаз.
-        AbstractWidget selected = selectedButton(screen, event.getMouseX(), event.getMouseY());
-        float eyeW = Mth.clamp(h * 0.15f, 58f, 124f);
-        float eyeTargetX = eyeX(w, selected, eyeW);
-        float eyeTargetY = selected == null ? h * 0.5f : selected.getY() + selected.getHeight() / 2f;
-        if (Float.isNaN(slideX) || now - slideAt > 500L) {
-            slideX = eyeTargetX;
-            slideY = eyeTargetY;
-        } else {
-            slideX += (eyeTargetX - slideX) * 0.22f;
-            slideY += (eyeTargetY - slideY) * 0.22f;
-        }
-        slideAt = now;
-        float eyeX = slideX;
-        float eyeY = slideY;
-        float[] avoid = avoid(screen, eyeX, eyeY, eyeW);
-        PixelDecay.draw(g, w, h, now, 0x7A11C0DEL, 0.20f + 0.16f * level, 0.10f + 0.10f * level,
-                0.02f + 0.03f * level, avoid);
-
-        // 4) Обрывки фраз в углах: тонкий шрифт, медленно перебирается и дрожит.
+        // 3) Обрывки фраз в углах: тонкий шрифт, медленно перебирается и дрожит.
         drawCorners(g, w, h, now, level);
 
-        // 5) Кнопки: чёрные коробки с бледной рамкой, подписи остаются читаемыми.
+        // 4) Восемь пустых рамок. Подпись видна только у выбранной кнопки, чтобы меню оставалось понятным.
         Font font = Minecraft.getInstance().font;
         for (GuiEventListener listener : screen.children()) {
             if (!(listener instanceof AbstractWidget widget) || !widget.visible) continue;
-            drawButton(g, font, widget, widget == selected, event.getMouseX(), event.getMouseY(),
-                    event.getPartialTick(), now);
+            drawBox(g, font, widget, widget == selected);
         }
 
-        // 6) Глаз осколка у выбранной кнопки. Зрачок направлен точно на неё.
-        if (selected != null) {
-            drawEye(g, eyeX, eyeY, eyeW, selected, now, level);
+        // 5) Глаз осколка в центре. Зрачок поворачивается к выбранной кнопке.
+        drawEye(g, w / 2f, h * 0.47f, eyeW, selected, now, level);
+
+        // 6) Тултипы (язык, доступность, отключённый мультиплеер) оказались под чёрным кадром — возвращаем сверху.
+        AbstractWidget hover = hovered(event.getMouseX(), event.getMouseY());
+        if (hover != null) {
+            Tooltip tip = hover.getTooltip();
+            if (tip != null) {
+                g.renderTooltip(font, tip.toCharSequence(Minecraft.getInstance()),
+                        event.getMouseX(), event.getMouseY());
+            }
         }
     }
 
-    /** Кнопка под мышью, иначе кнопка с клавиатурным фокусом, иначе первая видимая и активная. */
-    private static AbstractWidget selectedButton(TitleScreen screen, double mx, double my) {
+    /**
+     * Переставляет ванильные кнопки в раскладку из референса. Патентованные подписи и фон не важны: рамки
+     * рисуются поверх, а сами кнопки остаются кликабельными.
+     */
+    private static void layout(TitleScreen screen) {
+        List<AbstractWidget> texts = new ArrayList<>();
+        List<AbstractWidget> icons = new ArrayList<>();
+        for (GuiEventListener listener : screen.children()) {
+            if (!(listener instanceof AbstractWidget widget) || !widget.visible) continue;
+            // Копирайт внизу — не кнопка меню. Прячем, чтобы по пустому месту нельзя было открыть титры.
+            if (widget instanceof PlainTextButton) {
+                widget.visible = false;
+                continue;
+            }
+            if (widget instanceof SpriteIconButton) icons.add(widget);
+            else texts.add(widget);
+        }
+        // Ванильный порядок — Mods, Language, Options, Quit, ...; для меню важнее смысл: Singleplayer сверху.
+        texts.sort((a, b) -> Integer.compare(rank(a), rank(b)));
+        int w = screen.width;
+        int h = screen.height;
+        ORDER.clear();
+        for (int i = 0; i < texts.size(); i++) {
+            if (i >= TEXT_BOXES.length) {
+                texts.get(i).visible = false;
+                continue;
+            }
+            place(texts.get(i), TEXT_BOXES[i], w, h);
+            ORDER.add(texts.get(i));
+        }
+        for (int i = 0; i < icons.size(); i++) {
+            if (i >= ICON_BOXES.length) {
+                icons.get(i).visible = false;
+                continue;
+            }
+            place(icons.get(i), ICON_BOXES[i], w, h);
+            ORDER.add(icons.get(i));
+        }
+    }
+
+    /** Смысловой порядок кнопок: сверху вниз по важности. Неизвестные — в конец. */
+    private static int rank(AbstractWidget widget) {
+        String key = translationKey(widget.getMessage());
+        return switch (key) {
+            case "menu.singleplayer" -> 0;
+            case "menu.multiplayer" -> 1;
+            case "menu.online" -> 2;
+            case "fml.menu.mods" -> 3;
+            case "menu.options" -> 4;
+            case "menu.quit" -> 5;
+            default -> 6;
+        };
+    }
+
+    private static String translationKey(Component message) {
+        return message.getContents() instanceof TranslatableContents tc ? tc.getKey() : "";
+    }
+
+    private static void place(AbstractWidget widget, Box box, int sw, int sh) {
+        int x = Math.round(box.x * sw);
+        int y = Math.round(box.y * sh);
+        int w = Math.max(24, Math.round(box.w * sw));
+        int h = Math.max(16, Math.round(box.h * sh));
+        widget.setX(x);
+        widget.setY(y);
+        widget.setWidth(w);
+        widget.setHeight(h);
+    }
+
+    /** Кнопка под мышью, иначе кнопка с клавиатурным фокусом, иначе первая в смысловом порядке (Singleplayer). */
+    private static AbstractWidget selectedButton(double mx, double my) {
         AbstractWidget focused = null;
         AbstractWidget first = null;
         AbstractWidget fallback = null;
-        for (GuiEventListener listener : screen.children()) {
-            if (!(listener instanceof AbstractWidget widget) || !widget.visible) continue;
+        for (AbstractWidget widget : ORDER) {
+            if (!widget.visible) continue;
             if (fallback == null) fallback = widget;
             if (!widget.active) continue;
             if (first == null) first = widget;
@@ -190,19 +275,20 @@ public final class HauntedTitle {
         return focused != null ? focused : first != null ? first : fallback;
     }
 
-    /** Справа от кнопки; если места нет — слева. */
-    private static float eyeX(int w, AbstractWidget selected, float eyeW) {
-        float half = eyeW / 2f;
-        if (selected == null) return w / 2f;
-        float margin = eyeW * 0.72f + 14f;
-        float right = selected.getX() + selected.getWidth() + margin;
-        if (right + half <= w - 6f) return right;
-        float left = selected.getX() - margin;
-        if (left - half >= 6f) return left;
-        return Mth.clamp(w / 2f, half + 4f, w - half - 4f);
+    /** Виджет под курсором — для возврата тултипа поверх чёрного кадра. */
+    private static AbstractWidget hovered(double mx, double my) {
+        for (AbstractWidget widget : ORDER) {
+            if (widget.visible && widget.isMouseOver(mx, my)) return widget;
+        }
+        return null;
     }
 
-    /** Прямоугольники кнопок и глаза, куда эрозия не заходит. */
+    /** Ширина глаза: как в референсе, примерно шестая часть кадра по ширине. */
+    private static float eyeWidth(int w, int h) {
+        return Math.max(48f, Math.min(w * 0.17f, h * 0.30f));
+    }
+
+    /** Рамки кнопок и глаз: сюда эрозия не заходит. */
     private static float[] avoid(TitleScreen screen, float eyeX, float eyeY, float eyeW) {
         int n = 0;
         for (GuiEventListener listener : screen.children()) {
@@ -224,51 +310,54 @@ public final class HauntedTitle {
         return out;
     }
 
-    private static void drawButton(GuiGraphics g, Font font, AbstractWidget widget, boolean selected,
-                                   int mouseX, int mouseY, float partialTick, long now) {
+    private static void drawBox(GuiGraphics g, Font font, AbstractWidget widget, boolean selected) {
         int x = widget.getX();
         int y = widget.getY();
         int w = widget.getWidth();
         int h = widget.getHeight();
-        String label = widget.getMessage().getString();
-        boolean hasText = !label.isBlank();
-
-        // Иконки (язык, доступность) перерисовываем целиком поверх затемнения: иначе от них останется пустая коробка.
-        if (!hasText || widget instanceof SpriteIconButton) {
-            widget.render(g, mouseX, mouseY, partialTick);
-        } else {
-            g.fill(x, y, x + w, y + h, 0xF4000000);
-        }
-
         boolean lit = selected && widget.active;
-        int edge = !widget.active ? 0x70 : lit ? 0xF2 : 0xA0;
-        int rgb = !widget.active ? 0x6E7B82 : lit ? 0xDCE7EB : 0x9DAEB6;
+        int edge = !widget.active ? 0x88 : lit ? 0xFFF4F8FA : 0xB8B6C3C9;
         int t = lit ? 2 : 1;
-        g.fill(x, y, x + w, y + t, (edge << 24) | rgb);
-        g.fill(x, y + h - t, x + w, y + h, (edge << 24) | rgb);
-        g.fill(x, y, x + t, y + h, (edge << 24) | rgb);
-        g.fill(x + w - t, y, x + w, y + h, (edge << 24) | rgb);
+        g.fill(x, y, x + w, y + t, edge);
+        g.fill(x, y + h - t, x + w, y + h, edge);
+        g.fill(x, y, x + t, y + h, edge);
+        g.fill(x + w - t, y, x + w, y + h, edge);
 
-        if (!hasText) return;
-        int color = !widget.active ? 0xFF7E8A90 : lit ? 0xFFE9F0F3 : 0xFFB9C6CC;
-        // На выбранной кнопке подпись чуть дрожит: как будто её держит не совсем твёрдая рука.
-        int jitter = selected && ((now / 130) & 7) == 0 ? ((now / 130) & 1) == 0 ? 1 : -1 : 0;
-        g.drawCenteredString(font, widget.getMessage(), x + w / 2 + jitter, y + h / 2 - 4, color);
+        // Референс оставляет рамки пустыми; подпись появляется только у выбранной кнопки.
+        if (!selected) return;
+        String label = widget.getMessage().getString();
+        if (label.isBlank()) return;
+        int color = !widget.active ? 0xFF7E8A90 : 0xFFE9F0F3;
+        // Подпись может быть шире рамки (особенно при GUI scale 4): сжимаем, чтобы не вылезала за края.
+        int textW = font.width(label);
+        float scale = Math.min(1f, (w - 6f) / Math.max(1, textW));
+        g.pose().pushPose();
+        g.pose().translate(x + w / 2f, y + (h - font.lineHeight * scale) / 2f, 0f);
+        g.pose().scale(scale, scale, 1f);
+        g.drawString(font, label, -textW / 2, 0, color, false);
+        g.pose().popPose();
     }
 
     private static void drawEye(GuiGraphics g, float ex, float ey, float eyeW, AbstractWidget selected,
                                 long now, float level) {
-        float tx = selected.getX() + selected.getWidth() / 2f;
-        float ty = selected.getY() + selected.getHeight() / 2f;
-        float dx = Mth.clamp((tx - ex) / (eyeW * 0.58f), -0.9f, 0.9f);
-        float dy = Mth.clamp((ty - ey) / (eyeW * 0.40f), -0.8f, 0.8f);
+        float tx = selected == null ? ex : selected.getX() + selected.getWidth() / 2f;
+        float ty = selected == null ? ey : selected.getY() + selected.getHeight() / 2f;
+        float wantX = Mth.clamp((tx - ex) / (eyeW * 0.58f), -1f, 1f);
+        float wantY = Mth.clamp((ty - ey) / (eyeW * 0.42f), -0.9f, 0.9f);
+        if (Float.isNaN(gazeX) || now - gazeAt > 500L) {
+            gazeX = wantX;
+            gazeY = wantY;
+        } else {
+            gazeX += (wantX - gazeX) * 0.30f;
+            gazeY += (wantY - gazeY) * 0.30f;
+        }
+        gazeAt = now;
         // Живая мелкая поправка: зрачок не стоит идеально ровно.
-        dx += (float) Math.sin(now / 890.0) * 0.025f;
-        dy += (float) Math.sin(now / 1130.0) * 0.018f;
+        float dx = gazeX + (float) Math.sin(now / 890.0) * 0.02f;
+        float dy = gazeY + (float) Math.sin(now / 1130.0) * 0.015f;
         float blink = blink(now, 5600, 0);
-        float open = Mth.clamp((0.96f + 0.04f * level) * blink, 0.08f, 1f);
-        // Глаз не должен вспыхивать на чёрном: бледная склера и полупрозрачность.
-        EyeGlyphs.draw(g, ex, ey, eyeW, open, dx, dy, 0.88f, -2f + 2f * level);
+        float open = Mth.clamp((0.97f + 0.03f * level) * blink, 0.08f, 1f);
+        EyeGlyphs.draw(g, ex, ey, eyeW, open, dx, dy, 0.90f, 0f);
     }
 
     /** 1 = глаз открыт, ~0.08 = закрыт. Моргание 170 мс раз в period мс. */
@@ -279,10 +368,10 @@ public final class HauntedTitle {
     }
 
     private static void drawCorners(GuiGraphics g, int w, int h, long now, float level) {
-        // Три места как в наброске автора: верх, низ слева, низ справа.
-        drawCorner(g, w, h, now, level, 0, w * 0.16f, h * 0.11f, -4.5f);
-        drawCorner(g, w, h, now, level, 1, w * 0.05f, h * 0.88f, 2.0f);
-        drawCorner(g, w, h, now, level, 2, w * 0.65f, h * 0.93f, -2.5f);
+        // Три места как в референсе: верх, низ слева, низ справа.
+        drawCorner(g, w, h, now, level, 0, w * 0.24f, h * 0.145f, -4.5f);
+        drawCorner(g, w, h, now, level, 1, w * 0.03f, h * 0.93f, 2.0f);
+        drawCorner(g, w, h, now, level, 2, w * 0.69f, h * 0.94f, -2.5f);
     }
 
     private static void drawCorner(GuiGraphics g, int w, int h, long now, float level,
@@ -297,9 +386,9 @@ public final class HauntedTitle {
         long ph = Math.floorMod(local, PHRASE_MS);
         float f = ph / (float) PHRASE_MS;
         float env = f < 0.16f ? f / 0.16f : f > 0.78f ? (1f - f) / 0.22f : 1f;
-        float alpha = Mth.clamp((0.26f + 0.18f * level) * env, 0f, 0.55f);
+        float alpha = Mth.clamp((0.34f + 0.20f * level) * env, 0f, 0.62f);
         if (alpha <= 0.01f) return;
-        float px = Mth.clamp(h * 0.047f, 15f, 38f);
+        float px = Mth.clamp(h * 0.050f, 15f, 40f);
         boolean smooth = FragmentFont.ready();
         Font mcFont = Minecraft.getInstance().font;
         long q = now / JITTER_MS;
@@ -307,7 +396,7 @@ public final class HauntedTitle {
         g.pose().pushPose();
         g.pose().translate(x, y, 0f);
         g.pose().mulPose(Axis.ZP.rotationDegrees(angle));
-        g.setColor(0.86f, 0.90f, 0.92f, alpha);
+        g.setColor(0.90f, 0.93f, 0.95f, alpha);
         if (smooth) {
             float pen = 0f;
             int i = 0;
@@ -321,7 +410,12 @@ public final class HauntedTitle {
                 long hash = mix(corner * 131L + idx, i) ^ q;
                 float jx = (((hash) & 15L) - 7.5f) / 7.5f * 0.55f;
                 float jy = (((hash >>> 4) & 15L) - 7.5f) / 7.5f * 0.55f;
-                FragmentFont.glyph(g, cp, pen + jx, jy, px);
+                float rot = (((hash >>> 8) & 15L) - 7.5f) / 7.5f * 3.0f;
+                g.pose().pushPose();
+                g.pose().translate(pen, 0f, 0f);
+                g.pose().mulPose(Axis.ZP.rotationDegrees(rot));
+                FragmentFont.glyph(g, cp, jx, jy, px);
+                g.pose().popPose();
                 pen += FragmentFont.advance(cp, px);
             }
         } else {
