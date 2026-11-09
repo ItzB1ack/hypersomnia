@@ -1,0 +1,14 @@
+Творческая вкладка: все блоки мода (2026-11-09; Java правилась, gradle НЕ запускался — нет дистрибутива, сборка НЕ проверена, в игре НЕ проверено)
+
+Не было во вкладке: capsule, capsule_upright, unlit_tube, lab_sign, dream_clock, ward_bed. Добавлены (ModItems.*, WardDecorBlocks.BED_ITEM, ModTabs).
+Многоблочные ставят себя целиком (как server_rack: getStateForPlacement + setPlacedBy, без особых BlockItem):
+- capsule: изножье в клетке клика, середина и изголовье ВПЕРЁД по взгляду, крышка ОТКРЫТА (можно лечь); нужны две свободные клетки.
+- capsule_upright: колонка из 3 вверх, дверца к игроку, закрыта; нужны две свободные клетки сверху.
+- ward_bed: ноги в клетке клика, голова впереди по взгляду (как строит кошмар).
+- dream_clock: уже ставился как дверь (две половины); lab_sign, unlit_tube — обычные.
+Строители лаборатории/кошмаров ставят блоки через setBlock, а не через предметы — не затронуты.
+Новые файлы: models/item/{capsule,capsule_upright,unlit_tube,lab_sign,dream_clock,ward_bed}.json (parent — модель блока),
+lang EN/RU: block.hypersomnia.capsule / capsule_upright / ward_bed (остальные имена уже были). check_resources.py OK (190 JSON).
+НЕ ПРОВЕРЕНО: компиляция (javac/gradle недоступны; скобки и импорты сверены вручную); как выглядят иконки в инвентаре
+(модель одной клетки: capsule — изголовье, upright — шапка, dream_clock — нижняя половина); постановка в мире,
+направление тройки/койки, замена блоков (canBeReplaced), ПКМ по поставленным часам вне сна (должен ничего не делать).

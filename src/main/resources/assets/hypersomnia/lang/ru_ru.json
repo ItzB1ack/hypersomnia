@@ -943,5 +943,8 @@
   "hypersomnia.nightmare.session47.wrong.door": "Нет ответа. Используйте панель двери.",
   "hypersomnia.lab.sign.intercom": "ПЕРЕГОВОРНОЕ",
   "hypersomnia.lab.sign.session_room": "КОМНАТА|СЕАНСА",
-  "hypersomnia.lab.sign.round_check_hold_position": "КОНТРОЛЬ ОБХОДА|НЕ ДВИГАТЬСЯ"
+  "hypersomnia.lab.sign.round_check_hold_position": "КОНТРОЛЬ ОБХОДА|НЕ ДВИГАТЬСЯ",
+  "block.hypersomnia.capsule": "Капсула сна",
+  "block.hypersomnia.capsule_upright": "Стоячая капсула",
+  "block.hypersomnia.ward_bed": "Койка палаты"
 }

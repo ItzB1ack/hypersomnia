@@ -74,7 +74,7 @@ public final class ModBlocks {
      * Капсула сна зала сеанса B5 (три блока CCC): изножье, середина и изголовье вдоль FACING.
      * FACING — от изножья к изголовью. OPEN = крышка поднята: в открытой можно лежать (SeatEntity.lie),
      * но сон она не начинает. Закрытая капсула — только осмотр («CAPSULE SEALED»).
-     * Открытость задаёт чертёж (LabTuning.capsuleOpen), ставит LabBuilder; предмета нет.
+     * Открытость задаёт чертёж (LabTuning.capsuleOpen), ставит LabBuilder; предмет ModItems.CAPSULE — для творческой вкладки (ставит тройку целиком).
      */
     public static final DeferredBlock<CapsuleBlock> CAPSULE = BLOCKS.register("capsule", () -> new CapsuleBlock(
             lab(MapColor.COLOR_LIGHT_GRAY, SoundType.METAL)
@@ -82,7 +82,7 @@ public final class ModBlocks {
 
     /**
      * [новое] Стоячая капсула (вертикальный вариант CapsuleBlock): колонка из трёх блоков, FACING — куда смотрит дверца,
-     * OPEN = дверца снята (пустая ячейка). Декор B5 (символ I чертежа) и обхода rounds; предмета нет, сна нет.
+     * OPEN = дверца снята (пустая ячейка). Декор B5 (символ I чертежа) и обхода rounds; сна нет; предмет ModItems.CAPSULE_UPRIGHT — для творческой вкладки (колонка целиком).
      */
     public static final DeferredBlock<UprightCapsuleBlock> CAPSULE_UPRIGHT = BLOCKS.register("capsule_upright", () -> new UprightCapsuleBlock(
             lab(MapColor.COLOR_LIGHT_GRAY, SoundType.METAL)
@@ -130,7 +130,7 @@ public final class ModBlocks {
                     .forceSolidOff()
                     .lightLevel(state -> LabTuning.TUBE_LIGHT)));
 
-    /** Погасшая трубка (LabOutage, «обесточено»): та же модель светильника без света; предмета нет. */
+    /** Погасшая трубка (LabOutage, «обесточено»): та же модель светильника без света; предмет — только для творческой вкладки. */
     public static final DeferredBlock<UnlitTubeBlock> UNLIT_TUBE = BLOCKS.register("unlit_tube", () -> new UnlitTubeBlock(
             lab(MapColor.QUARTZ, SoundType.GLASS)
                     .noOcclusion()
@@ -144,7 +144,7 @@ public final class ModBlocks {
 
     /**
      * [новое] Напольные часы в мире снов (DreamClock): два блока в высоту, неразрушаемые, без дропа.
-     * Предмета нет: часы ставит серверный код, ПКМ по ним будит игрока.
+     * Предмет — для творческой вкладки; в игре часы ставит серверный код, ПКМ по ним будит игрока только в активном сне.
      */
     public static final DeferredBlock<DreamClockBlock> DREAM_CLOCK = BLOCKS.register("dream_clock", () -> new DreamClockBlock(
             lab(MapColor.WOOD, SoundType.WOOD)

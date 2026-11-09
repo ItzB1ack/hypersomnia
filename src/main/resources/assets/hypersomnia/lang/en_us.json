@@ -267,5 +267,8 @@
   "hypersomnia.nightmare.rounds.check.required": "Round check required.",
   "hypersomnia.nightmare.session47.wrong.console": "No response. Use the console.",
   "hypersomnia.nightmare.session47.wrong.intercom": "No response. Use the intercom.",
-  "hypersomnia.nightmare.session47.wrong.door": "No response. Use the door panel."
+  "hypersomnia.nightmare.session47.wrong.door": "No response. Use the door panel.",
+  "block.hypersomnia.capsule": "Sleep Capsule",
+  "block.hypersomnia.capsule_upright": "Upright Capsule",
+  "block.hypersomnia.ward_bed": "Ward Bed"
 }

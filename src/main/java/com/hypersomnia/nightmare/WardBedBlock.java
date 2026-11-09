@@ -4,7 +4,11 @@ import com.mojang.serialization.MapCodec;
 import com.hypersomnia.lab.LabShapes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,5 +36,21 @@ public final class WardBedBlock extends HorizontalDirectionalBlock {
     }
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
         return SHAPES[state.getValue(FACING).get2DDataValue()];
+    }
+
+    /** Творческий предмет: ноги в клетке клика, голова впереди по взгляду (как строит кошмар: PART=HEAD впереди FACING). */
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        Direction facing = ctx.getHorizontalDirection();
+        BlockPos head = ctx.getClickedPos().relative(facing);
+        Level level = ctx.getLevel();
+        if (level.isOutsideBuildHeight(head) || !level.getBlockState(head).canBeReplaced(ctx)) return null;
+        return defaultBlockState().setValue(FACING, facing).setValue(PART, BedPart.FOOT);
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+        if (state.getValue(PART) != BedPart.FOOT) return;
+        level.setBlock(pos.relative(state.getValue(FACING)), state.setValue(PART, BedPart.HEAD), Block.UPDATE_ALL);
     }
 }

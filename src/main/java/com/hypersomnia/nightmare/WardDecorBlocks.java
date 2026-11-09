@@ -26,6 +26,7 @@ public final class WardDecorBlocks {
     public static WardBedBlock BED;
     public static WardMonitorBlock MONITOR;
     public static BlockItem MONITOR_ITEM;
+    public static BlockItem BED_ITEM;
 
     private static BlockBehaviour.Properties properties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.METAL).sound(SoundType.METAL)
@@ -51,6 +52,9 @@ public final class WardDecorBlocks {
             };
             helper.register(id("ward_monitor"), item);
             MONITOR_ITEM = item;
+            BlockItem bedItem = new BlockItem(BED, new Item.Properties());
+            helper.register(id("ward_bed"), bedItem);
+            BED_ITEM = bedItem;
         });
     }
 
@@ -58,6 +62,7 @@ public final class WardDecorBlocks {
     public static void onCreativeTab(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey().equals(ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("main")))) {
             event.accept(MONITOR_ITEM);
+            event.accept(BED_ITEM);
         }
     }
 

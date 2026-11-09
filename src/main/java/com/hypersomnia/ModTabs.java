@@ -39,6 +39,11 @@ public final class ModTabs {
                             output.accept(ModItems.LIFT_PANEL.get());
                             output.accept(ModItems.ANTENNA_DRIVE.get());
                             output.accept(ModItems.LIGHT_TUBE.get());
+                            output.accept(ModItems.UNLIT_TUBE.get());
+                            output.accept(ModItems.LAB_SIGN.get());
+                            output.accept(ModItems.CAPSULE.get());
+                            output.accept(ModItems.CAPSULE_UPRIGHT.get());
+                            output.accept(ModItems.DREAM_CLOCK.get());
                             for (com.hypersomnia.document.DocumentDefs.Doc d : com.hypersomnia.document.DocumentDefs.all()) {
                                 output.accept(com.hypersomnia.document.DocumentItem.make(d.id()));
                             }

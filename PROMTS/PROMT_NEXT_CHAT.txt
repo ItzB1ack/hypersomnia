@@ -20,7 +20,11 @@ HYPERSOMNIA — ПРОМТ ДЛЯ НОВОГО ЧАТА (обновлено 2026
 - Не разрушать постройки, инвентари, сохранения, чужие сцены. Мультиплеер и восстановление состояний проектировать отдельно на игрока.
 - Расширять существующие системы, не плодить параллельные. Числа в *Tuning, сервер авторитетен, сеть в *Network, client-only классы не импортировать из common. playToClient регистрировать в common на обеих сторонах через ClientPayloadBridge; RegisterClientPayloadHandlersEvent не использовать. При смене wire-формата думать о версии канала. Старые сохранения не терять. LabAmbient развивать, отдельный LabEpisode не создавать.
 
-ЧТО СДЕЛАНО В ЭТОЙ СЕССИИ (вид капсул; только ресурсы, Java не менялась, check_resources.py OK, в игре НЕ проверено; CHANGES/CHANGES_capsule_models.txt)
+ЧТО СДЕЛАНО В ЭТОЙ СЕССИИ (вид капсул и творческая вкладка; только ресурсы, Java не менялась, check_resources.py OK, в игре НЕ проверено; CHANGES/CHANGES_capsule_models.txt)
+00. [новое] Творческая вкладка: добавлены предметы capsule, capsule_upright, unlit_tube, lab_sign, dream_clock, ward_bed.
+   Капсулы и койка ставятся целиком (getStateForPlacement/setPlacedBy: тройка вперёд по взгляду с открытой крышкой, колонка вверх,
+   койка ногами в клике). Gradle НЕ запускался (нет дистрибутива) — СБОРКА НЕ ПРОВЕРЕНА, первым делом попросить локальный
+   compileJava; детали: CHANGES/CHANGES_creative_tab.txt.
 0. [новое] Модели и текстуры капсул обновлены (обе: лежачая CapsuleBlock и стоячая UprightCapsuleBlock).
    Текстуры: capsule_frame (шлифовка) и capsule_pad (стёжка) обновлены; новые capsule_plinth (прорези цоколя),
    capsule_trim (полоса с лампами на бортах), capsule_console (экран пульса + порт капельницы), capsule_pillow.

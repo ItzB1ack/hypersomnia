@@ -61,4 +61,16 @@ public final class ModItems {
     /** [новое] Потолочный светильник: в лаборатории его ставит LabBuilder, предмет — для творческого режима. */
     public static final DeferredItem<net.minecraft.world.item.BlockItem> LIGHT_TUBE =
             ITEMS.registerSimpleBlockItem("light_tube", ModBlocks.LIGHT_TUBE);
+
+    /** [новое] Остальные блоки мода для творческой вкладки. Многоблочные (капсулы, часы) ставят себя целиком сами. */
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> CAPSULE =
+            ITEMS.registerSimpleBlockItem("capsule", ModBlocks.CAPSULE);
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> CAPSULE_UPRIGHT =
+            ITEMS.registerSimpleBlockItem("capsule_upright", ModBlocks.CAPSULE_UPRIGHT);
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> UNLIT_TUBE =
+            ITEMS.registerSimpleBlockItem("unlit_tube", ModBlocks.UNLIT_TUBE);
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> LAB_SIGN =
+            ITEMS.registerSimpleBlockItem("lab_sign", ModBlocks.LAB_SIGN);
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> DREAM_CLOCK =
+            ITEMS.registerSimpleBlockItem("dream_clock", ModBlocks.DREAM_CLOCK);
 }

@@ -7,7 +7,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -28,7 +31,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * основание (BASE, пол ячейки на 6/16), середина (MID) и крышка (TOP, потолок ячейки с 12/16).
  * FACING — куда смотрит стеклянная дверца (в зал, в проход). OPEN = дверца снята: ячейка пуста, в неё можно войти.
  * Декор: сиденья и сна нет; закрытая — только осмотр («CAPSULE SEALED»), открытая не реагирует.
- * Ставят LabBuilder (символ I чертежа B5) и RoundsBuilder (ниши обхода) через {@link #column}; предмета нет.
+ * Ставят LabBuilder (символ I чертежа B5) и RoundsBuilder (ниши обхода) через {@link #column}. Предмет — для творческой вкладки: ставит всю колонку вверх, дверца к игроку.
  * Текстуры общие с CapsuleBlock (capsule_frame, capsule_lid, capsule_lid_inner, capsule_pad).
  */
 public final class UprightCapsuleBlock extends HorizontalDirectionalBlock {
@@ -146,6 +149,25 @@ public final class UprightCapsuleBlock extends HorizontalDirectionalBlock {
             case MID -> open ? MID_OPEN[i] : MID_CLOSED[i];
             case TOP -> open ? TOP_OPEN[i] : TOP_CLOSED[i];
         };
+    }
+
+    /** Творческий предмет: колонка вверх от клетки клика, дверца смотрит на игрока, закрыта. */
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        Level level = ctx.getLevel();
+        for (int i = 1; i < HEIGHT; i++) {
+            BlockPos p = ctx.getClickedPos().above(i);
+            if (level.isOutsideBuildHeight(p) || !level.getBlockState(p).canBeReplaced(ctx)) return null;
+        }
+        return defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite())
+                .setValue(PART, Part.BASE).setValue(OPEN, false);
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+        if (state.getValue(PART) != Part.BASE) return;
+        level.setBlock(pos.above(), state.setValue(PART, Part.MID), Block.UPDATE_ALL);
+        level.setBlock(pos.above(2), state.setValue(PART, Part.TOP), Block.UPDATE_ALL);
     }
 
     /** Колонка держится целиком: потеря любой клетки убирает соседние (как у тройки CapsuleBlock). */

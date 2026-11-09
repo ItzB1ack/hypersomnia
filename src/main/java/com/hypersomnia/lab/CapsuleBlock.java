@@ -9,7 +9,10 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -29,7 +32,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * Капсула сна зала сеанса B5: три клетки вдоль FACING — изножье (FOOT), середина (MID) и изголовье (HEAD).
  * FACING — от изножья к изголовью. OPEN = крышка поднята: в открытую можно лечь (SeatEntity.lie), после чего
  * она закрывается сама и выпускает игрока только при вставании. Закрытая снаружи — только осмотр («CAPSULE SEALED»).
- * Открытость задаёт чертёж (LabTuning.capsuleOpen), ставит LabBuilder; предмета нет.
+ * Открытость задаёт чертёж (LabTuning.capsuleOpen), ставит LabBuilder. Предмет — только для творческой вкладки:
+ * ставит всю тройку вперёд по взгляду, крышка открыта.
  */
 public final class CapsuleBlock extends HorizontalDirectionalBlock {
     public static final MapCodec<CapsuleBlock> CODEC = simpleCodec(CapsuleBlock::new);
@@ -188,6 +192,26 @@ public final class CapsuleBlock extends HorizontalDirectionalBlock {
             case MID -> open ? MID_SHAPES[i] : MID_CLOSED_SHAPES[i];
             case HEAD -> open ? HEAD_SHAPES[i] : HEAD_CLOSED_SHAPES[i];
         };
+    }
+
+    /** Творческий предмет: изножье в клетке клика, середина и изголовье впереди по взгляду, крышка открыта. */
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        Direction facing = ctx.getHorizontalDirection();
+        Level level = ctx.getLevel();
+        for (int i = 1; i < 3; i++) {
+            BlockPos p = ctx.getClickedPos().relative(facing, i);
+            if (level.isOutsideBuildHeight(p) || !level.getBlockState(p).canBeReplaced(ctx)) return null;
+        }
+        return defaultBlockState().setValue(FACING, facing).setValue(PART, Part.FOOT).setValue(OPEN, true);
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+        if (state.getValue(PART) != Part.FOOT) return;
+        Direction facing = state.getValue(FACING);
+        level.setBlock(pos.relative(facing), state.setValue(PART, Part.MID), Block.UPDATE_ALL);
+        level.setBlock(pos.relative(facing, 2), state.setValue(PART, Part.HEAD), Block.UPDATE_ALL);
     }
 
     @Override
