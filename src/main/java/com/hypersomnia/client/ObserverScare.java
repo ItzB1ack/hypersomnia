@@ -28,13 +28,15 @@ public final class ObserverScare {
 
     public static boolean active() { return ticks > 0; }
 
-    public static void trigger(int stageNow) {
-        if (ticks > 0 || cooldown > 0) return;
+    /** Запустить кадр; false — уже идёт другой или не вышел кулдаун. */
+    public static boolean trigger(int stageNow) {
+        if (ticks > 0 || cooldown > 0) return false;
         ticks = ObserverTuning.SCARE_TICKS;
         cooldown = ObserverTuning.SCARE_COOLDOWN_TICKS;
         line = pick(stageNow);
         last = line;
         stage = stageNow;
+        return true;
     }
 
     /** Индекс строки для стадии: группа по стадии, без повтора прошлой строки. */

@@ -341,6 +341,21 @@ public final class ObserverTuning {
     public static final int SCARE_COOLDOWN_TICKS = 100;
     /** С какой стадии строки кадра переходят от вопросов к обвинению. */
     public static final int SCARE_ACCUSE_STAGE = 5;
+    /** [новое] С этой стадии «заметил во сне» — резкий кадр-рывок (NoticeScare), а не мягкая заглушка. */
+    public static final int SCARE_HARD_MIN_STAGE = 4;
+    public static final int SCARE_HARD_FLASH_TICKS = 2;
+    public static final int SCARE_HARD_FOV_TICKS = 4;
+    /** Множитель FOV в первый тик кадра (кадр «влечёт» к лицу), затем возврат к обычному. */
+    public static final float SCARE_HARD_FOV = 0.72f;
+    /** Наклон камеры в градусах, плавно спадает за время кадра. */
+    public static final float SCARE_HARD_ROLL = 6.5f;
+    public static final float SCARE_HARD_PITCH = 2.4f;
+    public static final float SCARE_HARD_WHISPER_VOLUME = 1.2f;
+    public static final float SCARE_HARD_WHISPER_PITCH = 0.45f;
+    public static final float SCARE_HARD_TAPE_VOLUME = 1.0f;
+    public static final float SCARE_HARD_TAPE_PITCH = 0.5f;
+    public static final float SCARE_HARD_BREATH_VOLUME = 0.85f;
+    public static final float SCARE_HARD_BREATH_PITCH = 0.5f;
 
     // ---- Осколок у кровати (Верхний мир, пока игрок засыпает) ----
     /** На каком тике лежания он может появиться (после тика сцены TRIGGER_TICK=30, чтобы не мешать ей). */

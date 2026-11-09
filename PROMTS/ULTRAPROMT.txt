@@ -255,7 +255,7 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   на ClientPlayerNetworkEvent.Clone после смены измерения (обход вылета IP 6.0.7
   на ClientboundBlockChangedAckPacket).
 - Наблюдатель: client/ObserverClient, ObserverGhost, ObserverState, ObserverScare,
-  ObserverScareOverlay, DoorEcho; ObserverTuning (в корне пакета, включая
+  ObserverScareOverlay, NoticeScare, DoorEcho; ObserverTuning (в корне пакета, включая
   stage(days, memories)); network/ObserverNetwork, ObserverStagePayload;
   ObserverProgressData, server/ObserverProgressHandler,
   ObserverProgressCommand, ObserverNotesHandler.
@@ -503,6 +503,15 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   AmbushOverlay — чёрный кадр, вспышку, статику и глаза (SCARE_TICKS=10).
   Отладка: /hypersomnia_shard ambush <игроки> (обходит стадию, дни и ночь).
   [в игре не проверено: ощущение дрожи, громкость, тайминги, наложение на другие слои]
+- [новое] «Заметил во сне» со стадии 4: вместо мягкой заглушки ObserverScareOverlay
+  рисует резкий кадр-рывок (client/NoticeScare) — 2 тика белой вспышки, затем пара
+  глаз наезжает на камеру с наклоном (zoom 1.35→3.1, tilt −7°→+3°), полосы
+  развёртки и красная линия. NoticeScare даёт плавный наклон камеры (roll 6.5°,
+  pitch 2.4°), сжатие FOV до 0.72 за 4 тика и звуки SHARD_WHISPER (pitch 0.45),
+  TAPE_DROPOUT (0.5), BREATH_EXHALE (0.5) — без случайной дрожи засады. Строка
+  вопроса/обвинения остаётся. Стадии 2–3 — прежняя мягкая заглушка.
+  Порог ObserverTuning.SCARE_HARD_MIN_STAGE=4; отладка: /hypersomnia_observer scare
+  на стадии 4+ проигрывает и звук. [в игре не проверено: резкость, громкость, FOV]
 - Стадия 5: персональная комната Nora у кровати (NoraRoomHandler/Client),
   персональный путь к лаборатории (LabPathHandler/Client), наблюдение у тела
   (DEATH_WATCH_MIN_STAGE=5), узнавание (RECOGNITION_MIN_STAGE=5).
@@ -605,7 +614,8 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   у закрытой капсулы B5; пиксельная эрозия в погоне и антипаузе — плотность,
   путь и кнопки, сборка фраз, FPS, GUI scale 1..4, порядок слоёв; засада —
   срабатывание у двери/контейнера, шанс, кадр-испуг, дрожь камеры и звук;
-  блокировка
+  «заметил во сне» на стадии 4+ — резкость вспышки, наезд глаз, FOV, наклон и
+  громкость; блокировка
   кнопок паузы — все пункты, LAN и выход, подписи при GUI scale 1..4; главное
   меню после 3+ — включение и сброс через config/hypersomnia_title.txt, совпадение
   невидимых областей кнопок с подписями, что отмена Render.Pre не оставляет экран пустым,

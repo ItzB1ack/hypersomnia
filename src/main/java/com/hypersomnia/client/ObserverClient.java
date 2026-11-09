@@ -1039,7 +1039,7 @@ public final class ObserverClient {
             // Во сне: исчезает от взгляда на всех стадиях. Ранние — кадр-сюрприз (по плану) в момент исчезновения;
             // поздние — кадр, как только заметили, и пока смотришь, он идёт к тебе
             boolean approach = stage >= ObserverTuning.DREAM_APPROACH_MIN_STAGE;
-            if (approach && justSeen && ObserverDirector.scareNow()) ObserverScare.trigger(stage);
+            if (approach && justSeen && ObserverDirector.scareNow() && ObserverScare.trigger(stage)) NoticeScare.trigger();
             if (gaze(looking, need)) {
                 if (!approach && ObserverDirector.scareNow()) ObserverScare.trigger(stage);
                 finishGhost(Outcome.LOOK, true);
@@ -1565,8 +1565,9 @@ public final class ObserverClient {
                     return say(ctx.getSource(), "Observer: back to normal rules");
                 }))
                 .then(Commands.literal("scare").executes(ctx -> {
+                    int s = Math.max(2, ObserverState.stage());
                     ObserverScare.reset();
-                    ObserverScare.trigger(Math.max(2, ObserverState.stage()));
+                    if (ObserverScare.trigger(s) && s >= ObserverTuning.SCARE_HARD_MIN_STAGE) NoticeScare.trigger();
                     return 1;
                 }))
                 .then(Commands.literal("still")
