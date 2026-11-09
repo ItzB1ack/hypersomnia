@@ -13,10 +13,6 @@ import com.hypersomnia.lab.LabOutage;
 import com.hypersomnia.lab.LabProtection;
 import com.hypersomnia.network.ChasePayload;
 import com.hypersomnia.network.ChaseRequestPayload;
-import com.hypersomnia.server.TraceHandler;
-import com.hypersomnia.trace.TraceAttachments;
-import com.hypersomnia.trace.TraceData;
-import com.hypersomnia.trace.TraceType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -888,7 +884,9 @@ public final class ChaseHandler {
     }
 
     // ------------------------------------------------------------------
-    // Возврат забранных вещей: при пробуждении (DreamTransition.exit), у кровати, рядом его шаги
+    // Возврат забранных вещей: при пробуждении (DreamTransition.exit), у кровати.
+    // Следы осколка в реальном мире больше не ставятся: место запоминается, и шаги появятся
+    // при следующем входе в сон (копия дома). [новое]
     // ------------------------------------------------------------------
 
     public static void onWake(ServerPlayer player, ServerLevel level, BlockPos bed) {
@@ -896,8 +894,7 @@ public final class ChaseHandler {
         if (data.taken().isEmpty()) return;
         int days = player.getData(ModAttachments.OBSERVER).getDays();
         boolean all = FinaleLogic.completed(player); // после финала событий нет: всё возвращается сразу
-        TraceData traces = player.getData(TraceAttachments.TRACES);
-        boolean traced = false;
+        ObserverProgressData progress = player.getData(ModAttachments.OBSERVER);
         Iterator<ChaseData.Taken> it = data.taken().iterator();
         while (it.hasNext()) {
             ChaseData.Taken t = it.next();
@@ -910,13 +907,11 @@ public final class ChaseHandler {
             // Если другой мод или сервер отклонил сущность, не удаляем оригинал из сохранённых вещей.
             if (!spawn(level, floor, t.stack())) continue;
             it.remove();
-            if (!all && level.dimension() == Level.OVERWORLD && !traces.has(floor, Direction.UP.ordinal())) {
-                traces.add(new TraceData.Entry(TraceType.STEPS.ordinal(), floor, Direction.UP.ordinal(), 0,
-                        TraceHandler.rotToward(floor, bed)));
-                traced = true;
+            if (!all && level.dimension() == Level.OVERWORLD) {
+                progress.noteSeen(floor.getX(), floor.getY(), floor.getZ(),
+                        player.level().getGameTime());
             }
         }
-        if (traced) TraceHandler.send(player, traces);
     }
 
     /** Случайный пол рядом с кроватью: прочный верх, над ним пусто, без жидкости, не сама кровать. */

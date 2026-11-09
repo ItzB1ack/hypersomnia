@@ -50,7 +50,8 @@ import java.util.List;
  * доставляются при пробуждении, инвентарь и мир снов сразу при входе. Не вышло доставить: запасные способы кровать, затем инвентарь.
  * Страница считается выданной только после доставки.
  * Утром, если записки не было: рисунок у места из подсказки уже выданной записки слоя 1 (leaveHint), иначе подарок
- * воспоминания после нескольких пустых ночей (giveGift). За одно утро не больше одной находки; с находкой след не ставится.
+ * воспоминания после нескольких пустых ночей (giveGift). За одно утро не больше одной находки; след осколка
+ * ставится отдельно, при входе в сон.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class ObserverNotesHandler {
@@ -94,7 +95,7 @@ public final class ObserverNotesHandler {
 
     /**
      * Вызывать из DreamTransition.exit() после возврата игрока в Верхний мир.
-     * true — в этот сон была записка (сейчас или при входе в сон): тогда след после сна не ставится.
+     * true — в этот сон была записка (сейчас или при входе в сон).
      */
     public static boolean onWake(ServerPlayer player, ServerLevel level) {
         ObserverProgressData data = player.getData(ModAttachments.OBSERVER);

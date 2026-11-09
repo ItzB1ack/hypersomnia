@@ -1,0 +1,33 @@
+Следы осколка только в мире снов (2026-11-09; compileJava --offline проходит, в игре НЕ проверено)
+
+Зачем: следы, отпечатки, классики, рука, каракули, Зайка и надписи на стенах появлялись после пробуждения
+в реальном мире. По замыслу это следы сна, а не улики у кровати, поэтому они перенесены в мир снов.
+
+Что изменено
+- TraceHandler:
+  * place / scheduleWriting / tickWriting работают только в DreamDimension.LEVEL; в Верхнем мире place возвращает 0.
+  * onDreamEnter(player, level, origin) — при входе в обычный сон ставит один след и планирует личную надпись
+    (шансы, стадии и порядок WRITING_ORDER прежние).
+  * onWake больше не вызывается из выхода из сна.
+  * PlayerChangedDimensionEvent: при уходе из мира снов следы и отложенная надпись очищаются и синхронизируются.
+  * PlayerRespawnEvent и PlayerLoggedInEvent: вне мира снов старые следы чистятся (миграция старых сохранений).
+- DreamTransition:
+  * begin: после успешного телепорта в обычный сон вызывает TraceHandler.onDreamEnter(player, dream, target).
+  * exit: убраны вызовы TraceHandler.scheduleWriting и onWake; записка после пробуждения осталась.
+- TraceData.clear() теперь стирает и pendingWriting/writingDelay (раньше требовался отдельный clearWriting).
+- ChaseHandler.onWake: вещи по-прежнему возвращаются у кровати, но след STEPS в реальном мире не добавляется;
+  место запоминается в ObserverProgressData.seen, и шаги могут появиться в следующем сне.
+- TraceCommand: /hypersomnia_traces wake вне мира снов отвечает, что следы ставятся только во сне.
+- TraceRenderer: следы и надписи рисуются только в DreamDimension.LEVEL (раньше только в Верхнем мире).
+- Обновлены комментарии TraceTuning, ObserverNotesHandler, ObserverClient.reportSeen, ObserverProgressData.
+
+Проверено
+- `gradlew compileJava --offline` — успешно (только старые warning про deprecated EventBusSubscriber).
+- `python src/devtest/check_resources.py` — см. ниже по запуску.
+- `gradlew -I src/devtest/observer.init.gradle observerSelfTests --offline`, `gradlew clean build --offline` — см. ниже.
+
+НЕ ПРОВЕРЕНО
+- Как след и надпись выглядят у кровати зеркального дома в игре и не мешают ли мебели/снам.
+- Очистка следов после пробуждения, смерти и перезахода (проверена логика, не рантайм).
+- Отсутствие следов в Верхнем мире в старых сохранениях после входа и после погони из часов.
+- Работа /hypersomnia_traces wake в мире снов.

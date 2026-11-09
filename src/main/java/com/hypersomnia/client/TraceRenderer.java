@@ -1,6 +1,7 @@
 package com.hypersomnia.client;
 
 import com.hypersomnia.Hypersomnia;
+import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.trace.TraceData;
 import com.hypersomnia.trace.TraceTuning;
 import com.hypersomnia.trace.TraceType;
@@ -19,7 +20,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -33,7 +33,7 @@ import java.util.Map;
 
 /**
  * Рисует следы осколка: плоские «наклейки» на полу и стенах и предметы. В мир ничего не добавляется:
- * следы видит только этот игрок, чанки и блоки не трогаются. Только Верхний мир.
+ * следы видит только этот игрок, чанки и блоки не трогаются. Только мир снов: в реальном мире их нет.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class TraceRenderer {
@@ -64,7 +64,7 @@ public final class TraceRenderer {
         if (list.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (level == null || level.dimension() != Level.OVERWORLD) return;
+        if (level == null || level.dimension() != DreamDimension.LEVEL) return;
 
         Vec3 cam = event.getCamera().getPosition();
         PoseStack ps = event.getPoseStack();

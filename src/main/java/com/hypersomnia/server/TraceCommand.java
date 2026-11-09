@@ -1,6 +1,7 @@
 package com.hypersomnia.server;
 
 import com.hypersomnia.Hypersomnia;
+import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.trace.TraceAttachments;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -9,7 +10,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-/** /hypersomnia_traces wake — добавить следы вокруг игрока (без стадии и шанса); clear — убрать все; count — сколько. */
+/** /hypersomnia_traces wake — добавить следы вокруг игрока (только в мире снов); clear — убрать все; count — сколько. */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class TraceCommand {
     private TraceCommand() {}
@@ -20,6 +21,11 @@ public final class TraceCommand {
                 .requires(src -> src.hasPermission(2))
                 .then(Commands.literal("wake").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
+                    if (p.serverLevel().dimension() != DreamDimension.LEVEL) {
+                        ctx.getSource().sendFailure(Component.literal(
+                                "Следы осколка ставятся только в мире снов: лягте спать."));
+                        return 0;
+                    }
                     int n = TraceHandler.place(p, p.serverLevel(), p.blockPosition(), true);
                     ctx.getSource().sendSuccess(() -> Component.literal("Traces added: " + n), false);
                     return n;

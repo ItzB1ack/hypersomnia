@@ -123,6 +123,8 @@ public final class DreamTransition {
             player.getData(ModAttachments.FATIGUE).setSyringeCollapse(false);
             com.hypersomnia.server.ObserverNotesHandler.onEnterDream(player, dream);
             DreamClock.start(player, dream);
+            // След осколка и личная надпись — только в мире сна, у кровати зеркального дома [новое]
+            com.hypersomnia.server.TraceHandler.onDreamEnter(player, dream, target);
         }
         if (nightmare == NightmareDefs.SESSION_47)
             player.displayClientMessage(Component.translatable("hypersomnia.nightmare.session47.begin"), false);
@@ -190,13 +192,9 @@ public final class DreamTransition {
                 recovery ? safe : original);
         // После финала события мода выключены: ни инерции, ни записок, ни следов
         if (com.hypersomnia.finale.FinaleLogic.completed(player)) return true;
-        com.hypersomnia.server.TraceHandler.scheduleWriting(player, target, recovery ? safe : original);
         SleepPenalty.applyInertia(player); // сонная инерция после пробуждения
-        // Один след осколка за сон: если в этот сон была записка, следа нет
-        if (!com.hypersomnia.server.ObserverNotesHandler.onWake(player, target)) {
-            com.hypersomnia.server.TraceHandler.onWake(player, target,
-                    recovery ? safe : original);
-        }
+        // Записка по-прежнему появляется после пробуждения; следы осколка в реальном мире больше не ставятся.
+        com.hypersomnia.server.ObserverNotesHandler.onWake(player, target);
         return true;
     }
 

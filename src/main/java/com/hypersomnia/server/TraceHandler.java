@@ -4,6 +4,7 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
 import com.hypersomnia.ObserverTuning;
+import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.network.ObserverSeenPayload;
 import com.hypersomnia.network.TraceSyncPayload;
 import com.hypersomnia.trace.TraceAttachments;
@@ -23,19 +24,63 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-/** Расставляет следы осколка после пробуждения (только Верхний мир, только для этого игрока) и синхронизирует их. */
+/**
+ * Расставляет следы осколка в мире снов (только в обычном сне, только для этого игрока) и синхронизирует их.
+ * В реальном мире следов нет: это сон, а не улика. При выходе из сна следы очищаются, чтобы зеркальные
+ * координаты не проступили в Верхнем мире; старые сохранения со следами чистятся при входе.
+ */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class TraceHandler {
     private TraceHandler() {}
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) send(player, player.getData(TraceAttachments.TRACES));
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        TraceData data = player.getData(TraceAttachments.TRACES);
+        if (player.serverLevel().dimension() != DreamDimension.LEVEL && (!data.all().isEmpty() || data.pendingWriting() != null)) {
+            // Миграция старых миров: следы больше не живут в реальном мире.
+            data.clear();
+            send(player, data);
+            return;
+        }
+        send(player, data);
+    }
+
+    /** Ушёл из мира снов (любым способом): следы и отложенная надпись не должны остаться в реальном мире. */
+    @SubscribeEvent
+    public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (event.getTo().equals(DreamDimension.LEVEL)) return;
+        TraceData data = player.getData(TraceAttachments.TRACES);
+        if (data.all().isEmpty() && data.pendingWriting() == null) return;
+        data.clear();
+        send(player, data);
+    }
+
+    /** Умер и возродился вне мира снов: следы не должны переехать в Верхний мир вместе с игроком. */
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (player.serverLevel().dimension() == DreamDimension.LEVEL) return;
+        TraceData data = player.getData(TraceAttachments.TRACES);
+        if (data.all().isEmpty() && data.pendingWriting() == null) return;
+        data.clear();
+        send(player, data);
+    }
+
+    /**
+     * Вход в обычный сон: след осколка появляется у кровати в зеркальном доме, а личная надпись — с задержкой.
+     * Вызывать из DreamTransition.begin() после телепорта в мир снов.
+     */
+    public static void onDreamEnter(ServerPlayer player, ServerLevel level, BlockPos origin) {
+        if (level.dimension() != DreamDimension.LEVEL) return;
+        place(player, level, origin, false);
+        scheduleWriting(player, level, origin);
     }
 
     /** Отдельное от следов событие: надпись появляется с задержкой, а не в момент сна. */
     public static void scheduleWriting(ServerPlayer player, ServerLevel level, BlockPos origin) {
-        if (level.dimension() != Level.OVERWORLD || player.getData(ModAttachments.OBSERVER).stage() < 3
+        if (level.dimension() != DreamDimension.LEVEL || player.getData(ModAttachments.OBSERVER).stage() < 3
                 || player.getRandom().nextFloat() >= TraceTuning.WRITING_CHANCE) return;
         player.getData(TraceAttachments.TRACES).scheduleWriting(origin,
                 TraceTuning.WRITING_DELAY_MIN + player.getRandom().nextInt(TraceTuning.WRITING_DELAY_RANGE + 1));
@@ -43,7 +88,7 @@ public final class TraceHandler {
 
     @SubscribeEvent public static void tickWriting(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || !player.isAlive() || player.isSleeping()
-                || player.serverLevel().dimension() != Level.OVERWORLD) return;
+                || player.serverLevel().dimension() != DreamDimension.LEVEL) return;
         TraceData data = player.getData(TraceAttachments.TRACES);
         BlockPos origin = data.pendingWriting();
         if (origin == null || !player.serverLevel().isLoaded(origin)
@@ -62,17 +107,13 @@ public final class TraceHandler {
         send(player, data);
     }
 
-    /** Вызывать из DreamTransition.exit() после возврата игрока. origin = где он уснул. */
-    public static void onWake(ServerPlayer player, ServerLevel level, BlockPos origin) {
-        place(player, level, origin, false);
-    }
-
     /**
      * force = отладка: без стадии и шанса, любые виды, DEBUG_MIN..MAX следов. Возвращает, сколько следов добавлено.
      * Обычно: один след, чаще у знакомой точки маршрута рядом с кроватью, вид не повторяет прошлый.
+     * Только мир снов: в реальном мире след осколка не остаётся.
      */
     public static int place(ServerPlayer player, ServerLevel level, BlockPos origin, boolean force) {
-        if (level.dimension() != Level.OVERWORLD) return 0;
+        if (level.dimension() != DreamDimension.LEVEL) return 0;
         ObserverProgressData prog = player.getData(ModAttachments.OBSERVER);
         int stage = prog.stage();
         RandomSource r = player.getRandom();

@@ -232,7 +232,8 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
         dirty = true;
     }
 
-    // ---- Места, где игрок видел фигуру (TraceHandler.seen / place) ----
+    // ---- Места, где игрок видел фигуру в реальном мире (TraceHandler.seen / place) ----
+    // Запоминаются в Верхнем мире; следы осколка по этим точкам ставятся только при входе в сон (копия дома).
 
     /** Новое место первым; самое старое вытесняется. */
     public void noteSeen(int x, int y, int z, long gameTime) {

@@ -48,7 +48,8 @@ public class TraceData implements INBTSerializable<CompoundTag> {
         dirty = true;
     }
 
-    public void clear() { entries.clear(); dirty = true; }
+    /** Стереть следы и отложенную надпись: вне мира снов они не должны остаться. */
+    public void clear() { entries.clear(); clearWriting(); dirty = true; }
     public boolean consumeDirty() { boolean d = dirty; dirty = false; return d; }
 
     public List<Integer> flat() {
