@@ -50,21 +50,10 @@ public final class SleepSceneOverlay {
     private static final float EYE_DX = 2.3f;
     /** Общий размер глаз (1 = как нарисованы в текстуре). Больше 1.25 уже не помещаются в голову. */
     private static final float EYE_SCALE = 1.2f;
-    /**
-     * Вертикальная поправка пары в меню паузы: холст склеры шире раскрытия, поэтому без неё
-     * глаз читается как сплющенная щель. Растягиваем только склеру; зрачок остаётся круглым.
-     */
-    private static final float PAUSE_EYE_VSCALE = 1.3f;
     private static final float EYE_Y = 5.4f;
 
     /** Пикселей на юнит у текстур глаз (выше, чем у тела: нужны блики и кромка). Должно совпадать с EYE_PX в скрипте. */
     private static final int EYE_TEX_PX = 24;
-    /**
-     * Пара в паузе рисуется крупно. Текстуры пары считаются сразу в 4× разрешении
-     * (make_silhouette.py: px=96): при 24 px/юнит край склеры и круг радужки выходили
-     * ступеньками. Небольшая ширина в юнитах та же, поэтому на экране размер не меняется.
-     */
-    private static final int EYE_TEX_PX_HI = EYE_TEX_PX * 4;
 
     /** Текстура: размер холста и точка привязки (всё в юнитах), px — пикселей на юнит. Для тела (0,0) = середина макушки. */
     private record Part(ResourceLocation tex, float wU, float hU, float ox, float oy, int px) {
@@ -93,24 +82,13 @@ public final class SleepSceneOverlay {
      */
     private static final Part EYE_SCLERA_L = eye("sclera", 5f, 3.4f, true);
     private static final Part EYE_SCLERA_R = eye("sclera", 5f, 3.4f, false);
-    /** Белок с запечённой тенью век: для пары в меню паузы, где нет лица вокруг. */
-    private static final Part EYE_SCLERA_PAUSE_L = eyeHi("sclera_pause", 5f, 3.4f, true);
-    private static final Part EYE_SCLERA_PAUSE_R = eyeHi("sclera_pause", 5f, 3.4f, false);
     private static final Part EYE_IRIS_L = eye("iris", 2.2f, 2.2f, true);
     private static final Part EYE_IRIS_R = eye("iris", 2.2f, 2.2f, false);
-    /** Радужка пары в паузе — та же текстура в 4×, чтобы круг зрачка не был ступенчатым. */
-    private static final Part EYE_IRIS_PAUSE_L = eyeHi("iris_pause", 2.2f, 2.2f, true);
-    private static final Part EYE_IRIS_PAUSE_R = eyeHi("iris_pause", 2.2f, 2.2f, false);
     private static final Part EYE_LIDS_L = eye("lids", 5f, 3.4f, true);
     private static final Part EYE_LIDS_R = eye("lids", 5f, 3.4f, false);
 
     private static Part eye(String layer, float wU, float hU, boolean mirrored) {
         return eye(layer, wU, hU, mirrored, EYE_TEX_PX);
-    }
-
-    /** Вариант глаза в 4× разрешении: тот же размер в юнитах, вчетверо больше пикселей в текстуре. */
-    private static Part eyeHi(String layer, float wU, float hU, boolean mirrored) {
-        return eye(layer, wU, hU, mirrored, EYE_TEX_PX_HI);
     }
 
     private static Part eye(String layer, float wU, float hU, boolean mirrored, int px) {
@@ -397,8 +375,10 @@ public final class SleepSceneOverlay {
             float alpha = (right ? 0.82f : 1f) * (0.90f + 0.10f * rnd.nextFloat());
             float cxU = side * EYE_DX;
             float cyU = EYE_Y + (right ? 0.35f : 0f);
-            Part sclera = right ? EYE_SCLERA_PAUSE_R : EYE_SCLERA_PAUSE_L;
-            float fullH = sclera.h() * k / sclera.px() * size * PAUSE_EYE_VSCALE;
+            Part sclera = right ? EYE_SCLERA_R : EYE_SCLERA_L;
+            Part iris = right ? EYE_IRIS_R : EYE_IRIS_L;
+            Part lids = right ? EYE_LIDS_R : EYE_LIDS_L;
+            float fullH = sclera.h() * k / sclera.px() * size;
             int half = Math.max(1, Math.round(fullH * vis * 0.5f));
             int cyPx = Math.round(h * 0.42f + (cyU - EYE_Y) * k);
             long q = now / SleepSceneTuning.PAUSE_TREMOR_MS;
@@ -411,11 +391,11 @@ public final class SleepSceneOverlay {
             PAIR_Y[si] += (ty - PAIR_Y[si]) * gazeF;
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
-            Part iris = right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L;
             // Линейная фильтрация принудительно: если ресурспак подменил текстуру без .mcmeta
             // (blur), блит по умолчанию берёт nearest и кромка глаза снова идёт ступеньками.
             filterLinear(sclera);
             filterLinear(iris);
+            filterLinear(lids);
             // Мягкая кромка щели: центр непрозрачный, у верхней и нижней кромок альфа плавно
             // гаснет на feather пикселей. Жёсткий scissor давал прямоугольный пиксельный край.
             int feather = Math.min(half, Math.max(1, Math.round(fullH * 0.06f)));
@@ -435,14 +415,15 @@ public final class SleepSceneOverlay {
                     a = 1f;
                 }
                 g.enableScissor(0, y, w, y1);
-                layer(g, sclera, cxU, cyU, k, size, size * PAUSE_EYE_VSCALE, alpha * a);
+                layer(g, sclera, cxU, cyU, k, size, size, alpha * a);
                 layer(g, iris, cxU + tx * size, cyU + ty * size, k, size, size, alpha * a);
+                layer(g, lids, cxU, cyU, k, size, size, a);
                 g.disableScissor();
                 y = y1;
             }
-            // Отдельного слоя век нет: у пары тень века, линия ресниц и влажная кромка
-            // запечены в сам белок silhouette_eye_sclera_pause. Так они не могут вылезти
-            // за раскрытие и над глазом не появляется ни дуга, ни ореол.
+            // Три слоя, как на лице: белок, радужка и веки поверх (тёмная кожа вокруг
+            // раскрытия, тень сверху, светлая влажная кромка снизу). В паузе веки дают
+            // тот самый объём и блеск; они гаснут вместе с раскрытием по альфе a.
         }
         g.pose().popPose();
         RenderSystem.disableBlend();
