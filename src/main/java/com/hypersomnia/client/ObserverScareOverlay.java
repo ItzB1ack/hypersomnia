@@ -26,7 +26,8 @@ public final class ObserverScareOverlay {
     }
 
     private static void render(GuiGraphics g, DeltaTracker delta) {
-        if (!ObserverScare.active() || SleepSceneState.active()) return;
+        // Засада (AmbushOverlay) рисует свой чёрный кадр и глаза — не накладывать поверх неё второй.
+        if (!ObserverScare.active() || SleepSceneState.active() || AmbushClient.active()) return;
         Minecraft mc = Minecraft.getInstance();
         int w = g.guiWidth();
         int h = g.guiHeight();

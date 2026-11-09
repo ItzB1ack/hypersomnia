@@ -384,6 +384,19 @@ public final class ObserverDirector {
         if (p != null && current == p) end(p.kind, o);
     }
 
+    /**
+     * [новое] Погоня началась не по предложению режиссёра, а серверной засадой (I_AMBUSH).
+     * Держим для неё те же кулдаун и тишину, чтобы следом не наложился второй эпизод.
+     */
+    public static void externalChase() {
+        int i = Kind.CHASE.ordinal();
+        cooldown[i] = Math.max(cooldown[i], ObserverTuning.EP_COOLDOWN[i]);
+        lastKind = Kind.CHASE;
+        silence = Math.max(silence, ObserverTuning.SILENCE_AFTER_STRONG);
+        lastEndAt = clock;
+        record("external chase -> silence " + silence);
+    }
+
     /** Фаза кадра-сюрприза внутри текущего GHOST во сне: true один раз за эпизод и только если её заложил план. */
     public static boolean scareNow() {
         Plan p = current;

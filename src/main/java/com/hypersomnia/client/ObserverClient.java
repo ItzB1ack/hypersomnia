@@ -840,6 +840,7 @@ public final class ObserverClient {
             }
             if ((pl.info() & ChasePayload.I_PUSH) != 0 && mode == Mode.NONE && ghost == null
                     && chasePending == null && pl.run() != 0 && pl.run() != chaseStopped) {
+                boolean ambush = (pl.info() & ChasePayload.I_AMBUSH) != 0;
                 chaseRun = pl.run();
                 chaseEnded = false;
                 show(mc, player, new Vec3(pl.x(), pl.y(), pl.z()), false, Mode.CHASE);
@@ -852,6 +853,11 @@ public final class ObserverClient {
                     hushWorld(mc);
                     BreathClient.triggerNow();
                     ChaseClient.begin();
+                    if (ambush) {
+                        ChaseClient.ambush();
+                        ObserverDirector.externalChase();
+                        AmbushClient.trigger(ObserverState.stage());
+                    }
                     ChaseMusic.begin(mc);
                     ChaseVoice.begin();
                 }

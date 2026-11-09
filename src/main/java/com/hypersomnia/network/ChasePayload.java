@@ -26,6 +26,8 @@ public record ChasePayload(int run, int phase, int info, double x, double y, dou
     public static final int I_DOOR = 2;
     /** Тестовая команда: фигуру вывел сервер (без запроса клиента) — клиент показывает её как есть. */
     public static final int I_PUSH = 4;
+    /** Засада: дверь/контейнер, фигура вплотную; клиент даёт короткий кадр-испуг и сразу высокую панику. */
+    public static final int I_AMBUSH = 8;
 
     /** Причины отказа (для журнала режиссёра). */
     public static final int R_BUSY = 1, R_STAGE = 2, R_DAYS = 3, R_CONTEXT = 4, R_LAB = 5, R_SAFETY = 6, R_TRAIL = 7,

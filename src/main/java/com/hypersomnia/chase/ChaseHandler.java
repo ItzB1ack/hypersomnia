@@ -136,6 +136,8 @@ public final class ChaseHandler {
         int outage = -1;
         /** [новое] Погоня из напольных часов в мире снов: поимка будит, а не ведёт в палату. */
         boolean dreamClock;
+        /** [новое] Засада: фигура появилась вплотную; взгляд не сокращает WARN, клиент даёт кадр-испуг. */
+        boolean ambush;
     }
 
     private static final Map<UUID, Trail> TRAILS = new HashMap<>();
@@ -216,8 +218,9 @@ public final class ChaseHandler {
             } else send(player, run, ChasePayload.PH_CAUGHT, ChasePayload.O_NONE);
             return;
         }
-        // Взгляд в погоне не прогоняет. Пока он стоит на следе: заметил его (WARN_SEEN_TICKS взгляда) — сразу бежит
-        if (run.phase == ChasePayload.PH_WARN && lookedAt(player, run.pos)) run.stare++;
+        // Взгляд в погоне не прогоняет. Пока он стоит на следе: заметил его (WARN_SEEN_TICKS взгляда) — сразу бежит.
+        // В засаде он уже стоит вплотную: взгляд не должен обрывать короткий кадр-испуг раньше времени.
+        if (run.phase == ChasePayload.PH_WARN && !run.ambush && lookedAt(player, run.pos)) run.stare++;
         switch (run.phase) {
             case ChasePayload.PH_WARN -> {
                 if (run.phaseTicks >= run.warnTicks || run.stare >= ChaseTuning.WARN_SEEN_TICKS) {
@@ -576,6 +579,7 @@ public final class ChaseHandler {
         if (phase != ChasePayload.PH_END && run.outage >= 0) info |= ChasePayload.I_DARK;
         if (phase != ChasePayload.PH_END && run.fromDoor) info |= ChasePayload.I_DOOR;
         if (phase != ChasePayload.PH_END && run.pushed) info |= ChasePayload.I_PUSH;
+        if (phase != ChasePayload.PH_END && run.ambush) info |= ChasePayload.I_AMBUSH;
         PacketDistributor.sendToPlayer(player, new ChasePayload(run.id, phase, info, run.pos.x, run.pos.y, run.pos.z,
                 0f, player.getData(ModAttachments.CHASE).nextDay()));
     }
@@ -634,6 +638,64 @@ public final class ChaseHandler {
         run.pushed = true;
         run.warnTicks = 10;
         run.pos = spawn;
+        RUNS.put(player.getUUID(), run);
+        send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
+        return 0;
+    }
+
+    /**
+     * [новое] Засада: фигура уже стоит вплотную (дверь/контейнер). В отличие от обычной погони старт не ищется
+     * по следу и не прячется за спиной — сервер передаёт желаемую точку, а пол под ней проверяется.
+     * debug=true обходит стадию, дни и ночь для команды /hypersomnia_shard ambush.
+     */
+    public static int startAmbush(ServerPlayer player, Vec3 preferred) {
+        return startAmbush(player, preferred, false);
+    }
+
+    public static int startAmbush(ServerPlayer player, Vec3 preferred, boolean debug) {
+        if (RUNS.containsKey(player.getUUID())) return ChasePayload.R_BUSY;
+        if (!player.isAlive() || player.isSpectator() || player.isSleeping() || player.isCreative()
+                || FinaleLogic.completed(player)) return ChasePayload.R_CONTEXT;
+        ServerLevel level = player.serverLevel();
+        boolean dream = level.dimension().equals(DreamDimension.LEVEL);
+        if (!dream && !level.dimension().equals(Level.OVERWORLD)) return ChasePayload.R_CONTEXT;
+
+        ObserverProgressData prog = player.getData(ModAttachments.OBSERVER);
+        ChaseData data = player.getData(ModAttachments.CHASE);
+        if (!debug) {
+            if (prog.stage() < AmbushTuning.MIN_STAGE) return ChasePayload.R_STAGE;
+            if (prog.getDays() < data.nextDay()) return ChasePayload.R_DAYS;
+            if (!dream && !nightOrDark(level, player)) return ChasePayload.R_CONTEXT;
+        }
+        if (!safe(player, level)) return ChasePayload.R_SAFETY;
+
+        int outage = -1;
+        if (LabProtection.inside(level, player.blockPosition())) {
+            outage = LabOutage.stopFor(player);
+            if (outage < 0) return ChasePayload.R_LAB;
+        }
+        Vec3 spawn = preferred == null ? null : floorNear(level, preferred);
+        if (spawn == null) spawn = spotAround(player, level, true);
+        if (spawn == null) return ChasePayload.R_TRAIL;
+
+        Run run = new Run();
+        run.id = nextId++;
+        run.dim = level.dimension();
+        run.stage = Math.max(ChaseTuning.CATCH_MIN_STAGE,
+                Mth.clamp(prog.stage(), AmbushTuning.MIN_STAGE, 5));
+        run.teach = false;
+        // Фигуру вывел сервер: клиенту не нужен собственный запрос погони (флаг I_PUSH).
+        run.pushed = true;
+        run.ambush = true;
+        run.warnTicks = AmbushTuning.WARN_TICKS;
+        run.pos = spawn;
+        if (outage >= 0) {
+            if (!LabOutage.begin(level, outage, player)) return ChasePayload.R_LAB;
+            run.outage = outage;
+            run.warnTicks += LabOutage.flickerTicks();
+        }
+        // Отладочная засада не тратит день и не двигает расписание.
+        if (!debug) data.markStarted(prog.getDays());
         RUNS.put(player.getUUID(), run);
         send(player, run, ChasePayload.PH_WARN, ChasePayload.O_NONE);
         return 0;
@@ -767,6 +829,23 @@ public final class ChaseHandler {
             if (level.getBlockState(below).getCollisionShape(level, below).isEmpty()) continue;
             if (!level.getFluidState(p).isEmpty() || !level.getFluidState(p.above()).isEmpty()) continue;
             return Vec3.atBottomCenterOf(p);
+        }
+        return null;
+    }
+
+    /** Пол в самой точке или рядом с ней (кольца SPOT_SEARCH): для засады у двери/контейнера. */
+    private static Vec3 floorNear(ServerLevel level, Vec3 at) {
+        Vec3 direct = floorAt(level, at);
+        if (direct != null) return direct;
+        double r = AmbushTuning.SPOT_SEARCH;
+        for (int ring = 1; ring <= 2; ring++) {
+            double d = r * ring / 2.0;
+            for (int i = 0; i < 8; i++) {
+                double a = i * Math.PI / 4.0;
+                Vec3 q = at.add(Math.cos(a) * d, 0.0, Math.sin(a) * d);
+                Vec3 floor = floorAt(level, q);
+                if (floor != null) return floor;
+            }
         }
         return null;
     }
@@ -1009,6 +1088,9 @@ public final class ChaseHandler {
                                 .executes(ctx -> shardChase(ctx.getSource(), EntityArgument.getPlayers(ctx, "targets")))
                                 .then(Commands.literal("teach").executes(ctx -> shardChaseTeach(ctx.getSource(),
                                         EntityArgument.getPlayers(ctx, "targets"))))))
+                .then(Commands.literal("ambush")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(ctx -> shardAmbush(ctx.getSource(), EntityArgument.getPlayers(ctx, "targets")))))
                 .then(Commands.literal("stop")
                         .then(Commands.argument("targets", EntityArgument.players())
                                 .executes(ctx -> shardStop(ctx.getSource(), EntityArgument.getPlayers(ctx, "targets")))))
@@ -1048,6 +1130,25 @@ public final class ChaseHandler {
                 ok++;
                 t.displayClientMessage(Component.literal("Shard: chase started (test)"), true);
                 say(src, "Shard: chasing " + t.getName().getString() + (force == 2 ? " (real)" : " (teaching)"));
+            } else {
+                say(src, "Shard: " + t.getName().getString() + " - " + ChasePayload.reason(r));
+            }
+        }
+        return ok;
+    }
+
+    /** [новое] Тестовая засада: фигура встаёт вплотную перед игроком и сразу переходит в погоню. */
+    private static int shardAmbush(CommandSourceStack src, Collection<ServerPlayer> targets) {
+        int ok = 0;
+        for (ServerPlayer t : targets) {
+            Vec3 look = t.getViewVector(1.0f);
+            Vec3 at = t.position().add(look.x * AmbushTuning.CONTAINER_BEHIND, 0.0,
+                    look.z * AmbushTuning.CONTAINER_BEHIND);
+            int r = startAmbush(t, at, true);
+            if (r == 0) {
+                ok++;
+                t.displayClientMessage(Component.literal("Shard: ambush (test)"), true);
+                say(src, "Shard: ambush on " + t.getName().getString());
             } else {
                 say(src, "Shard: " + t.getName().getString() + " - " + ChasePayload.reason(r));
             }

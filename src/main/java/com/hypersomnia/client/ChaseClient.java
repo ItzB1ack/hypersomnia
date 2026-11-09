@@ -77,6 +77,17 @@ public final class ChaseClient {
                 ? (elapsed / ChaseTuning.RAGE_PERIOD_TICKS) % ChaseTuning.RAGE_TEXT_VARIANTS : -1;
     }
 
+    /**
+     * [новое] Засада: фигура уже вплотную. Паника сразу максимальная, сердце бьётся в полную силу;
+     * дальше обычный track() погони плавно снижает её по расстоянию.
+     */
+    public static void ambush() {
+        if (!active) return;
+        target = 1f;
+        panic = 1f;
+        beatIn = Math.min(beatIn, 1f);
+    }
+
     /** Поймал: мир смолкает, один сильный удар и чёрный кадр. */
     public static void caught(Minecraft mc) {
         if (black >= 0) return;
