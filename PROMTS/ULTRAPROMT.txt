@@ -381,6 +381,13 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   два ряда по 5 у северной стены (z=11; x=8..12 и 18..22), закрытые, дверцей в зал. В rounds — ниши
   капсул 1..46 (RoundsBuilder.upright, NightmareTuning.ROUNDS_UPRIGHT; ROUNDS_LAYOUT = 3). Предмет ModItems.CAPSULE_UPRIGHT — только для творческой вкладки (колонка целиком).
   Детали и непроверенное: CHANGES/CHANGES_capsule_upright.txt.
+- Обводка капсул [новое]: client/CapsuleOutline отменяет ванильную обводку только для CapsuleBlock/UprightCapsuleBlock
+  (RenderHighlightEvent.Block) и рисует свою в RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS — после стекла,
+  в том же буфере и с той же проверкой глубины. Кастомный RenderType `hypersomnia:capsule_outline` повторяет
+  RenderType.lines (шейдер линий, ширина, TRANSLUCENT_TRANSPARENCY, COLOR_DEPTH_WRITE, NO_CULL, VIEW_OFFSET_Z_LAYERING),
+  но без ITEM_ENTITY_TARGET. Причина: вся модель капсулы — render_type translucent, и в Fabulous ванильная линия
+  рисовалась до стекла и просвечивала сквозь него. Формы, модели и текстуры не менялись; остальные блоки без изменений.
+  Детали и непроверенное: CHANGES/CHANGES_capsule_outline.txt.
 - Шифр 9 (замок 8 LOCK_WARD): код = LabVariants.wardCode(seed), четыре
   разные цифры 1..9 (ноль не используется). Стука больше нет (LabKnocks
   удалён). Реальный B4: записка глифами note_2d_glyphs (алфавит черт,
