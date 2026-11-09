@@ -144,15 +144,19 @@ def eye_iris(path, seed=22):
     return (W, H)
 
 
-def eye_lids(path, seed=23):
-    """Верхний слой: тёмная кожа вокруг раскрытия (обрезает радужку), тень от верхнего века, светлая кромка внизу."""
+def eye_lids(path, seed=23, halo_units=0.5):
+    """Верхний слой: тёмная кожа вокруг раскрытия (обрезает радужку), тень от верхнего века, светлая кромка внизу.
+
+    halo_units — ширина тёмного ореола вокруг раскрытия. Для пары в меню паузы лица вокруг нет,
+    и широкий ореол на фоне меню читается как чёрное пятно, поэтому берётся узкая кромка.
+    """
     from scipy.ndimage import distance_transform_edt
     rng = np.random.default_rng(seed)
     W, H, x, y = eye_grid()
     top, bot = lid_curves(x)
     inside = ((y >= top) & (y <= bot) & (np.abs(x) < A + 0.15))
     dout = distance_transform_edt(~inside) / EYE_PX                  # расстояние от раскрытия наружу, юниты
-    halo = np.clip(1 - dout / 0.5, 0, 1) ** 0.8
+    halo = np.clip(1 - dout / halo_units, 0, 1) ** 0.8
     halo[inside] = 0
     # тень верхнего века внутри глаза
     shadow = 0.62 * np.clip(1 - (y - top) / 0.34, 0, 1) ** 1.5 * inside
@@ -185,6 +189,12 @@ if __name__ == "__main__":
         print(n, f(pth)); names.append(n)
         # зеркальная копия для второго глаза (отдельный файл *_r)
         Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
+    # Пара в меню паузы: та же текстура, но ореол сжат до узкой кромки — лица вокруг нет,
+    # а широкое тёмное кольцо на фоне меню и эффектов антипаузы читалось как чёрное пятно.
+    n = "silhouette_eye_lids_pause"
+    pth = os.path.join(out, n + ".png")
+    print(n, eye_lids(pth, halo_units=0.14)); names.append(n)
+    Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля
         with open(os.path.join(out, n + ".png.mcmeta"), "w") as fh:
             fh.write('{\n  "texture": {\n    "blur": true\n  }\n}\n')
