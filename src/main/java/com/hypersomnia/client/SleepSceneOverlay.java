@@ -56,13 +56,22 @@ public final class SleepSceneOverlay {
      */
     private static final float PAUSE_EYE_VSCALE = 1.3f;
     /**
-     * Веки пары в меню паузы рисуются тонкой дугой по кривой раскрытия, а не текстурой век:
+     * Веки пары в меню паузы рисуются мягкой дугой по кривой раскрытия, а не текстурой век:
      * у текстуры есть тёмный ореол вокруг глаза, и без лица он читался как жирная обводка.
-     * Толщина в юнитах (1 юнит = k пикселей), не меньше 2 px.
+     * Тонкая линия поверх склеры читалась как «бровь» в воздухе, поэтому теперь это широкая
+     * мягкая полоса: тёмная к краю раскрытия и растворяющаяся в фоне. Толщина кромки в юнитах
+     * (1 юнит = k пикселей), не меньше 2 px.
      */
     private static final float PAUSE_LID_THICK = 0.05f;
-    private static final int PAUSE_LID_TOP = 0xB803050A;
-    private static final int PAUSE_LID_BOTTOM = 0x7003050A;
+    /** Высота мягкой полосы верхнего и нижнего века в юнитах (растворяется в фоне). */
+    private static final float PAUSE_LID_TOP_BAND = 0.46f;
+    private static final float PAUSE_LID_BOTTOM_BAND = 0.22f;
+    /** Край века чуть заходит на склеру (юниты), чтобы закрыть её размытую светлую кромку. */
+    private static final float PAUSE_LID_COVER = 0.06f;
+    private static final int PAUSE_LID_TOP_EDGE = 0xE603050A;
+    private static final int PAUSE_LID_BOTTOM_EDGE = 0xA803050A;
+    /** Влажный блик нижнего века. */
+    private static final int PAUSE_LID_RIM = 0x58909CA6;
     private static final float EYE_Y = 5.4f;
 
     /** Пикселей на юнит у текстур глаз (выше, чем у тела: нужны блики и кромка). Должно совпадать с EYE_PX в скрипте. */
@@ -394,7 +403,7 @@ public final class SleepSceneOverlay {
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
             layer(g, right ? EYE_IRIS_R : EYE_IRIS_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
-            drawPauseLids(g, cxU, cyU, k, size, sy);
+            drawPauseLids(g, cxU, cyU, k, size, sy, alpha);
         }
         g.pose().popPose();
         RenderSystem.disableBlend();
@@ -403,40 +412,51 @@ public final class SleepSceneOverlay {
     }
 
     /**
-     * Тонкие веки пары: дуга по верхней границе раскрытия (с мягкой тенью внутрь) и едва заметная
-     * нижняя кромка. Кривые те же, что в tools/make_silhouette.py (lid_curves), поэтому дуга
-     * совпадает с краем склеры. Концы гаснут, чтобы не было обрубленных стыков.
+     * Веки пары: мягкая тёмная полоса по верхней границе раскрытия, чуть заходящая на склеру
+     * (иначе светлая размытая кромка склеры читалась как обводка над глазом), и такая же
+     * полоса снизу с влажным бликом. Верх полосы растворяется в фоне, концы гаснут, поэтому
+     * веко не выглядит линией в воздухе. Кривые те же, что в tools/make_silhouette.py
+     * (lid_curves), поэтому полоса совпадает с краем склеры.
      */
-    private static void drawPauseLids(GuiGraphics g, float cx, float cy, float k, float size, float sy) {
+    private static void drawPauseLids(GuiGraphics g, float cx, float cy, float k, float size, float sy, float alpha) {
         // cx/cy — в юнитах от начала координат позы (как dxU/dyU в layer), поэтому в пиксели их
-        // переводит тот же множитель k; иначе дуги рисуются у верхнего края по центру.
+        // переводит тот же множитель k; иначе полосы рисуются у верхнего края по центру.
         float cxPx = cx * k;
         float cyPx = cy * k;
         float kx = k * size;
         float ky = k * size * sy * PAUSE_EYE_VSCALE;
-        int steps = 32;
-        float x0 = -1.75f;
-        float x1 = 1.75f;
+        int steps = 28;
+        float x0 = -1.62f;
+        float x1 = 1.62f;
+        float fadeFrom = 1.06f;
         int thick = Math.max(2, Math.round(k * PAUSE_LID_THICK));
+        float ea = Mth.clamp(alpha, 0f, 1f);
         for (int i = 0; i < steps; i++) {
             float ua = x0 + (x1 - x0) * i / steps;
             float ub = x0 + (x1 - x0) * (i + 1) / steps;
             float u = (ua + ub) * 0.5f;
-            float fade = Mth.clamp((1f - Math.abs(u) / 1.8f) * 6f, 0f, 1f);
+            float fade = Mth.clamp((x1 - Math.abs(u)) / (x1 - fadeFrom), 0f, 1f);
+            fade = fade * fade * (3f - 2f * fade);
             if (fade <= 0f) continue;
             int ax = Math.round(cxPx + ua * kx);
             int bx = Math.max(ax + 1, Math.round(cxPx + ub * kx));
 
+            // Верхнее веко: тёмная полоса от прозрачного верха к плотному краю.
             int ty = Math.round(cyPx + lidTop(u) * ky);
-            int topA = (int) (((PAUSE_LID_TOP >>> 24) & 0xFF) * fade);
-            g.fill(ax, ty - thick / 2, bx, ty + (thick + 1) / 2, (topA << 24) | (PAUSE_LID_TOP & 0xFFFFFF));
-            // мягкая тень под верхним веком: глубина чтения, но без широкой полосы
-            int shA = (int) (0x38 * fade);
-            g.fill(ax, ty + (thick + 1) / 2, bx, ty + (thick + 1) / 2 + thick, (shA << 24));
+            int topA = (int) (((PAUSE_LID_TOP_EDGE >>> 24) & 0xFF) * fade * ea);
+            int cover = Math.round(PAUSE_LID_COVER * ky);
+            int bandTop = ty - Math.round(PAUSE_LID_TOP_BAND * ky);
+            g.fillGradient(ax, bandTop, bx, ty + cover, 0x0003050A, (topA << 24) | (PAUSE_LID_TOP_EDGE & 0xFFFFFF));
+            g.fill(ax, ty + cover - 1, bx, ty + cover + Math.max(1, thick / 2),
+                    (topA << 24) | (PAUSE_LID_TOP_EDGE & 0xFFFFFF));
 
+            // Нижнее веко: тёмная кромка, растворяющаяся вниз, и влажный блик по краю раскрытия.
             int by = Math.round(cyPx + lidBottom(u) * ky);
-            int botA = (int) (((PAUSE_LID_BOTTOM >>> 24) & 0xFF) * fade);
-            g.fill(ax, by, bx, by + Math.max(1, thick / 2), (botA << 24) | (PAUSE_LID_BOTTOM & 0xFFFFFF));
+            int botA = (int) (((PAUSE_LID_BOTTOM_EDGE >>> 24) & 0xFF) * fade * ea);
+            int bandBottom = by + Math.round(PAUSE_LID_BOTTOM_BAND * ky);
+            g.fillGradient(ax, by, bx, bandBottom, (botA << 24) | (PAUSE_LID_BOTTOM_EDGE & 0xFFFFFF), 0x0003050A);
+            int rimA = (int) (0x58 * fade * ea);
+            g.fill(ax, by - 2, bx, by - 1, (rimA << 24) | (PAUSE_LID_RIM & 0xFFFFFF));
         }
     }
 
