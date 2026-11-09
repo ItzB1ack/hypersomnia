@@ -90,7 +90,7 @@ public final class ObserverTuning {
      * Сцены тихих звуков. Моменты — в тиках от начала; коды звуков: 0 click, 1 dropout, 2 hiss, 3 knock,
      * 4 шаг по камню, 5 железная дверь, 6 поршень, 7 железный люк, 8 капель, 9 стекло, 10 металлическая защёлка,
      * 11 шаг по дереву, 12 деревянная дверь закрывается, 13 деревянная дверь скрипит, 14 нота шкатулки (NOTE_BLOCK_CHIME).
-     * Сцены 0..10 — лаборатория, 11..16 — ночной дом (16 ещё и на B4). [новое]
+     * Сцены 0..10 — лаборатория, 11..17 — ночной дом (16 ещё и на B4). [новое]
      */
     public static final int[][] LAB_AMBIENT_SCENE_TICKS = {
             {8, 28, 58},              // 0: щелчки мёртвого динамика
@@ -109,7 +109,8 @@ public final class ObserverTuning {
             {12, 46},                 // 13: скрип, пауза, скрип
             {18, 28},                 // 14: стук в стену
             {10, 22, 34, 46, 58, 70}, // 15: шаги приближаются и обрываются [новое]
-            {14, 30, 46, 68}          // 16: далёкая шкатулка, четвёртая нота спотыкается, пятой нет [новое]
+            {14, 30, 46, 68},         // 16: далёкая шкатулка, четвёртая нота спотыкается, пятой нет [новое]
+            {12, 32, 52, 72, 132}     // 17: капли в раковине идут ровно, пятая приходит после долгой паузы [новое]
     };
     public static final byte[][] LAB_AMBIENT_SCENE_SOUNDS = {
             {0, 0, 1}, {0, 2, 2}, {2, 2, 2}, {3, 3, 3},
@@ -117,7 +118,8 @@ public final class ObserverTuning {
             {9, 10},
             {11, 11, 11}, {12}, {13, 13}, {3, 3},
             {11, 11, 11, 11, 11, 11},
-            {14, 14, 14, 14}
+            {14, 14, 14, 14},
+            {8, 8, 8, 8, 8}
     };
     /**
      * Громкость каждого звука сцены (множитель к громкости сцены); пустой массив — все звуки 1.
@@ -126,29 +128,32 @@ public final class ObserverTuning {
     public static final float[][] LAB_AMBIENT_SCENE_STEP_VOLUME = {
             {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
             {.35f, .5f, .65f, .85f, 1f, 1.15f},
-            {1f, 1f, .9f, .7f}
+            {1f, 1f, .9f, .7f},
+            {1f, 1f, 1f, 1f, .8f}
     };
     /**
      * Абсолютная высота тона звука сцены (множитель к тону сцены); 0 или нет значения — случайная, как у остальных.
-     * Сцена 16: мотив вверх-вверх-вниз и «спотыкание» четвёртой ноты; без случайности, иначе интервалы плывут. [новое]
+     * Сцена 16: мотив вверх-вверх-вниз и «спотыкание» четвёртой ноты; без случайности, иначе интервалы плывут.
+     * Сцена 17: четыре одинаковые капли и чуть более низкая пятая; без случайности, иначе счёт «плывёт». [новое]
      */
     public static final float[][] LAB_AMBIENT_SCENE_STEP_PITCH = {
             {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
-            {.8f, 1f, .9f, .84f}
+            {.8f, 1f, .9f, .84f},
+            {1f, 1f, 1f, 1f, .85f}
     };
     /**
      * Стадия, с которой доступна сцена: шаги — присутствие (3), обрыв ритма и интерком — адресные (4–5).
      * Дом начинается раньше лаборатории (2): ночные звуки — фон, а не адресное событие.
      */
-    public static final int[] LAB_AMBIENT_SCENE_MIN_STAGE = {3, 3, 3, 3, 3, 3, 3, 5, 3, 4, 3, 2, 3, 3, 4, 4, 3};
+    public static final int[] LAB_AMBIENT_SCENE_MIN_STAGE = {3, 3, 3, 3, 3, 3, 3, 5, 3, 4, 3, 2, 3, 3, 4, 4, 3, 3};
     /** Сцена требует питания: во время «обесточено» лифт не играет (для дома всегда false). */
-    public static final boolean[] LAB_AMBIENT_SCENE_POWER = {false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false};
+    public static final boolean[] LAB_AMBIENT_SCENE_POWER = {false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false};
     /** Множитель громкости и высоты тона сцены. */
-    public static final float[] LAB_AMBIENT_SCENE_VOLUME = {1f, 1f, 1f, .9f, .7f, .9f, .7f, .8f, .7f, .65f, .55f, 1.2f, .9f, 1f, 1.1f, .8f, .6f};
-    public static final float[] LAB_AMBIENT_SCENE_PITCH = {1f, 1f, 1f, .9f, .95f, .8f, .85f, .95f, 1.2f, .95f, .8f, .9f, .85f, .65f, .8f, .85f, 1f};
+    public static final float[] LAB_AMBIENT_SCENE_VOLUME = {1f, 1f, 1f, .9f, .7f, .9f, .7f, .8f, .7f, .65f, .55f, 1.2f, .9f, 1f, 1.1f, .8f, .6f, .8f};
+    public static final float[] LAB_AMBIENT_SCENE_PITCH = {1f, 1f, 1f, .9f, .95f, .8f, .85f, .95f, 1.2f, .95f, .8f, .9f, .85f, .65f, .8f, .85f, 1f, 1.2f};
     /** Точка звука: смещение от игрока назад по взгляду и по высоте (блоки); 0 — над головой/под ногами. */
-    public static final int[] LAB_AMBIENT_SCENE_DISTANCE = {4, 4, 4, 4, 0, 12, 5, 4, 6, 0, 4, 0, 10, 5, 2, 3, 5};
-    public static final int[] LAB_AMBIENT_SCENE_Y = {0, 0, 0, 0, 4, 0, 2, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0};
+    public static final int[] LAB_AMBIENT_SCENE_DISTANCE = {4, 4, 4, 4, 0, 12, 5, 4, 6, 0, 4, 0, 10, 5, 2, 3, 5, 7};
+    public static final int[] LAB_AMBIENT_SCENE_Y = {0, 0, 0, 0, 4, 0, 2, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0, 0};
     /** Варианты сцен по этажам 1..5; недоступные по стадии и питанию отбрасываются, прошлая сцена не повторяется. */
     public static final int[][] LAB_AMBIENT_FLOOR_SCENES = {
             {0, 6, 8}, {1, 4, 6, 8}, {2, 5, 8}, {3, 4, 9, 1, 16}, {7, 5, 10, 0, 2}
@@ -165,8 +170,8 @@ public final class ObserverTuning {
     public static final int HOME_AMBIENT_DWELL_MIN = 1200;
     public static final int HOME_AMBIENT_DWELL_RANGE = 1800;
     public static final int HOME_AMBIENT_COOLDOWN = 4800;
-    /** Сцены 11..16: ходьба наверху, далёкая дверь, скрип, стук в стену, шаги приближаются и обрываются, шкатулка. */
-    public static final int[] HOME_AMBIENT_SCENES = {11, 12, 13, 14, 15, 16};
+    /** Сцены 11..17: ходьба наверху, далёкая дверь, скрип, стук в стену, шаги приближаются и обрываются, шкатулка, капли. */
+    public static final int[] HOME_AMBIENT_SCENES = {11, 12, 13, 14, 15, 16, 17};
 
     // ---- Дом в мире снов [новое]: зеркало дома (DreamMirror) с 3-й стадии переносит дом в сон,
     // ---- и та же ночная тишина звучит уже там. Числа не должны расходиться с DreamMirrorTuning.MIN_STAGE.
@@ -177,8 +182,8 @@ public final class ObserverTuning {
     public static final int DREAM_AMBIENT_DWELL_MIN = 1800;
     public static final int DREAM_AMBIENT_DWELL_RANGE = 1800;
     public static final int DREAM_AMBIENT_COOLDOWN = 6000;
-    /** Те же домашние сцены 11..16: в перенесённом доме они звучат как в настоящем. */
-    public static final int[] DREAM_AMBIENT_SCENES = {11, 12, 13, 14, 15, 16};
+    /** Те же домашние сцены 11..17: в перенесённом доме они звучат как в настоящем. */
+    public static final int[] DREAM_AMBIENT_SCENES = {11, 12, 13, 14, 15, 16, 17};
     /** Сцена 10: оседает стеклянная крышка закрытой капсулы B5; звук идёт от ближайшей такой капсулы. */
     public static final int LAB_AMBIENT_CAPSULE_SCENE = 10;
     /** Радиус поиска закрытой капсулы для сцены 10 (блоки, по горизонтали и ±1 по высоте). */
