@@ -21,6 +21,15 @@ HYPERSOMNIA — ПРОМТ ДЛЯ НОВОГО ЧАТА (обновлено 2026
 - Не разрушать постройки, инвентари, сохранения, чужие сцены. Мультиплеер и восстановление состояний проектировать отдельно на игрока.
 - Расширять существующие системы, не плодить параллельные. Числа в *Tuning, сервер авторитетен, сеть в *Network, client-only классы не импортировать из common. playToClient регистрировать в common на обеих сторонах через ClientPayloadBridge; RegisterClientPayloadHandlersEvent не использовать. При смене wire-формата думать о версии канала. Старые сохранения не терять. LabAmbient развивать, отдельный LabEpisode не создавать.
 
+НОЧНАЯ СЕССИЯ 2026-11-10 (идёт по PROMTS/NIGHT_PLAN.md; в игре НЕ проверено)
+1. N1: прогнан весь baseline — compileJava, observerSelfTests (100), labSelfTests
+   (286+3+8+2839), wardSelfTests (110), finaleSelfTests (513), forestReplySelfTests
+   (15+90+36), check_resources.py, check_network_sides.py, lab_check.py — всё зелёное.
+   Промты сверены с кодом: убраны ссылки на несуществующие LabFloors, LabFloorTuning,
+   LabSiteTuning, LabPlacementCommand, LabKeypad*, WardBuilder, NightmareHandler,
+   NightmareNetwork, NightmareState; DATA_VERSION 4 -> 5; паритет lang 976/976;
+   HEAD на старте 4f1f7b3.
+
 ЧТО СДЕЛАНО В ЭТОЙ СЕССИИ (архив A.5, отладка ускорения стадии, сон и шприцы, засада, кадр «заметил», скример поимки; compileJava --offline проходит; в игре НЕ проверено)
 Запрос пользователя: продолжить разработку по плану, пропуская эмбиент. Взяты A.5 и проверка уже реализованного ускорения стадии.
 1. [новое] Архив: после стадии 5 (LabTuning.ARCHIVE_MISMATCH_STAGE) первое за запуск игры открытие заголовка

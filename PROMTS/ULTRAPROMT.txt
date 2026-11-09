@@ -1,5 +1,5 @@
 HYPERSOMNIA — ЕДИНЫЙ УЛЬТРАПРОМТ
-Обновлено: 2026-11-10. Сверено с кодом ветки main (сессия: часы сна, зеркало, фикс IP; затем стадия 5 и надписи; затем тихие эпизоды лаборатории, ночной дом и дом во сне; затем пиксельная эрозия кадра в погоне и антипаузе; затем паритет en_us/ru_ru 974/974; затем редкое несоответствие индекса архива A.5; затем сон и шприцы; затем засада у двери и контейнера; затем скример поимки и пара глаз в паузе; затем искажённая музыка меню; затем субтитры голоса в погоне; затем тень век паузы в белке и 4× текстуры пары; затем линия ресниц в белке паузы; затем гладкая пара паузы: 4× текстуры считаются аналитически, линейная фильтрация принудительно; затем пара паузы снова тремя слоями, как в старой версии (восстановлено по архиву voice_en_src_full); затем паузные веки без кожи вокруг раскрытия; затем ночной план автономной работы PROMTS/NIGHT_PLAN.md, его расширение до 29 задач и критерий «технический идеал» механики).
+Обновлено: 2026-11-10. Сверено с кодом ветки main (сессия: часы сна, зеркало, фикс IP; затем стадия 5 и надписи; затем тихие эпизоды лаборатории, ночной дом и дом во сне; затем пиксельная эрозия кадра в погоне и антипаузе; затем паритет en_us/ru_ru 974/974; затем редкое несоответствие индекса архива A.5; затем сон и шприцы; затем засада у двери и контейнера; затем скример поимки и пара глаз в паузе; затем искажённая музыка меню; затем субтитры голоса в погоне; затем тень век паузы в белке и 4× текстуры пары; затем линия ресниц в белке паузы; затем гладкая пара паузы: 4× текстуры считаются аналитически, линейная фильтрация принудительно; затем пара паузы снова тремя слоями, как в старой версии (восстановлено по архиву voice_en_src_full); затем паузные веки без кожи вокруг раскрытия; затем ночной план автономной работы PROMTS/NIGHT_PLAN.md, его расширение до 29 задач и критерий «технический идеал» механики; затем ночная сессия N1: сверка промтов с кодом, DATA_VERSION 5, паритет lang 976/976).
 
 Этот файл заменяет все остальные промты в PROMTS/ (PROMT.txt, COMMONPROMT.txt,
 PROMT_handoff.txt, PROMT_NEXT_CHAT.txt, PROMT_nightmares.txt, PROMT_cutscenes.txt,
@@ -298,12 +298,12 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   секунду смотрят инвентарь, отмечают находки; найденное не теряется.
 - Меню: client/HauntedTitle — титульный экран после стадии 3+;
   client/MenuMusicDistortion — искажённая музыка главного меню.
-- Лаборатория: lab/* (LabBuilder, LabFloors, LabPlacement, LabLift,
-  LabSavedData, LabTuning, LabFloorTuning, LabSiteTuning, LabSigns, LabCommand,
-  LabPlacementCommand, LabProtection, LabFixtures, LabAntenna,
-  LabOutage, LabVariants, ArchiveDefs, ArchiveAccess), server/LabHandler,
-  LabAmbientHandler, LabPathHandler; network/LabNetwork, LabKeypad*,
-  LabTerminal*, LabPath*; client/LabKeypad*, LabTerminal*, LabAmbientClient,
+- Лаборатория: lab/* (LabBuilder, LabBlueprint, LabPlacement, LabSiteFinder,
+  LabLift, LabShaft, LabSavedData, LabTuning, LabSigns, LabCommand, LabProtection,
+  LabFixtures, LabAntenna, LabOutage, LabVariants, LabBreakers, LabCabinets,
+  LabLocks, ArchiveDefs, ArchiveAccess), server/LabHandler,
+  LabAmbientHandler, LabPathHandler; network/LabNetwork, LabLock*,
+  LabTerminal*, LabPath*; client/LabLockScreen, LabTerminal*, LabAmbientClient,
   LabPathClient.
 - Тихие эпизоды лаборатории: server/LabAmbientHandler + client/LabAmbientClient,
   network/LabAmbientPayload (поле forced, канал "2"), числа и сцены 0–19 в
@@ -418,9 +418,11 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   KIND_KNOCK в чертежах остался как заложенная дверь для осмотра.
 - Остальные замки: 2 INDEX (шифр 6, B1 яви), 3 BAY (шифр 4, B1 сна),
   4 NURSERY (шифр 5), 5 SESSION (секрет 48).
-- Варианты шифров — из LabSavedData.cipherSeed. LabSavedData.DATA_VERSION = 4
+- Варианты шифров — из LabSavedData.cipherSeed. LabSavedData.DATA_VERSION = 5
   (v2 → roofPending: крыша с антенной перестраивается при загрузке;
-  v4 → shaftBuilt: у старых миров шахта G↔B1 достраивается при загрузке).
+  v4 → shaftBuilt: у старых миров шахта G↔B1 достраивается при загрузке;
+  v5 → lampsPending/sealPending: старые миры получают END_ROD/light_tube и
+  герметизацию шахты при загрузке).
 - Антенна: LabAntenna, AntennaDriveBlock, KIND_ANTENNA=12; тарелка из 16
   block_display на мачте; каретка ПКМ +15° / Shift −15°, кулдаун 12 тиков.
   BUFFER.LOG (B3, строки 8–9) — азимут ретранслятора и «куда отвернули»
@@ -439,9 +441,8 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
 ===============================================================================
 6. ТЕКУЩЕЕ СОСТОЯНИЕ (по коду, в игре проверено не всё)
 ===============================================================================
-- Репозиторий main: 17d59b7 «latest change» (в нём закоммичены маркеры
-  merge-конфликта — локально разрешены). Изменения лифтов/шахт пока в рабочем
-  дереве; compileJava и labSelfTests проходят.
+- Репозиторий main: 4f1f7b3 «Add the technical-ideal bar and a mechanic sweep
+  task»; рабочее дерево чистое, compileJava и весь набор self-tests проходят.
 - Лифты:
   * LiftRide: оболочка кабины копируется в block_display, игрок сидит на
     невидимом дисплее-носителе; блоки мира не двигаются.
@@ -760,7 +761,7 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
    по одной, с пометкой [новое].
 9. Пиксельная эрозия и редкие фразы (погоня, антипауза): проверить в игре плотность, читаемость, свободный
    центр/путь, кнопки меню на гневе, порядок слоёв, FPS.
-   Английские строки: паритет 974/974 сделан (EN — исходный текст кода, не перевод); осталось проверить в игре длинные строки и переносы.
+   Английские строки: паритет 976/976 сделан (EN — исходный текст кода, не перевод); осталось проверить в игре длинные строки и переносы.
 10. Потом отдельно: багхант, одиночная и сетевая проверка, сохранение/рестарт,
    семь концовок, релизная сборка.
 
@@ -1048,14 +1049,14 @@ C.8. Отладка
 
 D.1. Общие решения
 - Место заранее построено в измерении снов, в фиксированной зоне, по образцу
-  LabBuilder/LabFloors; состояние — в SavedData. Тот же слой мира снов, не новые
-  измерения.
+  LabBuilder/LabPlacement; состояние — в SavedData. Тот же слой мира снов, не
+  новые измерения.
 - Осколки в кошмарах — только клиентские «призраки» (как ObserverGhost), в мир
   не добавляются; урона нет (до стадии 5 нигде); лицо Nora не показывать; глаза
   только на лице осколка.
 - Числа — только в NightmareTuning (общий код, без клиентских импортов);
-  клиентское состояние NightmareState без клиентских импортов Minecraft;
-  пакеты — NightmareNetwork; сервер — NightmareHandler (@EventBusSubscriber);
+  пакеты — ShaftNetwork/WardGhostNetwork; сервер — WardScenarioHandler,
+  ShaftHandler, RoundsHandler, SessionHandler (@EventBusSubscriber);
   данные — DreamData.kind (или отдельный Data Attachment, copyOnDeath).
 - Выход — по таймеру или действию; на выходе усталость, безумие и последствия
   задаются сценарием.
