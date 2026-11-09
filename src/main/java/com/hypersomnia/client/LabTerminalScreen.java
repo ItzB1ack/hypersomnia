@@ -77,6 +77,8 @@ public final class LabTerminalScreen extends Screen {
     private static final Map<String, Integer> listScroll = new HashMap<>();
     /** Открытые письма ("сеанс:id"): остальные во входящих — непрочитанные. */
     private static final Set<String> readMail = new HashSet<>();
+    /** Сеансы, где уже показали редкое несоответствие индекса (A.5). */
+    private static final Set<Integer> mismatchSeen = new HashSet<>();
     /** Выделенный значок рабочего стола: станция -> номер. */
     private static final Map<Integer, Integer> deskIcon = new HashMap<>();
     private static int focus = FOCUS_LIST;
@@ -97,6 +99,8 @@ public final class LabTerminalScreen extends Screen {
     private int icon;
     private int loading;
     private int flash;
+    /** Тики редкого несоответствия индекса в строке состояния (A.5). */
+    private int mismatch;
     /** Время последнего перехода (вход, окно, запись): второй щелчок двойного клика не срабатывает. */
     private long guardAt;
 
@@ -123,8 +127,7 @@ public final class LabTerminalScreen extends Screen {
     private LabTerminalScreen(Station station, List<String> listed, List<String> readable) {
         super(ui("title", "CRADLE WORKSTATION"));
         this.station = station;
-        Minecraft mc = Minecraft.getInstance();
-        this.sk = station.id() + (mc.level != null && mc.level.dimension() == DreamDimension.LEVEL ? DREAM_SESSION : 0);
+        this.sk = station.id() + (dreamWorld() ? DREAM_SESSION : 0);
         this.listed = new HashSet<>(listed);
         this.readable = new HashSet<>(readable);
         this.icon = Math.max(0, Math.min(station.apps().size() - 1, deskIcon.getOrDefault(sk, 0)));
@@ -142,6 +145,11 @@ public final class LabTerminalScreen extends Screen {
         Station st = ArchiveDefs.station(terminal);
         if (st == null) return;
         Minecraft.getInstance().setScreen(new LabTerminalScreen(st, listed, readable));
+    }
+
+    private static boolean dreamWorld() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.level != null && mc.level.dimension() == DreamDimension.LEVEL;
     }
 
     private static Component ui(String key, String fallback) {
@@ -295,6 +303,7 @@ public final class LabTerminalScreen extends Screen {
         folder = f != null && fs.contains(f) ? f : fs.get(0);
         loading = a == App.ARCHIVE && !indexRead ? LabTuning.ARCHIVE_LOADING_TICKS : 0;
         flash = 0;
+        mismatch = 0;
         focus = FOCUS_LIST;
         rebuildRows();
         guardAt = Util.getMillis();
@@ -307,6 +316,7 @@ public final class LabTerminalScreen extends Screen {
         rows.clear();
         loading = 0;
         flash = 0;
+        mismatch = 0;
         guardAt = Util.getMillis();
     }
 
@@ -373,6 +383,8 @@ public final class LabTerminalScreen extends Screen {
             return;
         }
         viewing = r;
+        if (LabTuning.archiveMismatch(ObserverState.stage(), r.id(), dreamWorld()) && mismatchSeen.add(sk))
+            mismatch = LabTuning.ARCHIVE_FLASH_TICKS;
         if (r.app() == App.MAIL) readMail.add(sk + ":" + r.id());
         guardAt = Util.getMillis();
         docScroll = 0;
@@ -382,6 +394,7 @@ public final class LabTerminalScreen extends Screen {
     private void closeRecord() {
         viewing = null;
         lines.clear();
+        mismatch = 0;
     }
 
     private void finishLoading() {
@@ -394,6 +407,7 @@ public final class LabTerminalScreen extends Screen {
         if (mode == PROFILE && --profile <= 0) mode = DESKTOP;
         if (loading > 0 && --loading == 0) indexRead = true;
         if (flash > 0) flash--;
+        if (mismatch > 0) mismatch--;
     }
 
     /** Часы панели задач: время мира; в мире снов часы стоят. */
@@ -1155,8 +1169,9 @@ public final class LabTerminalScreen extends Screen {
         sunken(g, x, y, w - right - 2, STATUS_H);
         sunken(g, x + w - right, y, right, STATUS_H);
         String path = station.host() + " / " + appName(app) + (hasTree() ? " / " + folderName(folder) : "");
-        String left = flash > 0 ? uis("unavailable", "RECORD UNAVAILABLE") : path;
-        g.drawString(font, fit(left, w - right - 8), x + 3, y + 2, flash > 0 ? RED : SUB, false);
+        String left = mismatch > 0 ? uis("mismatch", "INDEX MISMATCH")
+                : flash > 0 ? uis("unavailable", "RECORD UNAVAILABLE") : path;
+        g.drawString(font, fit(left, w - right - 8), x + 3, y + 2, mismatch > 0 || flash > 0 ? RED : SUB, false);
         String fb = switch (app) {
             case ARCHIVE -> "RECORDS: %s";
             case MAIL -> "MESSAGES: %s";

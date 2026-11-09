@@ -240,6 +240,14 @@ public final class LabTuning {
     public static final int ARCHIVE_LOADING_TICKS = 8;
     /** Сколько тиков строка состояния показывает RECORD UNAVAILABLE. */
     public static final int ARCHIVE_FLASH_TICKS = 40;
+    /**
+     * A.5: редкое несоответствие индекса. После этой стадии первое открытие заголовка индекса сеансов
+     * в реальном мире показывает в строке состояния INDEX MISMATCH. Это только текст: доступ не меняется.
+     */
+    public static final int ARCHIVE_MISMATCH_STAGE = 5;
+    public static boolean archiveMismatch(int stage, String recordId, boolean dream) {
+        return !dream && stage >= ARCHIVE_MISMATCH_STAGE && "idx_header".equals(recordId);
+    }
     /** Прокрутка документа на один щелчок колеса / стрелку (px GUI). */
     public static final int ARCHIVE_SCROLL_PX = 10;
     /** Mono: минимальная ширина ячейки сетки колонок (px GUI); фактическая = max(этого, самого широкого символа колонок записи). */

@@ -14,6 +14,10 @@ public final class LabVariantsSelfTest {
         long[] special = {0, 1, -1, Long.MIN_VALUE, Long.MAX_VALUE};
         for (long seed : special) checkSeed(seed);
         for (long seed = 2; seed < 102; seed++) checkSeed(seed * 0x9E3779B97F4A7C15L);
+        check(!LabTuning.archiveMismatch(4, "idx_header", false), "mismatch before stage 5");
+        check(LabTuning.archiveMismatch(5, "idx_header", false), "mismatch at stage 5");
+        check(!LabTuning.archiveMismatch(5, "idx_header", true), "mismatch not in dream");
+        check(!LabTuning.archiveMismatch(5, "sys_notice", false), "mismatch only index header");
         System.out.println("LabVariantsSelfTest: " + checks + " checks passed across 105 seeds.");
     }
     private static void checkSeed(long seed) {

@@ -258,7 +258,7 @@ public final class ArchiveDefs {
 
         // ================= Пост у ворот (G) =================
         // Замок 1: правило (бывшая табличка KEYPAD NOTE) — письмо g_keypad, ответ (бывшая табличка GATE LOG) — журнал ворот.
-        // Код = время строки журнала, на которую указывает правило письма (G_KEYPAD_RULES по зерну мира, LabVariants.hatchCode);
+        // Код = время строки журнала, на которую указывает правило письма (G_KEYPAD_RULES по зерну мира, LabVariants.hatchRule);
         // во сне всегда 03:13. Времена журнала менять только вместе с LabTuning.HATCH_CODES.
         mail(ST_GATE_G, "g_voss", Folder.INBOX, 10, "h.voss", "s.reyes", "02.09 21:48", "Tonight", REAL, List.of(
                 new Para("I will be in at about ten. The Director will come later."),                // 0

@@ -336,6 +336,7 @@
   "hypersomnia.archive.ui.title": "CRADLE WORKSTATION",
   "hypersomnia.archive.ui.loading": "ЧТЕНИЕ ИНДЕКСА...",
   "hypersomnia.archive.ui.unavailable": "ЗАПИСЬ НЕДОСТУПНА",
+  "hypersomnia.archive.ui.mismatch": "НЕСООТВЕТСТВИЕ ИНДЕКСА",
   "hypersomnia.archive.ui.restricted": "[ЗАКРЫТО]",
   "hypersomnia.archive.ui.back": "НАЗАД",
   "hypersomnia.archive.ui.col.record": "Запись",

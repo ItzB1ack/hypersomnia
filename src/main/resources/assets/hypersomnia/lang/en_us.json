@@ -82,6 +82,7 @@
   "hypersomnia.archive.ui.title": "CRADLE WORKSTATION",
   "hypersomnia.archive.ui.loading": "READING INDEX...",
   "hypersomnia.archive.ui.unavailable": "RECORD UNAVAILABLE",
+  "hypersomnia.archive.ui.mismatch": "INDEX MISMATCH",
   "hypersomnia.archive.ui.restricted": "[RESTRICTED]",
   "hypersomnia.archive.ui.back": "BACK",
   "hypersomnia.archive.ui.col.record": "Record",
