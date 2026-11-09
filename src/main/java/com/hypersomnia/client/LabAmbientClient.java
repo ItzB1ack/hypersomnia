@@ -86,6 +86,7 @@ public final class LabAmbientClient {
                 case 13 -> SoundEvents.WOODEN_DOOR_OPEN;
                 case 14 -> SoundEvents.NOTE_BLOCK_CHIME.value();
                 case 15 -> SoundEvents.NOTE_BLOCK_BELL.value();
+                case 16 -> SoundEvents.PLAYER_BREATH;
                 default -> null;
             };
             float[] steps = scene < ObserverTuning.LAB_AMBIENT_SCENE_STEP_VOLUME.length

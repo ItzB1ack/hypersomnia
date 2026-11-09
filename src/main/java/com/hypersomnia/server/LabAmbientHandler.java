@@ -136,6 +136,7 @@ public final class LabAmbientHandler {
             if (k < 0 || k >= ObserverTuning.LAB_AMBIENT_SCENE_TICKS.length) continue;
             if (stage < ObserverTuning.LAB_AMBIENT_SCENE_MIN_STAGE[k]) continue;
             if (ObserverTuning.LAB_AMBIENT_SCENE_POWER[k] && LabOutage.active(level)) continue;
+            if (k == ObserverTuning.LAB_AMBIENT_CAPSULE_BREATH_SCENE && closedCapsule(p) == null) continue;
             candidates[n++] = k;
         }
         if (n == 0) return -1;
@@ -147,8 +148,9 @@ public final class LabAmbientHandler {
 
     /** Точка звука сцены: назад по взгляду и/или выше головы (шаги над потолком, лифт за стеной). */
     private static BlockPos soundAt(ServerPlayer p, int kind) {
-        if (kind == ObserverTuning.LAB_AMBIENT_CAPSULE_SCENE) {
-            // Сцена 10: звук идёт от ближайшей закрытой капсулы, а не из пустого места за спиной.
+        if (kind == ObserverTuning.LAB_AMBIENT_CAPSULE_SCENE
+                || kind == ObserverTuning.LAB_AMBIENT_CAPSULE_BREATH_SCENE) {
+            // Сцены 10 и 19: звук идёт от ближайшей закрытой капсулы, а не из пустого места за спиной.
             BlockPos capsule = closedCapsule(p);
             if (capsule != null) return capsule;
         }
