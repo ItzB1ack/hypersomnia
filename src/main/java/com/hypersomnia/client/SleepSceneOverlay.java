@@ -86,6 +86,13 @@ public final class SleepSceneOverlay {
     private static final Part EYE_IRIS_R = eye("iris", 2.2f, 2.2f, false);
     private static final Part EYE_LIDS_L = eye("lids", 5f, 3.4f, true);
     private static final Part EYE_LIDS_R = eye("lids", 5f, 3.4f, false);
+    /**
+     * Веки пары в меню паузы. Слой тот же, но без широкой кожи вокруг раскрытия: у пары нет лица,
+     * и ореол в 0.5 юнита читался огромным тёмным овалом вокруг глаза. В текстуре осталась узкая
+     * тень по кромке и очень слабая широкая глазница, чтобы глаз не выглядел наклейкой на фоне.
+     */
+    private static final Part EYE_LIDS_PAUSE_L = eye("lids_pause", 5f, 3.4f, true);
+    private static final Part EYE_LIDS_PAUSE_R = eye("lids_pause", 5f, 3.4f, false);
 
     private static Part eye(String layer, float wU, float hU, boolean mirrored) {
         return eye(layer, wU, hU, mirrored, EYE_TEX_PX);
@@ -377,7 +384,7 @@ public final class SleepSceneOverlay {
             float cyU = EYE_Y + (right ? 0.35f : 0f);
             Part sclera = right ? EYE_SCLERA_R : EYE_SCLERA_L;
             Part iris = right ? EYE_IRIS_R : EYE_IRIS_L;
-            Part lids = right ? EYE_LIDS_R : EYE_LIDS_L;
+            Part lids = right ? EYE_LIDS_PAUSE_R : EYE_LIDS_PAUSE_L;
             float fullH = sclera.h() * k / sclera.px() * size;
             int half = Math.max(1, Math.round(fullH * vis * 0.5f));
             int cyPx = Math.round(h * 0.42f + (cyU - EYE_Y) * k);

@@ -144,15 +144,23 @@ def eye_iris(path, seed=22):
     return (W, H)
 
 
-def eye_lids(path, seed=23):
-    """Верхний слой: тёмная кожа вокруг раскрытия (обрезает радужку), тень от верхнего века, светлая кромка внизу."""
+def eye_lids(path, seed=23, halo_w=0.5, halo_pow=0.8, halo2_w=0.0, halo2_a=0.0, halo2_pow=1.6):
+    """Верхний слой: тёмная кожа вокруг раскрытия (обрезает радужку), тень от верхнего века, светлая кромка внизу.
+
+    halo_w — на сколько юнитов тёмная кожа выступает за раскрытие. Для лица 0.5 (веко переходит
+    в кожу). Для пары в меню паузы лица нет, и такой ореол читается огромным тёмным овалом,
+    поэтому паузный вариант (halo_w≈0.16) оставляет только узкую тень по кромке глаза, а
+    halo2_* добавляет очень слабую широкую тень-глазницу, чтобы глаз не выглядел наклейкой.
+    """
     from scipy.ndimage import distance_transform_edt
     rng = np.random.default_rng(seed)
     W, H, x, y = eye_grid()
     top, bot = lid_curves(x)
     inside = ((y >= top) & (y <= bot) & (np.abs(x) < A + 0.15))
-    dout = distance_transform_edt(~inside) / EYE_PX                  # расстояние от раскрытия наружу, юниты
-    halo = np.clip(1 - dout / 0.5, 0, 1) ** 0.8
+    dout = distance_transform_edt(~inside) / EYE_PX                 # расстояние от раскрытия наружу, юниты
+    halo = np.clip(1 - dout / halo_w, 0, 1) ** halo_pow
+    if halo2_a > 0:
+        halo = np.maximum(halo, halo2_a * np.clip(1 - dout / halo2_w, 0, 1) ** halo2_pow)
     halo[inside] = 0
     # тень верхнего века внутри глаза
     shadow = 0.62 * np.clip(1 - (y - top) / 0.34, 0, 1) ** 1.5 * inside
@@ -185,6 +193,13 @@ if __name__ == "__main__":
         print(n, f(pth)); names.append(n)
         # зеркальная копия для второго глаза (отдельный файл *_r)
         Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
+    # Пара в меню паузы: те же веки, но без кожи вокруг — на тёмном меню широкий ореол
+    # читается огромным овалом. Оставляем узкую тень по кромке раскрытия.
+    pth = os.path.join(out, "silhouette_eye_lids_pause.png")
+    print("silhouette_eye_lids_pause", eye_lids(pth, halo_w=0.16, halo_pow=1.2,
+                                               halo2_w=0.55, halo2_a=0.30))
+    Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, "silhouette_eye_lids_pause_r.png"))
+    names += ["silhouette_eye_lids_pause", "silhouette_eye_lids_pause_r"]
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля
         with open(os.path.join(out, n + ".png.mcmeta"), "w") as fh:
             fh.write('{\n  "texture": {\n    "blur": true\n  }\n}\n')
