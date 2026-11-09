@@ -144,11 +144,12 @@ def eye_iris(path, seed=22):
     return (W, H)
 
 
-def eye_lids(path, seed=23, halo_units=0.5):
+def eye_lids(path, seed=23, halo_units=0.5, sparks=1.0):
     """Верхний слой: тёмная кожа вокруг раскрытия (обрезает радужку), тень от верхнего века, светлая кромка внизу.
 
-    halo_units — ширина тёмного ореола вокруг раскрытия. Для пары в меню паузы лица вокруг нет,
-    и широкий ореол на фоне меню читается как чёрное пятно, поэтому берётся узкая кромка.
+    halo_units — ширина тёмного ореола вокруг раскрытия; 0 = ореола нет, остаются только тень
+    внутри раскрытия и влажная кромка (для пары в меню паузы, где лица вокруг нет и любой ореол
+    на фоне меню читается обводкой). sparks — множитель ярких искр на нижней кромке.
     """
     from scipy.ndimage import distance_transform_edt
     rng = np.random.default_rng(seed)
@@ -156,7 +157,10 @@ def eye_lids(path, seed=23, halo_units=0.5):
     top, bot = lid_curves(x)
     inside = ((y >= top) & (y <= bot) & (np.abs(x) < A + 0.15))
     dout = distance_transform_edt(~inside) / EYE_PX                  # расстояние от раскрытия наружу, юниты
-    halo = np.clip(1 - dout / halo_units, 0, 1) ** 0.8
+    if halo_units > 0:
+        halo = np.clip(1 - dout / halo_units, 0, 1) ** 0.8
+    else:
+        halo = np.zeros_like(dout)
     halo[inside] = 0
     # тень верхнего века внутри глаза
     shadow = 0.62 * np.clip(1 - (y - top) / 0.34, 0, 1) ** 1.5 * inside
@@ -166,10 +170,10 @@ def eye_lids(path, seed=23, halo_units=0.5):
     # светлая влажная кромка нижнего века + искры
     rim = (np.abs(y - bot) < 0.055) & (x > -1.5) & (x < 1.4)
     rim_a = gaussian_filter(rim.astype(np.float32), 0.8) * 0.85
-    sparks = (rng.random((H, W)) < 0.10) & (np.abs(y - bot - 0.03) < 0.07) & (x > -1.1) & (x < 0.9)
-    sparks = gaussian_filter(sparks.astype(np.float32), 0.6) * 2.4
-    rim_v = np.clip(0.50 + 0.18 * (-x / A) + sparks, 0, 1)
-    top_a = np.clip(rim_a + np.clip(sparks, 0, 1) * 0.6, 0, 1)
+    spark_px = (rng.random((H, W)) < 0.10) & (np.abs(y - bot - 0.03) < 0.07) & (x > -1.1) & (x < 0.9)
+    spark_px = gaussian_filter(spark_px.astype(np.float32), 0.6) * 2.4 * sparks
+    rim_v = np.clip(0.50 + 0.18 * (-x / A) + spark_px, 0, 1)
+    top_a = np.clip(rim_a + np.clip(spark_px, 0, 1) * 0.6, 0, 1)
     out_a = top_a + alpha * (1 - top_a)
     rgb = (rim_v[..., None] * 255.0 * top_a[..., None] + rgb * alpha[..., None] * (1 - top_a[..., None])) / np.maximum(out_a[..., None], 1e-4)
     out = np.dstack([rgb, out_a * 255.0]).clip(0, 255).astype(np.uint8)
@@ -189,11 +193,12 @@ if __name__ == "__main__":
         print(n, f(pth)); names.append(n)
         # зеркальная копия для второго глаза (отдельный файл *_r)
         Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
-    # Пара в меню паузы: та же текстура, но ореол сжат до узкой кромки — лица вокруг нет,
-    # а широкое тёмное кольцо на фоне меню и эффектов антипаузы читалось как чёрное пятно.
+    # Пара в меню паузы: та же текстура, но без внешнего ореола и без искр — лица вокруг нет,
+    # и любой ореол на фоне меню и эффектов антипаузы читается обводкой, а искры — бусинами.
+    # Остаются тень верхнего века внутри раскрытия и ровная влажная кромка нижнего.
     n = "silhouette_eye_lids_pause"
     pth = os.path.join(out, n + ".png")
-    print(n, eye_lids(pth, halo_units=0.14)); names.append(n)
+    print(n, eye_lids(pth, halo_units=0.0, sparks=0.0)); names.append(n)
     Image.open(pth).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, n + "_r.png")); names.append(n + "_r")
     for n in names:   # мягкая (линейная) фильтрация: размытие — часть стиля
         with open(os.path.join(out, n + ".png.mcmeta"), "w") as fh:
