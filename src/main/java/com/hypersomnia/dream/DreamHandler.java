@@ -6,6 +6,7 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.SleepPenalty;
 import com.hypersomnia.chase.ChaseHandler;
+import com.hypersomnia.syringe.SyringeHandler;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.MobSpawnType;
@@ -47,6 +48,7 @@ public final class DreamHandler {
         // После финала (FinaleLogic.completed) мир снов закрыт: обычная кровать, ночь пропускается как в ванили
         if (!dream.isInDream() && !inDreamLevel && player.isSleeping()
                 && player.getSleepTimer() >= DreamTuning.BED_SLEEP_TICKS
+                && !SyringeHandler.isAwake(player) // пока действует шприц, сон не начинается
                 && player.getData(SceneAttachments.SCENE).getHold() <= 0 // пока идёт сцена, не трогаем
                 && !com.hypersomnia.finale.FinaleLogic.completed(player)) {
             // Память привычек: где игрок спит (только кровати Верхнего мира)
@@ -104,8 +106,17 @@ public final class DreamHandler {
      */
     @SubscribeEvent
     public static void onCanSleep(CanPlayerSleepEvent event) {
-        if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
         ServerPlayer player = event.getEntity();
+        // Искусственное бодрствование: спать нельзя, пока действует шприц, даже если усталость уже 100%.
+        if (SyringeHandler.isAwake(player)) {
+            player.getData(ModAttachments.FATIGUE).setAnyTimeSleep(false);
+            // OTHER_PROBLEM без текста: NOT_POSSIBLE_NOW ниже снимается при сильной усталости.
+            if (event.getProblem() == null || event.getProblem() == Player.BedSleepingProblem.NOT_POSSIBLE_NOW)
+                event.setProblem(Player.BedSleepingProblem.OTHER_PROBLEM);
+            player.displayClientMessage(Component.translatable("hypersomnia.syringe.awake"), true);
+            return;
+        }
+        if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
         FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
         if (!maySleepThroughDay(player, fatigue)) return;
         // Днём ванильные проверки до монстров не доходят: не обходим «рядом монстры».
@@ -126,6 +137,12 @@ public final class DreamHandler {
     @SubscribeEvent
     public static void onCanContinueSleeping(CanContinueSleepingEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        // Если шприц подействовал уже во сне (или сон начался до укола) — просыпаемся.
+        if (SyringeHandler.isAwake(player)) {
+            player.getData(ModAttachments.FATIGUE).setAnyTimeSleep(false);
+            event.setContinueSleeping(false);
+            return;
+        }
         if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
         FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
         if (!fatigue.isAnyTimeSleep()) return;

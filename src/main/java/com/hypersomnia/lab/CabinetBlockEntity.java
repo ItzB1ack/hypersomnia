@@ -26,6 +26,8 @@ import net.minecraft.world.level.block.state.BlockState;
 /** Содержимое картотечного шкафа: LabTuning.CABINET_ROWS ящиков по 9 ячеек. Открытие выдвигает верхний ящик (CabinetBlock.OPEN). */
 public final class CabinetBlockEntity extends BaseContainerBlockEntity {
     private NonNullList<ItemStack> items = NonNullList.withSize(LabTuning.CABINET_ROWS * 9, ItemStack.EMPTY);
+    /** Шприцы из директивы чертежа уже разложены (для старых миров — ленивое досевание при первом открытии). */
+    private boolean syringeSeeded;
 
     private final ContainerOpenersCounter openers = new ContainerOpenersCounter() {
         @Override
@@ -82,6 +84,7 @@ public final class CabinetBlockEntity extends BaseContainerBlockEntity {
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         ContainerHelper.saveAllItems(tag, items, registries);
+        tag.putBoolean("syringeSeeded", syringeSeeded);
     }
 
     @Override
@@ -89,7 +92,11 @@ public final class CabinetBlockEntity extends BaseContainerBlockEntity {
         super.loadAdditional(tag, registries);
         items = NonNullList.withSize(LabTuning.CABINET_ROWS * 9, ItemStack.EMPTY);
         ContainerHelper.loadAllItems(tag, items, registries);
+        syringeSeeded = tag.getBoolean("syringeSeeded");
     }
+
+    public boolean isSyringeSeeded() { return syringeSeeded; }
+    public void setSyringeSeeded(boolean value) { syringeSeeded = value; }
 
     @Override
     public void startOpen(Player player) {

@@ -7,6 +7,7 @@ import com.hypersomnia.lab.ArchiveAccess;
 import com.hypersomnia.lab.LabAntenna;
 import com.hypersomnia.lab.CabinetBlockEntity;
 import com.hypersomnia.lab.LabBreakers;
+import com.hypersomnia.lab.LabCabinets;
 import com.hypersomnia.lab.LabFixtures;
 import com.hypersomnia.lab.LabLift;
 import com.hypersomnia.lab.LabLocks;
@@ -108,7 +109,10 @@ public final class LabHandler {
                 player.displayClientMessage(Component.translatable("hypersomnia.lab.box.sealed"), true);
                 return;
             }
-            if (level.getBlockEntity(event.getPos()) instanceof CabinetBlockEntity cab) player.openMenu(cab);
+            if (level.getBlockEntity(event.getPos()) instanceof CabinetBlockEntity cab) {
+                LabCabinets.seedOnOpen(level, event.getPos(), cab);
+                player.openMenu(cab);
+            }
             LabLocks.boxOpened(player, id);
         } else if (kind == LabSavedData.KIND_TERMINAL) {
             ArchiveAccess.Snapshot snap = ArchiveAccess.snapshot(player, d, id);

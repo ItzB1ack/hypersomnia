@@ -25,6 +25,11 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class SyringeHandler {
     private SyringeHandler() {}
 
+    /** Действует ли искусственное бодрствование от шприца прямо сейчас. */
+    public static boolean isAwake(ServerPlayer player) {
+        return player.getData(SyringeAttachments.SYRINGE).getWakeTicks() > 0;
+    }
+
     /** Можно ли сделать укол сейчас (без расхода предмета). */
     public static boolean canInject(ServerPlayer player) {
         if (player.isCreative() || player.isSpectator() || !player.isAlive()) return false;

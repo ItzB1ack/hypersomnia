@@ -11,7 +11,8 @@
 тройка CCC (западная клетка изножье, средняя середина, восточная изголовье, перед тройкой проход); стоячая капсула I —
 колонка в три блока (высота этажа не меньше 3), рядом с ней должна быть достижимая клетка пола; ряды хранилища
 (stack) и серверные стойки (rack) — сплошная линия одним символом по направлению роста номеров, перед лицом — проход;
-оборудование (equip: crac|ups|battery и сторона лица) — перед лицом проход.
+оборудование (equip: crac|ups|battery и сторона лица) — перед лицом проход; директива syringe задаёт число
+адреналиновых шприцев в шкафу (символ cabinet или обычный F/p) и должна ссылаться на существующие клетки шкафа.
 Доступность: обход от '@' по полу; у каждой вещи, с которой работает игрок, должна быть достижимая клетка.
 Предупреждения (не ошибки): нет перевода таблички в ru_ru, длинная строка таблички.
 """
@@ -97,6 +98,7 @@ class Floor:
         self.panels = set(m.get("panel", {}))
         self.stations = m.get("station", {})
         self.cabinets = m.get("cabinet", {})
+        self.syringes = m.get("syringe", {})
         self.gates = set(m.get("gate", {}))
         self.finale = m.get("finale", {})
         self.capsules = set(m.get("capsule", {}))
@@ -316,10 +318,15 @@ def check(name, text, docs=None, stations=None, ru=None):
     for ch, doc in f.cabinets.items():
         if docs is not None and doc not in docs:
             errs.append("cabinet %s -> unknown doc %s" % (ch, doc))
+    for ch, v in f.syringes.items():
+        if not v.lstrip("+").isdigit() or int(v) < 1:
+            errs.append("syringe %s: bad count %s" % (ch, v))
+        elif ch not in f.cabinets and ch not in "Fp":
+            errs.append("syringe %s: not a cabinet symbol" % ch)
     for ch, v in f.stations.items():
         if stations is not None and v.split()[0] not in stations:
             errs.append("station %s -> unknown station %s" % (ch, v))
-    for kind in ("sign", "lock", "panel", "station", "cabinet", "gate", "capsule", "bed", "knock", "finale", "equip"):
+    for kind in ("sign", "lock", "panel", "station", "cabinet", "syringe", "gate", "capsule", "bed", "knock", "finale", "equip"):
         for ch in f.maps.get(kind, {}):
             if not f.cells(ch):
                 errs.append("%s %s unused" % (kind, ch))

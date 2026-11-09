@@ -23,6 +23,7 @@ import java.util.Map;
  * panel B = 0        (щит рубильников; 0 = MAIN FEED, отрицательный — декоративный щит без связи)
  * station P = sec_b1 (рабочая станция ArchiveDefs.Station с этим key; можно добавить сторону экрана: station P = sec_b1 east)
  * cabinet f = cab_intake (картотечный шкаф с этой страницей DocumentDefs, кроме обычной бумаги; см. LabCabinets)
+ * syringe f = 2      (в шкафу этой клетки (cabinet или обычный шкаф F/p) лежат 2 адреналиновых шприца)
  * seal o = 2         (шкаф из строки cabinet запечатан замком 2: без бумаги, открывается вместе с замком, KIND_SEAL)
  * gate G = 3         (решётка-ворота: проём как '=', 3x3, закрыт железными прутьями, пока замок 3 закрыт, KIND_GATE)
  * finale S = bed     (детская финала: bed|door|recorder|fragment|toy, FinaleTuning.PARTS, KIND_FINALE)
@@ -56,6 +57,8 @@ public final class LabBlueprint {
     public final Map<Character, String[]> stations = new HashMap<>();
     /** Символ клетки -> id страницы DocumentDefs в этом шкафу. */
     public final Map<Character, String> cabinets = new HashMap<>();
+    /** Символ шкафа (cabinet или обычный F/p) -> сколько адреналиновых шприцев лежит внутри. */
+    public final Map<Character, Integer> syringes = new HashMap<>();
     /** Символ шкафа из cabinets -> id замка, который его запечатывает. */
     public final Map<Character, Integer> seals = new HashMap<>();
     /** Символ клетки -> id замка решётки-ворот. */
@@ -141,6 +144,7 @@ public final class LabBlueprint {
             Map<Character, Integer> panels = new HashMap<>();
             Map<Character, String[]> stations = new HashMap<>();
             Map<Character, String> cabinets = new HashMap<>();
+            Map<Character, Integer> syringes = new HashMap<>();
             Map<Character, Integer> seals = new HashMap<>();
             Map<Character, Integer> gates = new HashMap<>();
             Map<Character, Integer> finale = new HashMap<>();
@@ -178,6 +182,7 @@ public final class LabBlueprint {
                     else if (key.startsWith("lock ")) locks.put(key.substring(5).trim().charAt(0), Integer.parseInt(val));
                     else if (key.startsWith("panel ")) panels.put(key.substring(6).trim().charAt(0), Integer.parseInt(val));
                     else if (key.startsWith("cabinet ")) cabinets.put(key.substring(8).trim().charAt(0), val);
+                    else if (key.startsWith("syringe ")) syringes.put(key.substring(8).trim().charAt(0), Integer.parseInt(val));
                     else if (key.startsWith("seal ")) seals.put(key.substring(5).trim().charAt(0), Integer.parseInt(val));
                     else if (key.startsWith("gate ")) gates.put(key.substring(5).trim().charAt(0), Integer.parseInt(val));
                     else if (key.startsWith("capsule ")) capsules.put(key.substring(8).trim().charAt(0), Integer.parseInt(val));
@@ -220,6 +225,7 @@ public final class LabBlueprint {
             bp.panels.putAll(panels);
             bp.stations.putAll(stations);
             bp.cabinets.putAll(cabinets);
+            bp.syringes.putAll(syringes);
             bp.seals.putAll(seals);
             bp.gates.putAll(gates);
             bp.finale.putAll(finale);

@@ -44,6 +44,8 @@ cabinet c = cab_b4_roster
 cabinet j = note_2d_glyphs
 cabinet m = mem_2_discharge
 cabinet n = drawing_blank
+syringe m = 2
+syringe n = 1
 bed b = white
 ; шифр 9 (замок 8): записка j в палате 2D — глифами; во сне та же записка даёт код счёта (note_2d_knock);
 ; панель K — в коридоре B напротив окна 2D, дверь k заложена (только осмотр): стук больше не выстукивает код

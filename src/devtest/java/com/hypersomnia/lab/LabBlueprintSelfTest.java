@@ -31,7 +31,8 @@ public final class LabBlueprintSelfTest {
             check(occurrences(bp, '@') == 1, name + ": lift needs exactly one anchor");
             check(bp.at(bp.ax, bp.az) == '@', name + ": anchor coordinates");
             used(bp, bp.signs, "sign"); used(bp, bp.locks, "lock"); used(bp, bp.panels, "panel");
-            used(bp, bp.stations, "station"); used(bp, bp.cabinets, "cabinet"); used(bp, bp.seals, "seal");
+            used(bp, bp.stations, "station"); used(bp, bp.cabinets, "cabinet"); used(bp, bp.syringes, "syringe");
+            used(bp, bp.seals, "seal");
             used(bp, bp.gates, "gate"); used(bp, bp.finale, "finale"); used(bp, bp.capsules, "capsule");
             used(bp, bp.beds, "bed"); used(bp, bp.racks, "rack"); used(bp, bp.stacks, "stack");
             used(bp, bp.knocks, "knock"); used(bp, bp.equips, "equip");
@@ -39,6 +40,11 @@ public final class LabBlueprintSelfTest {
                 String id = entry.getValue();
                 check(DocumentDefs.get(id) != null, name + ": unknown cabinet document " + id);
                 if (MemoryTuning.indexOf(id) >= 0) memories.merge(id, occurrences(bp, entry.getKey()), Integer::sum);
+            }
+            for (var entry : bp.syringes.entrySet()) {
+                char c = entry.getKey();
+                check(entry.getValue() > 0, name + ": bad syringe count " + c);
+                check(bp.cabinets.containsKey(c) || c == 'F' || c == 'p', name + ": syringe on non-cabinet " + c);
             }
             for (var entry : bp.stations.entrySet()) check(ArchiveDefs.station(entry.getValue()[0]) != null,
                     name + ": unknown station " + entry.getValue()[0]);
@@ -48,6 +54,12 @@ public final class LabBlueprintSelfTest {
         for (String id : MemoryTuning.IDS) check(memories.getOrDefault(id, 0) == 1, "memory source count: " + id);
         for (int part = 0; part < com.hypersomnia.finale.FinaleTuning.PARTS.length; part++)
             check(finaleParts.contains(part), "dream finale part missing: " + part);
+        for (boolean dream : new boolean[]{false, true}) {
+            LabBlueprint b4 = LabBlueprint.get(LabTuning.blueprintName(dream, 4)); // stop 4 = B4
+            int total = 0;
+            for (int count : b4.syringes.values()) total += count;
+            check(total > 0, (dream ? "dream" : "real") + " B4 has no syringe cabinets");
+        }
         System.out.println("LabBlueprintSelfTest: " + checks + " checks passed.");
     }
 }

@@ -508,7 +508,8 @@ public final class LabBuilder {
                 if (doc != null) {
                     Integer seal = bp.seals.get(c);
                     BlockPos cp = new BlockPos(wx, fy, wz);
-                    LabCabinets.place(level, cp, cabinetFacing(bp, x, z), doc, bp.dream, seal == null);
+                    LabCabinets.place(level, cp, cabinetFacing(bp, x, z), doc, bp.dream, seal == null,
+                            bp.syringes.getOrDefault(c, 0));
                     if (seal != null) d.inter.put(cp.asLong(), LabSavedData.KIND_SEAL * 1000 + seal);
                     continue;
                 }
@@ -700,7 +701,8 @@ public final class LabBuilder {
                         .setValue(MonitorBlock.FACING, f).setValue(MonitorBlock.LIT, c == 'Z'));
             }
             case 'F', 'p' -> {
-                LabCabinets.place(lv, new BlockPos(wx, fy, wz), cabinetFacing(bp, x, z), null, bp.dream, true);
+                LabCabinets.place(lv, new BlockPos(wx, fy, wz), cabinetFacing(bp, x, z), null, bp.dream, true,
+                        bp.syringes.getOrDefault(c, 0));
                 if (c == 'p') set(lv, wx, fy + 1, wz, Blocks.POTTED_DEAD_BUSH.defaultBlockState());
             }
             case 'h', 'H' -> set(lv, wx, fy, wz, ModBlocks.CHAIR.get().defaultBlockState()

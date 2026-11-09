@@ -473,6 +473,16 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   Принудительный сон на 100%, NOT_SAFE и ночь не меняются.
 - [новое] Пробуждение из сна в Верхнем мире прекращает дождь и грозу
   (DreamTuning.WAKE_CLEARS_WEATHER, ServerLevel.resetWeatherCycle), как ваниль.
+- [новое] Пока действует адреналиновый шприц (SyringeHandler.isAwake,
+  SyringeData.wakeTicks > 0), спать нельзя: CanPlayerSleepEvent получает
+  OTHER_PROBLEM и подсказку hypersomnia.syringe.awake, а CanContinueSleepingEvent
+  будит, если укол всё же застал сон; вход в мир снов в это время не начинается.
+- [новое] B4: адреналиновые шприцы лежат в части шкафов. Директива чертежа
+  syringe <символ> = <сколько> (LabBlueprint.syringes) кладёт
+  ModItems.ADRENALINE_SYRINGE через LabCabinets.place; real_b4 — m (2 шт.) и
+  n (1 шт.), dream_b4 — j (1 шт.). В старых мирах шприцы досеваются один раз
+  при открытии шкафа (CabinetBlockEntity.syringeSeeded, LabCabinets.seedOnOpen),
+  /hypersomnia_lab rebuild не нужен.
 - Стадия 5: персональная комната Nora у кровати (NoraRoomHandler/Client),
   персональный путь к лаборатории (LabPathHandler/Client), наблюдение у тела
   (DEATH_WATCH_MIN_STAGE=5), узнавание (RECOGNITION_MIN_STAGE=5).
@@ -618,6 +628,11 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
    днём/в грозу, что кровать открывается, игрок не встаёт сразу (сессионный
    флаг anyTimeSleep), ночь не перескакивает, погоня и падение по-прежнему
    не дают лечь, а после пробуждения дождь/гроза прекращаются.
+   [новое] Пока действует шприц, спать нельзя (OTHER_PROBLEM, ключ
+   hypersomnia.syringe.awake); проверить днём, ночью и при усталости 100%,
+   что кровать не открывается, а после отката снова работает. На B4 шкафы
+   m/n (реальный) и j (сон) содержат шприцы; в старом мире они досеваются
+   при первом открытии этих шкафов.
 6. Погоня: проверить клиентскую часть и полировку; rage-реплики уже есть;
    пиксельная эрозия и сборка фраз — числа ChaseTuning.SWARM_*/DECAY_*.
 7. Концовки: встроить авторские кадры, когда пользователь их даст; до этого —

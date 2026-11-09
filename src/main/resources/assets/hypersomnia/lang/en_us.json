@@ -3,6 +3,7 @@
   "hypersomnia.hud.fatigue": "FATIGUE",
   "hypersomnia.hud.awake": "AWAKE",
   "hypersomnia.syringe.refused": "Not now.",
+  "hypersomnia.syringe.awake": "Not while the adrenaline is working.",
   "hypersomnia.scene.t1": "This isn't a dream.",
   "hypersomnia.scene.t2.0": "You can't sleep.",
   "hypersomnia.scene.t2.1": "You are not asleep.",

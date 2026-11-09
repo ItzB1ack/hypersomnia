@@ -3,6 +3,7 @@
   "hypersomnia.hud.fatigue": "УСТАЛОСТЬ",
   "hypersomnia.hud.awake": "БОДРСТВ.",
   "hypersomnia.syringe.refused": "Сейчас нельзя.",
+  "hypersomnia.syringe.awake": "Пока действует адреналин, спать не получится.",
   "hypersomnia.scene.t1": "Это не сон.",
   "hypersomnia.scene.bed": "Не могу пошевелиться.",
   "hypersomnia.scene.t2.0": "Ты не можешь спать.",

@@ -38,6 +38,7 @@ sign 6 = WARD|2C||
 sign 7 = NURSE POST||
 sign 9 = LIFT ACCESS B4|TO LEVEL B5|CODE: WARD 2D
 cabinet j = note_2d_knock
+syringe j = 1
 ; мир снов: та же планировка; в палате 2D записка j — код директора группами счёта (note_2d_knock);
 ; в реальном B4 вместо неё записка глифами (note_2d_glyphs); дверь k заложена (только осмотр)
 knock k = 8
