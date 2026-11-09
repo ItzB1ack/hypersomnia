@@ -103,6 +103,9 @@ public final class SleepSceneOverlay {
     private static final Part EYE_IRIS_PAUSE_R = eyeHi("iris_pause", 2.2f, 2.2f, false);
     private static final Part EYE_LIDS_L = eye("lids", 5f, 3.4f, true);
     private static final Part EYE_LIDS_R = eye("lids", 5f, 3.4f, false);
+    /** Веко пары в паузе: только тень внутри раскрытия, без кожи вокруг; в 4×. */
+    private static final Part EYE_LIDS_PAUSE_L = eyeHi("lids_pause", 5f, 3.4f, true);
+    private static final Part EYE_LIDS_PAUSE_R = eyeHi("lids_pause", 5f, 3.4f, false);
 
     private static Part eye(String layer, float wU, float hU, boolean mirrored) {
         return eye(layer, wU, hU, mirrored, EYE_TEX_PX);
@@ -407,11 +410,10 @@ public final class SleepSceneOverlay {
             tx = PAIR_X[si];
             ty = PAIR_Y[si];
             layer(g, right ? EYE_IRIS_PAUSE_R : EYE_IRIS_PAUSE_L, cxU + tx * size, cyU + ty * size * sy, k, size, size * sy, alpha);
-            // Отдельный слой век не рисуется: у silhouette_eye_lids тень верхнего века тянется
-            // от самого края раскрытия и без лица вокруг оставляла над глазом светлую дугу с
-            // тёмной полосой. В паре используется silhouette_eye_sclera_pause — та же склера,
-            // но с более плотной запечённой тенью век: она гаснет вместе с альфой белка и не
-            // может вылезти наружу, а глаз при этом не выглядит плоским.
+            // Верхнее веко пары: только тень внутри раскрытия, без кожи вокруг — снаружи
+            // альфа 0, поэтому над глазом нет дуги/обводки. Линия ресниц у верхнего края
+            // перекрывает и кромку склеры, и край радужки, иначе глаз читался «лысым».
+            layer(g, right ? EYE_LIDS_PAUSE_R : EYE_LIDS_PAUSE_L, cxU, cyU, k, size, size * sy * PAUSE_EYE_VSCALE, alpha);
         }
         g.pose().popPose();
         RenderSystem.disableBlend();
