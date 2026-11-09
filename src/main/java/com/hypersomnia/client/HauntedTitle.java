@@ -36,9 +36,9 @@ import java.util.List;
  * расставляются вокруг глаза, поэтому зрачок может смотреть на любую из них. Это не толпа глаз и не глаз в
  * интерфейсе внутри мира: осколок смотрит на игрока снаружи, пока сеанс ещё не начат.
  *
- * Стадия хранится в config/hypersomnia_title.txt и переживает перезапуск. Пока эффект включён, ванильная панорама,
- * логотип, сплэш, версия, копирайт и подписи не рисуются; подпись выбранной кнопки показывается внутри её рамки,
- * чтобы меню оставалось рабочим. Все надписи — ванильным шрифтом Minecraft.
+ * Стадия хранится в config/hypersomnia_title.txt и переживает перезапуск. Пока эффект включён, ванильная отрисовка
+ * титульного экрана отменяется целиком: панорама, логотип, сплэш, версия, копирайт и подписи не рисуются. Вместо них
+ * мы рисуем чёрный кадр, рамки, глаз и подписи всех кнопок одним размером. Все надписи — ванильным шрифтом Minecraft.
  */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID, value = Dist.CLIENT)
 public final class HauntedTitle {
@@ -68,9 +68,11 @@ public final class HauntedTitle {
     private static int maxStage;
     /** Шаг времени для мелкой дрожи букв в углах: обновляется редко, чтобы не было ряби каждый кадр. */
     private static final int JITTER_MS = 110;
-    /** Ванильная опция «Скрывать сплэши» временно включается только на кадр титульного экрана. */
-    private static boolean splashForced;
-    private static boolean splashWasHidden;
+    /** Общая шкала подписей: подбирается один раз на кадр и одинакова у всех кнопок. */
+    private static final float MAX_LABEL_SCALE = 2.5f;
+    private static final float MIN_LABEL_SCALE = 0.55f;
+    private static final int LABEL_PAD_X = 6;
+    private static final int LABEL_PAD_Y = 4;
     /** Сглаженный взгляд зрачка: цель меняется при смене кнопки. */
     private static float gazeX = Float.NaN;
     private static float gazeY = Float.NaN;
@@ -86,12 +88,12 @@ public final class HauntedTitle {
     private record Box(float x, float y, float w, float h) {}
 
     private static final Box TOP = new Box(0.402f, 0.184f, 0.196f, 0.108f);
-    private static final Box UPPER_LEFT = new Box(0.272f, 0.266f, 0.100f, 0.090f);
-    private static final Box UPPER_RIGHT = new Box(0.628f, 0.266f, 0.100f, 0.090f);
+    private static final Box UPPER_LEFT = new Box(0.236f, 0.266f, 0.170f, 0.100f);
+    private static final Box UPPER_RIGHT = new Box(0.594f, 0.266f, 0.170f, 0.100f);
     private static final Box MID_LEFT = new Box(0.202f, 0.415f, 0.196f, 0.104f);
     private static final Box MID_RIGHT = new Box(0.602f, 0.415f, 0.196f, 0.104f);
-    private static final Box LOWER_LEFT = new Box(0.274f, 0.574f, 0.106f, 0.098f);
-    private static final Box LOWER_RIGHT = new Box(0.620f, 0.574f, 0.106f, 0.098f);
+    private static final Box LOWER_LEFT = new Box(0.258f, 0.574f, 0.140f, 0.100f);
+    private static final Box LOWER_RIGHT = new Box(0.602f, 0.574f, 0.140f, 0.100f);
     private static final Box BOTTOM = new Box(0.405f, 0.632f, 0.190f, 0.112f);
 
     /** Куда ставить текстовые кнопки: Singleplayer, Multiplayer, Realms, Mods, Options, Quit. */
@@ -152,51 +154,33 @@ public final class HauntedTitle {
     /** Рамки ставятся сразу при открытии меню, чтобы первый клик попал в новую раскладку. */
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
-        restoreSplash();
         if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
         layout(screen);
     }
 
     /**
-     * Сплэш — ванильная шутка, которая не вписывается в пустой экран. Вместо рефлексии используем готовую
-     * опцию «Скрывать сплэши»: включаем её на время кадра и возвращаем прежнее значение после отрисовки,
-     * чтобы не менять настройки игрока.
+     * Отменяем ванильную отрисовку титульного экрана целиком. Иначе панорама, логотип, сплэш, версия
+     * Minecraft, брендинг NeoForge и подписи кнопок приходится закрывать чёрным кадром — а часть текста
+     * всё равно оказывается поверх него. В Render.Post при этом событие всё равно приходит, и мы рисуем
+     * меню сами: чёрный кадр, рамки, глаз, подписи и тултипы.
      */
     @SubscribeEvent
     public static void onScreenRenderPre(ScreenEvent.Render.Pre event) {
-        if (!(event.getScreen() instanceof TitleScreen) || !haunted()) {
-            restoreSplash();
-            return;
+        if (event.getScreen() instanceof TitleScreen && haunted()) {
+            event.setCanceled(true);
         }
-        if (splashForced) return;
-        Minecraft mc = Minecraft.getInstance();
-        splashWasHidden = mc.options.hideSplashTexts().get();
-        splashForced = true;
-        if (!splashWasHidden) mc.options.hideSplashTexts().set(true);
-    }
-
-    private static void restoreSplash() {
-        if (!splashForced) return;
-        splashForced = false;
-        if (!splashWasHidden) Minecraft.getInstance().options.hideSplashTexts().set(false);
     }
 
     /**
-     * Рисуем поверх ванильного заголовка: чёрный кадр, пустые рамки, глаз в центре и обрывки фраз.
-     * Кнопки остаются рабочими — меняются только их места, размеры и вид.
+     * Ванильный рендер отменён, поэтому рисуем титульный экран сами: чёрный кадр, рамки, глаз, подписи и тултипы.
+     * Кнопки остаются рабочими — их прямоугольники задаёт layout().
      */
     @SubscribeEvent
     public static void onScreenRender(ScreenEvent.Render.Post event) {
-        if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) {
-            restoreSplash();
-            return;
-        }
+        if (!(event.getScreen() instanceof TitleScreen screen) || !haunted()) return;
         int w = screen.width;
         int h = screen.height;
-        if (w <= 0 || h <= 0) {
-            restoreSplash();
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         layout(screen);
         long now = System.currentTimeMillis();
         float level = Mth.clamp((maxStage - (MIN_STAGE - 1)) / 3f, 0f, 1f);
@@ -213,8 +197,7 @@ public final class HauntedTitle {
         float eyeX = w / 2f;
         float eyeY = h * 0.47f;
 
-        // 1) Сбрасываем накопленные ванильные батчи (версия, брендинг, сплэш), затем закрываем экран чёрным.
-        //    Без flush текст может оказаться в буфере, который отрисуется уже после заливки.
+        // 1) На всякий случай сбрасываем чужие батчи (GUI-слои рисуются раньше меню), затем закрываем экран чёрным.
         g.flush();
         g.blit(TITLE_BLACK, 0, 0, 0, 0f, 0f, w, h, w, h);
 
@@ -236,10 +219,10 @@ public final class HauntedTitle {
         // 6) Обрывки фраз в углах — ванильный шрифт с очень мелкой дрожью.
         drawCorners(g, font, w, h, now, level);
 
-        // 7) Подпись только у выбранной кнопки: рамки остаются пустыми, как в референсе.
-        if (selected != null) drawLabel(g, font, selected);
+        // 7) Подписи всех кнопок одним размером: выбранная ярче, остальные приглушены.
+        drawLabels(g, font, selected);
 
-        // 8) Тултипы (язык, доступность, отключённый мультиплеер) оказались под чёрным кадром — возвращаем сверху.
+        // 8) Тултипы (язык, доступность, отключённый мультиплеер) рисуем сами — ванильные отключены.
         if (hover != null) {
             Tooltip tip = hover.getTooltip();
             if (tip != null) {
@@ -247,13 +230,11 @@ public final class HauntedTitle {
                         event.getMouseX(), event.getMouseY());
             }
         }
-
-        restoreSplash();
     }
 
     /**
-     * Переставляет ванильные кнопки в раскладку из референса. Патентованные подписи и фон не важны: рамки
-     * рисуются поверх, а сами кнопки остаются кликабельными.
+     * Переставляет ванильные кнопки в раскладку из референса. Сами кнопки не рисуются (ванильный рендер отменён),
+     * но остаются кликабельными: рамку, подпись и подсветку рисуем поверх по их прямоугольникам.
      */
     private static void layout(TitleScreen screen) {
         List<AbstractWidget> texts = new ArrayList<>();
@@ -480,32 +461,103 @@ public final class HauntedTitle {
         g.fill(x + w - 1, y, x + w, y + h, color);
     }
 
-    private static void drawLabel(GuiGraphics g, Font font, AbstractWidget widget) {
-        String label = widget.getMessage().getString();
-        if (label.isBlank()) return;
-        int x = widget.getX();
-        int y = widget.getY();
-        int w = widget.getWidth();
-        int h = widget.getHeight();
-        int color = !widget.active ? 0xFF7C878C : 0xFFEDF4F6;
-        // Подпись может быть шире рамки (GUI scale 4) или теряться в большой рамке: подгоняем в обе стороны.
-        int textW = font.width(label);
-        float scale = Math.min(2f, Math.min((w - 14f) / Math.max(1, textW),
-                (h - 12f) / Math.max(1, font.lineHeight)));
-        scale = Math.max(0.55f, scale);
-        float baseY = y + (h - font.lineHeight * scale) / 2f;
-        g.pose().pushPose();
-        g.pose().translate(x + w / 2f, baseY, 0f);
-        g.pose().scale(scale, scale, 1f);
-        g.drawString(font, label, -textW / 2, 0, color, false);
-        g.pose().popPose();
+    /** Все подписи одним размером: сначала подбираем общую шкалу, затем рисуем каждую с переносом строк. */
+    private static void drawLabels(GuiGraphics g, Font font, AbstractWidget selected) {
+        float scale = labelScale(font);
+        for (AbstractWidget widget : ORDER) {
+            if (!widget.visible) continue;
+            String text = labelText(widget);
+            if (text.isBlank()) continue;
+            int x = widget.getX();
+            int y = widget.getY();
+            int w = widget.getWidth();
+            int h = widget.getHeight();
+            int availW = Math.max(1, w - LABEL_PAD_X * 2);
+            List<String> lines = wrap(font, text, Math.max(1, (int) Math.floor(availW / scale)));
+            if (lines == null) lines = List.of(text);
+            int color = !widget.active ? 0xFF6E797E : widget == selected ? 0xFFF3F8FA : 0xFFB6C1C6;
+            int lineH = font.lineHeight;
+            float baseY = y + (h - lines.size() * lineH * scale) / 2f;
 
-        int underline = Math.min(w - 10, Math.round(textW * scale) + 10);
-        if (underline > 0) {
-            int ux = x + (w - underline) / 2;
-            int uy = y + h - 5;
-            g.fill(ux, uy, ux + underline, uy + 1, (color & 0x00FFFFFF) | 0x50000000);
+            g.pose().pushPose();
+            g.pose().translate(x + w / 2f, baseY, 0f);
+            g.pose().scale(scale, scale, 1f);
+            for (int i = 0; i < lines.size(); i++) {
+                String line = lines.get(i);
+                g.drawString(font, line, -font.width(line) / 2, i * lineH, color, false);
+            }
+            g.pose().popPose();
+
+            // Тонкая черта под выбранной — подсказка, что именно откроется по клику.
+            if (widget == selected && widget.active) {
+                int textW = lines.stream().mapToInt(font::width).max().orElse(0);
+                int underline = Math.min(w - 10, Math.round(textW * scale) + 10);
+                if (underline > 0) {
+                    int ux = x + (w - underline) / 2;
+                    int uy = y + h - 4;
+                    g.fill(ux, uy, ux + underline, uy + 1, (color & 0x00FFFFFF) | 0x50000000);
+                }
+            }
         }
+    }
+
+    /** Подпись кнопки; у иконочных кнопок сообщение тоже заполнено (options.language / options.accessibility). */
+    private static String labelText(AbstractWidget widget) {
+        return widget.getMessage().getString();
+    }
+
+    /** Одна шкала для всех подписей: самая крупная, при которой каждая влезает в свою рамку. */
+    private static float labelScale(Font font) {
+        float scale = MAX_LABEL_SCALE;
+        for (AbstractWidget widget : ORDER) {
+            if (!widget.visible) continue;
+            String text = labelText(widget);
+            if (text.isBlank()) continue;
+            int availW = widget.getWidth() - LABEL_PAD_X * 2;
+            int availH = widget.getHeight() - LABEL_PAD_Y * 2;
+            if (availW < 8 || availH < font.lineHeight * MIN_LABEL_SCALE) continue;
+            scale = Math.min(scale, fitScale(font, text, availW, availH));
+        }
+        return Mth.clamp(scale, MIN_LABEL_SCALE, MAX_LABEL_SCALE);
+    }
+
+    /** Наибольшая шкала, при которой текст переносится по словам и влезает по ширине и высоте. */
+    private static float fitScale(Font font, String text, int availW, int availH) {
+        if (!wrapsWithin(font, text, availW, availH, MIN_LABEL_SCALE)) return MIN_LABEL_SCALE;
+        float lo = MIN_LABEL_SCALE;
+        float hi = MAX_LABEL_SCALE;
+        for (int i = 0; i < 12; i++) {
+            float mid = (lo + hi) / 2f;
+            if (wrapsWithin(font, text, availW, availH, mid)) lo = mid;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    private static boolean wrapsWithin(Font font, String text, int availW, int availH, float scale) {
+        List<String> lines = wrap(font, text, Math.max(1, (int) Math.floor(availW / scale)));
+        return lines != null && lines.size() * font.lineHeight * scale <= availH + 0.01f;
+    }
+
+    /** Перенос по словам; null, если даже одно слово не влезает в заданную ширину. */
+    private static List<String> wrap(Font font, String text, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : text.trim().split("\\s+")) {
+            if (word.isEmpty()) continue;
+            if (font.width(word) > maxWidth) return null;
+            String candidate = line.length() == 0 ? word : line + " " + word;
+            if (font.width(candidate) <= maxWidth) {
+                line.setLength(0);
+                line.append(candidate);
+            } else {
+                lines.add(line.toString());
+                line.setLength(0);
+                line.append(word);
+            }
+        }
+        if (line.length() > 0) lines.add(line.toString());
+        return lines.isEmpty() ? null : lines;
     }
 
     private static void drawEye(GuiGraphics g, float ex, float ey, float eyeW, AbstractWidget selected,
