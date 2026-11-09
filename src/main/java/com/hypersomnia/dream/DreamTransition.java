@@ -186,6 +186,11 @@ public final class DreamTransition {
 
         // Ночь, в которую игрок уснул, проходит: он просыпается утром, как после обычного сна
         if (DreamTuning.WAKE_SKIPS_NIGHT && target.dimension() == Level.OVERWORLD) skipNight(target);
+        // Ванильный сон заодно прекращает дождь и грозу; без этого после пробуждения погода оставалась.
+        if (DreamTuning.WAKE_CLEARS_WEATHER && target.dimension() == Level.OVERWORLD
+                && (target.isRaining() || target.isThundering())) {
+            target.resetWeatherCycle();
+        }
 
         // Вещи, которые забрал осколок в погоне, возвращаются у кровати (после финала — все сразу, без следов)
         com.hypersomnia.chase.ChaseHandler.onWake(player, target,

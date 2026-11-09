@@ -18,6 +18,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.CanContinueSleepingEvent;
 import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -39,6 +40,8 @@ public final class DreamHandler {
 
         DreamData dream = player.getData(DreamAttachments.DREAM);
         boolean inDreamLevel = player.level().dimension() == DreamDimension.LEVEL;
+        FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
+        if (!player.isSleeping()) fatigue.setAnyTimeSleep(false);
 
         // Кровать: полежал ~4 секунды, и вместо пропуска ночи уходишь в мир снов
         // После финала (FinaleLogic.completed) мир снов закрыт: обычная кровать, ночь пропускается как в ванили
@@ -80,7 +83,6 @@ public final class DreamHandler {
         if (!dream.isInDream() || !player.isAlive()) return;
 
         // Во сне усталость не копится
-        FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
         int rest = SleepPenalty.restFatigue(fatigue);
         if (!com.hypersomnia.nightmare.NightmareDefs.SHAFT.id().equals(dream.getKind())
                 && fatigue.getFatigue() > rest) {
@@ -104,25 +106,52 @@ public final class DreamHandler {
     public static void onCanSleep(CanPlayerSleepEvent event) {
         if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
         ServerPlayer player = event.getEntity();
-        if (com.hypersomnia.finale.FinaleLogic.completed(player)) return;
-        if (player.isCreative() || player.isSpectator()) return;
-        if (ChaseHandler.activeFor(player)) return;
         FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
-        if (fatigue.getCollapseTimer() > 0) return;
-        if (!FatigueTuning.canSleepAtAnyTime(fatigue.getFatigue())) return;
+        if (!maySleepThroughDay(player, fatigue)) return;
         // Днём ванильные проверки до монстров не доходят: не обходим «рядом монстры».
         Vec3 bed = Vec3.atBottomCenterOf(event.getPos());
         AABB area = new AABB(bed.x() - 8.0, bed.y() - 5.0, bed.z() - 8.0,
                 bed.x() + 8.0, bed.y() + 5.0, bed.z() + 8.0);
         if (!player.level().getEntitiesOfClass(Monster.class, area, m -> m.isPreventingPlayerRest(player)).isEmpty())
             return;
+        fatigue.setAnyTimeSleep(true);
         event.setProblem(null);
+    }
+
+    /**
+     * Ваниль каждый тик будит днём: CanContinueSleepingEvent с NOT_POSSIBLE_NOW.
+     * Пока идёт разрешённый дневной сон, держим его; усталость за это время уже
+     * успевает опуститься ниже порога, поэтому проверяем флаг сессии, а не число.
+     */
+    @SubscribeEvent
+    public static void onCanContinueSleeping(CanContinueSleepingEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
+        FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
+        if (!fatigue.isAnyTimeSleep()) return;
+        if (ChaseHandler.activeFor(player) || com.hypersomnia.finale.FinaleLogic.completed(player)) {
+            fatigue.setAnyTimeSleep(false);
+            return;
+        }
+        event.setContinueSleeping(true);
+    }
+
+    /** Общие условия дневного сна: не погоня, не падение, не креатив/наблюдатель, финал не пройден. */
+    private static boolean maySleepThroughDay(ServerPlayer player, FatigueData fatigue) {
+        return !com.hypersomnia.finale.FinaleLogic.completed(player)
+                && !player.isCreative() && !player.isSpectator()
+                && !ChaseHandler.activeFor(player)
+                && fatigue.getCollapseTimer() <= 0
+                && FatigueTuning.canSleepAtAnyTime(fatigue.getFatigue());
     }
 
     /** Выход из игры во время сна не должен оставлять захваченный дом в памяти сервера. */
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) DreamMirror.abort(player);
+        if (event.getEntity() instanceof ServerPlayer player) {
+            player.getData(ModAttachments.FATIGUE).setAnyTimeSleep(false);
+            DreamMirror.abort(player);
+        }
     }
 
     /**

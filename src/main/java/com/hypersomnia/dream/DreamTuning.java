@@ -22,6 +22,8 @@ public final class DreamTuning {
 
     /** После пробуждения в Верхнем мире ночь пропускается (время идёт на утро). */
     public static final boolean WAKE_SKIPS_NIGHT = true;
+    /** Сон в Верхнем мире прекращает дождь и грозу, как ванильный сон. */
+    public static final boolean WAKE_CLEARS_WEATHER = true;
     /** Время суток начала ночи (с него в ваниле можно спать) и время суток после пробуждения (0 = утро). */
     public static final long NIGHT_STARTS_AT = 12542L;
     public static final long WAKE_TIME_OF_DAY = 0L;

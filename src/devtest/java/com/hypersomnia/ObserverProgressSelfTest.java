@@ -98,6 +98,11 @@ public final class ObserverProgressSelfTest {
         check(!FatigueTuning.canSleepAtAnyTime(sleepAt - 1), "day sleep locked below fatigue threshold");
         check(FatigueTuning.canSleepAtAnyTime(sleepAt), "day sleep allowed at fatigue threshold");
         check(FatigueTuning.canSleepAtAnyTime(FatigueTuning.MAX_FATIGUE), "day sleep allowed at max fatigue");
+        FatigueData daySleep = new FatigueData();
+        daySleep.setAnyTimeSleep(true);
+        check(daySleep.isAnyTimeSleep(), "day sleep permission set");
+        daySleep.deserializeNBT(null, daySleep.serializeNBT(null));
+        check(!daySleep.isAnyTimeSleep(), "day sleep permission is session-only");
         System.out.println("ObserverProgressSelfTest: " + checks + " checks passed.");
     }
 }

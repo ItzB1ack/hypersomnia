@@ -16,6 +16,8 @@ public class FatigueData implements INBTSerializable<CompoundTag> {
     // Служебные поля, в мир не сохраняются
     private int lastSyncedFatigue = -1;
     private boolean lastSyncedCollapsing;
+    /** Текущий сон разрешён днём (порог усталости проверен при входе, не сохраняется). */
+    private boolean anyTimeSleep;
 
     public int getFatigue() { return fatigue; }
     public void setFatigue(int value) { this.fatigue = Mth.clamp(value, 0, FatigueTuning.MAX_FATIGUE); }
@@ -37,6 +39,8 @@ public class FatigueData implements INBTSerializable<CompoundTag> {
 
     public int getLastSyncedFatigue() { return lastSyncedFatigue; }
     public boolean isLastSyncedCollapsing() { return lastSyncedCollapsing; }
+    public boolean isAnyTimeSleep() { return anyTimeSleep; }
+    public void setAnyTimeSleep(boolean value) { anyTimeSleep = value; }
     public void markSynced(int fatigue, boolean collapsing) {
         this.lastSyncedFatigue = fatigue;
         this.lastSyncedCollapsing = collapsing;
@@ -61,5 +65,6 @@ public class FatigueData implements INBTSerializable<CompoundTag> {
         this.collapseGraceTicks = Math.max(0, tag.getInt("collapseGrace"));
         this.syringeCollapse = tag.getBoolean("syringeCollapse");
         this.forcedSleepAttempts = 0;
+        this.anyTimeSleep = false;
     }
 }
