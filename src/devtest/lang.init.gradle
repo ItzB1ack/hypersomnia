@@ -1,0 +1,25 @@
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
+// ./gradlew -I src/devtest/lang.init.gradle dumpEnUs -PenUsOut=build/en_us_fallback.tsv
+gradle.projectsEvaluated {
+    def p = gradle.rootProject
+    def output = p.layout.buildDirectory.dir('lang-selftests')
+    def compile = p.tasks.register('compileLangTool', JavaCompile) {
+        dependsOn p.tasks.named('classes')
+        source p.fileTree('src/devtest/java') { include '**/EnUsDump.java' }
+        classpath = p.files(p.sourceSets.main.output, p.configurations.compileClasspath)
+        destinationDirectory = output
+        javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+    p.tasks.register('dumpEnUs', JavaExec) {
+        dependsOn compile
+        classpath = p.files(output, p.sourceSets.main.runtimeClasspath)
+        javaLauncher = p.javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+        mainClass = 'com.hypersomnia.lang.EnUsDump'
+        args = [p.findProperty('enUsOut') ?: 'build/en_us_fallback.tsv']
+    }
+}

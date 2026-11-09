@@ -64,7 +64,15 @@ for path, obj in parsed.items():
             if key not in english and not value.get('fallback'): fail(path, f'{part}: no English or fallback for {key}')
             if key not in russian: fail(path, f'{part}: missing Russian translation for {key}')
 
+missing_en = sorted(set(russian) - set(english))
+missing_ru = sorted(set(english) - set(russian))
+if missing_en:
+    fail(assets / 'lang/en_us.json', f'missing {len(missing_en)} keys from ru_ru.json, e.g. {", ".join(missing_en[:5])}')
+if missing_ru:
+    fail(assets / 'lang/ru_ru.json', f'missing {len(missing_ru)} keys from en_us.json, e.g. {", ".join(missing_ru[:5])}')
+
 if errors:
     print('\n'.join(errors))
     raise SystemExit(f'FAILED: {len(errors)} resource problems')
-print(f'OK: {checked} JSON files, internal model/texture references, registered sound files and advancement texts')
+print(f'OK: {checked} JSON files, internal model/texture references, registered sound files,'
+      f' advancement texts and {len(english)} lang keys (en/ru parity)')

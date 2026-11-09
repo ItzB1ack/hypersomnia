@@ -1,0 +1,29 @@
+Паритет английских строк en_us.json (2026-11-09; compileJava --offline, check_resources.py и self-tests проходят; в игре НЕ проверено)
+
+Зачем: en_us.json отставал от ru_ru.json на 676 ключей. Причина не в потере перевода: английский текст документов и
+архива никогда не хранился в lang, он зашит запасным текстом в DocumentDefs/ArchiveDefs/FinaleTexts и подставляется
+translatableWithFallback. RU-переводы при этом были в ru_ru.json, поэтому EN-файл и выглядел неполным.
+
+Что сделано
+- en_us.json: 298 -> 974 ключа, ровно как ru_ru.json; существующие ключи и их порядок не менялись, новые дописаны в конец.
+  Состав: doc 245, archive 230 (227 записей + 3 варианта правила ночного кода), lab 95, ending 77, finale 18,
+  diary 4, variant 4, advancement 2, scene 1. Лишних ключей нет.
+- src/devtest/java/com/hypersomnia/lang/EnUsDump.java + src/devtest/lang.init.gradle: генератор английских строк из
+  запасных текстов кода (doc, archive, ending/finale/advancement) в build/en_us_fallback.tsv.
+- src/devtest/merge_en_us.py: дописывает недостающие ключи в en_us.json. Таблички лаборатории берутся из sign-строк
+  чертежей data/hypersomnia/lab/*.txt, таблички капсул 01..46 — из RoundsBuilder.MARKS, остальное — запасные тексты
+  кода (дневник, вариант Морзе, кровать, правило ночного кода). Скрипт можно запускать повторно после новых текстов.
+- src/devtest/check_resources.py: дополнительно падает, если наборы ключей en_us/ru_ru расходятся (раньше проверялись
+  только тексты достижений).
+- Новых текстур, звуков, .ogg, сети и NBT нет. Английский текст — исходный авторский, не машинный перевод.
+
+Проверено без игры
+- `python src/devtest/check_resources.py` — OK, 191 JSON, ключи en/ru совпадают 1:1.
+- `gradlew compileJava --offline` — успешно.
+- `gradlew -I src/devtest/lab.init.gradle labSelfTests` и observer/ward/finale/forest self-tests — успешно.
+- Форматирующие плейсхолдеры (%s и т.п.) в EN и RU совпадают; пустых значений нет.
+
+НЕ ПРОВЕРЕНО
+- Как длинные английские строки выглядят в игре: документы на листе, архив на терминале, таблички на стене,
+  экран концовки; не переполняют ли лист/табличку строки, которые в русском были короче.
+- GUI scale 1..4 и переносы строк.
