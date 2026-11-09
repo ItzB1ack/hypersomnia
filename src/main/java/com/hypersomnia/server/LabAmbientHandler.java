@@ -4,6 +4,7 @@ import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverTuning;
 import com.hypersomnia.chase.ChaseHandler;
+import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.finale.FinaleLogic;
 import com.hypersomnia.lab.LabOutage;
 import com.hypersomnia.lab.LabProtection;
@@ -29,10 +30,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Персональные тихие эпизоды на этажах лаборатории и в ночном доме, без изменения блоков и инвентарей. */
+/** Персональные тихие эпизоды на этажах лаборатории, в ночном доме и в его сне, без изменения блоков и инвентарей. */
 @EventBusSubscriber(modid = Hypersomnia.MOD_ID)
 public final class LabAmbientHandler {
     private LabAmbientHandler() {}
+    /** 0 — дом в Верхнем мире, 6 — дом в мире снов (этажи лаборатории занимают 1..5). */
+    private static final int ZONE_HOME = 0, ZONE_DREAM_HOME = 6;
     private record Visit(ResourceKey<Level> dimension, int zone, long due) {}
     private static final Map<UUID, Visit> VISITS = new HashMap<>();
     private static final Map<UUID, Long> COOLDOWNS = new HashMap<>();
@@ -54,8 +57,16 @@ public final class LabAmbientHandler {
         long now = p.getServer().overworld().getGameTime();
         Visit visit = VISITS.get(id);
         if (visit == null || !visit.dimension().equals(level.dimension()) || visit.zone() != zone) {
-            int min = zone == 0 ? ObserverTuning.HOME_AMBIENT_DWELL_MIN : ObserverTuning.LAB_AMBIENT_DWELL_MIN;
-            int range = zone == 0 ? ObserverTuning.HOME_AMBIENT_DWELL_RANGE : ObserverTuning.LAB_AMBIENT_DWELL_RANGE;
+            int min = switch (zone) {
+                case ZONE_HOME -> ObserverTuning.HOME_AMBIENT_DWELL_MIN;
+                case ZONE_DREAM_HOME -> ObserverTuning.DREAM_AMBIENT_DWELL_MIN;
+                default -> ObserverTuning.LAB_AMBIENT_DWELL_MIN;
+            };
+            int range = switch (zone) {
+                case ZONE_HOME -> ObserverTuning.HOME_AMBIENT_DWELL_RANGE;
+                case ZONE_DREAM_HOME -> ObserverTuning.DREAM_AMBIENT_DWELL_RANGE;
+                default -> ObserverTuning.LAB_AMBIENT_DWELL_RANGE;
+            };
             int delay = min + p.getRandom().nextInt(range + 1);
             VISITS.put(id, new Visit(level.dimension(), zone, now + delay));
             return;
@@ -66,20 +77,37 @@ public final class LabAmbientHandler {
         BlockPos at = soundAt(p, kind);
         if (!level.hasChunkAt(at)) return;
         PacketDistributor.sendToPlayer(p, new LabAmbientPayload(at, kind, false));
-        COOLDOWNS.put(id, now + (zone == 0 ? ObserverTuning.HOME_AMBIENT_COOLDOWN : ObserverTuning.LAB_AMBIENT_COOLDOWN));
+        int cooldown = switch (zone) {
+            case ZONE_HOME -> ObserverTuning.HOME_AMBIENT_COOLDOWN;
+            case ZONE_DREAM_HOME -> ObserverTuning.DREAM_AMBIENT_COOLDOWN;
+            default -> ObserverTuning.LAB_AMBIENT_COOLDOWN;
+        };
+        COOLDOWNS.put(id, now + cooldown);
         LAST.put(id, kind);
         VISITS.remove(id);
     }
 
     /**
      * Где сейчас звучит тихий эпизод: 1..5 — этаж лаборатории, 0 — ночной дом у места сна,
-     * -1 — здесь эпизоды не играют. Дом — только Верхний мир, ночь и крыша над головой.
+     * 6 — дом в мире снов, -1 — здесь эпизоды не играют. Дом — только Верхний мир и ночь,
+     * сон — только с зеркала (DreamMirror) и под крышей.
      */
     private static int zone(ServerPlayer p, ServerLevel level) {
         LabSavedData lab = LabSavedData.get(level);
         int floor = LabProtection.stopAt(lab, p.blockPosition());
         if (lab.built && floor >= 1 && floor <= 5 && LabLift.stopOf(p, lab) < 0) {
             return p.getData(ModAttachments.OBSERVER).stage() >= ObserverTuning.LAB_AMBIENT_MIN_STAGE ? floor : -1;
+        }
+        if (level.dimension().equals(DreamDimension.LEVEL)) {
+            if (p.getData(ModAttachments.OBSERVER).stage() < ObserverTuning.DREAM_AMBIENT_MIN_STAGE) return -1;
+            int[] home = p.getData(ModAttachments.OBSERVER).home();
+            if (home == null) return -1;
+            BlockPos bed = new BlockPos(home[0], home[1], home[2]);
+            if (!level.hasChunkAt(bed)) return -1;
+            int radius = ObserverTuning.DREAM_AMBIENT_RADIUS;
+            if (p.blockPosition().distSqr(bed) > radius * radius) return -1;
+            // Только внутри перенесённого дома: на улице сна те же звуки были бы бессмысленны.
+            return level.canSeeSky(p.blockPosition().above()) ? -1 : ZONE_DREAM_HOME;
         }
         if (!level.dimension().equals(Level.OVERWORLD)) return -1;
         long tod = level.getDayTime() % 24000L;
@@ -90,12 +118,16 @@ public final class LabAmbientHandler {
         BlockPos bed = new BlockPos(home[0], home[1], home[2]);
         if (!level.hasChunkAt(bed)) return -1;
         if (p.blockPosition().distSqr(bed) > ObserverTuning.HOME_AMBIENT_RADIUS * ObserverTuning.HOME_AMBIENT_RADIUS) return -1;
-        return level.canSeeSky(p.blockPosition().above()) ? -1 : 0;
+        return level.canSeeSky(p.blockPosition().above()) ? -1 : ZONE_HOME;
     }
 
     /** Сцена для зоны: только доступные по стадии и питанию, прошлая не повторяется, если есть выбор. */
     private static int choose(ServerPlayer p, ServerLevel level, int zone) {
-        int[] pool = zone == 0 ? ObserverTuning.HOME_AMBIENT_SCENES : ObserverTuning.LAB_AMBIENT_FLOOR_SCENES[zone - 1];
+        int[] pool = switch (zone) {
+            case ZONE_HOME -> ObserverTuning.HOME_AMBIENT_SCENES;
+            case ZONE_DREAM_HOME -> ObserverTuning.DREAM_AMBIENT_SCENES;
+            default -> ObserverTuning.LAB_AMBIENT_FLOOR_SCENES[zone - 1];
+        };
         int stage = p.getData(ModAttachments.OBSERVER).stage();
         int last = LAST.getOrDefault(p.getUUID(), -1);
         int[] candidates = new int[pool.length];
@@ -158,7 +190,8 @@ public final class LabAmbientHandler {
         long now = p.getServer().overworld().getGameTime();
         UUID id = p.getUUID();
         Visit v = VISITS.get(id);
-        return "Ambient: " + (v == null ? "no dwell" : (v.zone() == 0 ? "home" : "floor " + LabTuning.stopLabel(v.zone()))
+        return "Ambient: " + (v == null ? "no dwell" : (v.zone() == ZONE_HOME ? "home"
+                : v.zone() == ZONE_DREAM_HOME ? "dream home" : "floor " + LabTuning.stopLabel(v.zone()))
                 + ", in " + Math.max(0L, v.due() - now) + "t")
                 + ", cooldown " + Math.max(0L, COOLDOWNS.getOrDefault(id, 0L) - now) + "t"
                 + ", last " + LAST.getOrDefault(id, -1)

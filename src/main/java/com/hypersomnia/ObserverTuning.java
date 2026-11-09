@@ -167,6 +167,18 @@ public final class ObserverTuning {
     public static final int HOME_AMBIENT_COOLDOWN = 4800;
     /** Сцены 11..16: ходьба наверху, далёкая дверь, скрип, стук в стену, шаги приближаются и обрываются, шкатулка. */
     public static final int[] HOME_AMBIENT_SCENES = {11, 12, 13, 14, 15, 16};
+
+    // ---- Дом в мире снов [новое]: зеркало дома (DreamMirror) с 3-й стадии переносит дом в сон,
+    // ---- и та же ночная тишина звучит уже там. Числа не должны расходиться с DreamMirrorTuning.MIN_STAGE.
+    public static final int DREAM_AMBIENT_MIN_STAGE = 3;
+    /** Радиус вокруг места сна в сне; зеркало захватывает 3x3 чанка, этого радиуса достаточно. */
+    public static final int DREAM_AMBIENT_RADIUS = 32;
+    /** Во сне реже, чем дома: ожидание 1.5–3 мин, затем пауза 5 мин. */
+    public static final int DREAM_AMBIENT_DWELL_MIN = 1800;
+    public static final int DREAM_AMBIENT_DWELL_RANGE = 1800;
+    public static final int DREAM_AMBIENT_COOLDOWN = 6000;
+    /** Те же домашние сцены 11..16: в перенесённом доме они звучат как в настоящем. */
+    public static final int[] DREAM_AMBIENT_SCENES = {11, 12, 13, 14, 15, 16};
     /** Сцена 10: оседает стеклянная крышка закрытой капсулы B5; звук идёт от ближайшей такой капсулы. */
     public static final int LAB_AMBIENT_CAPSULE_SCENE = 10;
     /** Радиус поиска закрытой капсулы для сцены 10 (блоки, по горизонтали и ±1 по высоте). */

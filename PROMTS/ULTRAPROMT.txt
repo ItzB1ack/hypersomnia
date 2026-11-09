@@ -1,5 +1,5 @@
 HYPERSOMNIA — ЕДИНЫЙ УЛЬТРАПРОМТ
-Обновлено: 2026-11-08. Сверено с кодом ветки main (сессия: часы сна, зеркало, фикс IP; затем стадия 5 и надписи; затем тихие эпизоды лаборатории).
+Обновлено: 2026-11-09. Сверено с кодом ветки main (сессия: часы сна, зеркало, фикс IP; затем стадия 5 и надписи; затем тихие эпизоды лаборатории, ночной дом и дом во сне).
 
 Этот файл заменяет все остальные промты в PROMTS/ (PROMT.txt, COMMONPROMT.txt,
 PROMT_handoff.txt, PROMT_NEXT_CHAT.txt, PROMT_nightmares.txt, PROMT_cutscenes.txt,
@@ -473,6 +473,13 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   (код 14) абсолютной высоты .8/1/.9/.84 (LAB_AMBIENT_SCENE_STEP_PITCH, без
   случайности), четвёртая «спотыкается» (тик 68, тише), пятой нет; стадия 3+,
   пулы дома и B4. Коды звуков 11–14 добавлены в LabAmbientClient. Сети, NBT и канал "2" не менялись.
+- [новое] Дом звучит во сне: зона ZONE_DREAM_HOME=6 в том же LabAmbientHandler — измерение
+  hypersomnia:dream, стадия 3+ (с неё DreamMirror переносит дом), радиус 32 от home(),
+  под крышей (canSeeSky == false). Ожидание 1.5–3 мин, пауза 5 мин (DREAM_AMBIENT_*).
+  Пул DREAM_AMBIENT_SCENES = {11..16}: в перенесённом доме играют те же сцены, что и в
+  настоящем; новых сцен, .ogg, полей payload и NBT нет. Отладка: /hypersomnia_lab ambient
+  status различает home / dream home / этаж. [в игре не проверено: не звучит ли в пещере
+  под домом, не мешает ли часам/погоне, успевает ли зеркало перенести дом до сна]
 - Кошмары: Ward, Shaft, Rounds, Session 47 — реализованы в коде; в игре
   проверены не полностью. Подробности — приложение D.
 - Финал: 7 концовок, FinaleLogic/FinaleTexts/FinaleTuning, EndingScreen,
