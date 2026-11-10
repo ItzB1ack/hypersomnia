@@ -1,5 +1,6 @@
 package com.hypersomnia.server;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
@@ -53,7 +54,7 @@ public final class FinaleCommand {
                     BlockPos mark = level.dimension() == DreamDimension.LEVEL && d.built
                             ? d.find(LabSavedData.KIND_FINALE * 1000 + FinaleTuning.PART_FRAGMENT) : null;
                     if (mark == null) {
-                        ctx.getSource().sendFailure(Component.literal("No nursery here: enter the dream with the lab built"));
+                        DebugMode.failure(ctx.getSource(), Component.literal("No nursery here: enter the dream with the lab built"));
                         return 0;
                     }
                     p.teleportTo(level, mark.getX() + 0.5, mark.getY() - 1, mark.getZ() - 1.5, 180f, 0f);
@@ -66,7 +67,7 @@ public final class FinaleCommand {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();
                             int e = Arrays.asList(FinaleTuning.KEYS).indexOf(StringArgumentType.getString(ctx, "key"));
                             if (e < 0) {
-                                ctx.getSource().sendFailure(Component.literal("Unknown ending; one of " + String.join(", ", FinaleTuning.KEYS)));
+                                DebugMode.failure(ctx.getSource(), Component.literal("Unknown ending; one of " + String.join(", ", FinaleTuning.KEYS)));
                                 return 0;
                             }
                             FinaleHandler.start(p, e);
@@ -84,7 +85,7 @@ public final class FinaleCommand {
                 + ", truth " + d.truth() + ", memories " + d.memoriesCount() + "/7, drawings " + d.drawingsCount()
                 + "/5, blank " + d.hasBlank() + ", record " + d.recordReady() + ", session 48 " + session
                 + "; endings got: " + (got.isEmpty() ? "-" : String.join(", ", got));
-        src.sendSuccess(() -> Component.literal(text), false);
+        DebugMode.success(src, () -> Component.literal(text), false);
         return 1;
     }
 }

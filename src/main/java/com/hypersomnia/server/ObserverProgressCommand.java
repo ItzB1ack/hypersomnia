@@ -1,5 +1,6 @@
 package com.hypersomnia.server;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
@@ -62,7 +63,7 @@ public final class ObserverProgressCommand {
                                 .executes(ctx -> {
                                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                                     boolean ok = com.hypersomnia.server.ObserverNotesHandler.giveNow(p, IntegerArgumentType.getInteger(ctx, "way"));
-                                    ctx.getSource().sendSuccess(() -> Component.literal("note delivered=" + ok
+                                    DebugMode.success(ctx.getSource(), () -> Component.literal("note delivered=" + ok
                                             + " (0 bed, 1 container, 2 window, 3 inventory, 4 dream)"), false);
                                     return ok ? 1 : 0;
                                 }))))
@@ -79,7 +80,7 @@ public final class ObserverProgressCommand {
                         .then(Commands.literal("now").executes(ctx -> {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();
                             int mem = ObserverNotesHandler.giftNow(p, p.serverLevel(), p.blockPosition(), p.getData(ModAttachments.OBSERVER));
-                            ctx.getSource().sendSuccess(() -> Component.literal(mem < 0 ? "gift: nothing placed (no memory left, or no bed/chest nearby)"
+                            DebugMode.success(ctx.getSource(), () -> Component.literal(mem < 0 ? "gift: nothing placed (no memory left, or no bed/chest nearby)"
                                     : "gift: memory " + (mem + 1) + " placed"), false);
                             return mem < 0 ? 0 : 1;
                         }))
@@ -96,7 +97,7 @@ public final class ObserverProgressCommand {
                             boolean ok = ObserverNotesHandler.placeHint(p.serverLevel(), p.blockPosition(), ObserverNotesHandler.Hint.values()[k],
                                     com.hypersomnia.document.DocumentItem.make(com.hypersomnia.document.DrawingTuning.idOf(
                                             com.hypersomnia.ObserverTuning.HINT_DRAWINGS[k])));
-                            ctx.getSource().sendSuccess(() -> Component.literal("hint " + k + " placed=" + ok), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("hint " + k + " placed=" + ok), false);
                             return ok ? 1 : 0;
                         })))
                 .then(Commands.literal("memory").then(Commands.argument("i", IntegerArgumentType.integer(1, 7))
@@ -136,7 +137,7 @@ public final class ObserverProgressCommand {
                             NoraRoomHandler.resetFor(p);
                             LabPathHandler.resetFor(p);
                             p.getData(ModAttachments.OBSERVER).resetStage5Scenes();
-                            ctx.getSource().sendSuccess(() -> Component.literal("Stage 5 scenes reset for this player."), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("Stage 5 scenes reset for this player."), false);
                             return status(ctx.getSource(), p);
                         })))
                 .then(Commands.literal("status").executes(ctx ->
@@ -146,9 +147,9 @@ public final class ObserverProgressCommand {
     /** Память привычек: точки маршрута (x y z вес), места сна (x y z счёт), где видел фигуру (x y z день). */
     private static int habits(net.minecraft.commands.CommandSourceStack src, ServerPlayer p) {
         ObserverProgressData d = p.getData(ModAttachments.OBSERVER);
-        src.sendSuccess(() -> Component.literal("route " + d.routeCount() + ": " + quads(d.routeList())), false);
-        src.sendSuccess(() -> Component.literal("sleep " + d.sleepCount() + ": " + quads(d.sleepList())), false);
-        src.sendSuccess(() -> Component.literal("seen " + d.seenList().size() / 4 + ": "
+        DebugMode.success(src, () -> Component.literal("route " + d.routeCount() + ": " + quads(d.routeList())), false);
+        DebugMode.success(src, () -> Component.literal("sleep " + d.sleepCount() + ": " + quads(d.sleepList())), false);
+        DebugMode.success(src, () -> Component.literal("seen " + d.seenList().size() / 4 + ": "
                 + quads(d.seenList()).replace(" w", " day")), false);
         return 1;
     }
@@ -165,7 +166,7 @@ public final class ObserverProgressCommand {
     private static int gift(net.minecraft.commands.CommandSourceStack src, ServerPlayer p) {
         ObserverProgressData d = p.getData(ModAttachments.OBSERVER);
         int next = d.nextGift();
-        src.sendSuccess(() -> Component.literal("gift: empty nights " + d.giftNights() + "/" + com.hypersomnia.ObserverTuning.GIFT_NIGHTS
+        DebugMode.success(src, () -> Component.literal("gift: empty nights " + d.giftNights() + "/" + com.hypersomnia.ObserverTuning.GIFT_NIGHTS
                 + " (stage " + d.stage() + ", needs " + com.hypersomnia.ObserverTuning.GIFT_MIN_STAGE + ")"
                 + " gifted=" + Integer.bitCount(d.giftedMask()) + " next=" + (next < 0 ? "-" : "memory " + (next + 1))), false);
         return 1;
@@ -175,7 +176,7 @@ public final class ObserverProgressCommand {
         ObserverProgressData d = p.getData(ModAttachments.OBSERVER);
         int formula = com.hypersomnia.ObserverTuning.stage(d.getDays(), d.memoriesCount(), d.exposurePoints());
         String stage = d.stageOverride() >= 0 ? d.stageOverride() + " (forced, formula " + formula + ")" : String.valueOf(formula);
-        src.sendSuccess(() -> Component.literal("days=" + d.getDays() + " memories=" + d.memoriesCount()
+        DebugMode.success(src, () -> Component.literal("days=" + d.getDays() + " memories=" + d.memoriesCount()
                 + " stage=" + stage + " exposure=" + d.exposurePoints() + " notes=" + d.notesCount()
                 + " drawings=" + d.drawingsCount() + (d.hasBlank() ? "+blank" : "")
                 + " route=" + d.routeCount() + " sleep=" + d.sleepCount()

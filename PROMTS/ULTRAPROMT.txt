@@ -352,6 +352,9 @@ ARCHIVEPROMT.txt, DIRIGERPROMT.txt, DIARYPROMT.txt, DESIGNPROMT.txt, Promt2.txt)
   /hypersomnia_chase status|reset|return
   /hypersomnia forest test|status|reset
   /hypersomnia tunnel test [pickaxe]
+  /hypersomnia debug [true|false] — вывод команд мода в чат; по умолчанию false (молчат все
+      команды hypersomnia*, текст уходит в latest.log). Новый вывод команд и отладочных строк —
+      только через DebugMode.success/failure/chat/overlay, не напрямую sendSuccess/sendSystemMessage.
   /hypersomnia_lab rebuild и resite — только с копией мира и разрешением.
 
 5.1. Лаборатория (шпаргалка)

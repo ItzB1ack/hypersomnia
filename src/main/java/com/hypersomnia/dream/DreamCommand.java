@@ -1,5 +1,6 @@
 package com.hypersomnia.dream;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -20,21 +21,21 @@ public final class DreamCommand {
                 .then(Commands.literal("enter").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     boolean ok = DreamTransition.enter(player);
-                    ctx.getSource().sendSuccess(() -> Component.literal(
+                    DebugMode.success(ctx.getSource(), () -> Component.literal(
                             ok ? "Dream: entering" : "Dream: cannot enter (already dreaming, or dimension is missing)"), false);
                     return ok ? 1 : 0;
                 }))
                 .then(Commands.literal("exit").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     boolean ok = DreamTransition.exit(player);
-                    ctx.getSource().sendSuccess(() -> Component.literal(
+                    DebugMode.success(ctx.getSource(), () -> Component.literal(
                             ok ? "Dream: waking up" : "Dream: not dreaming"), false);
                     return ok ? 1 : 0;
                 }))
                 .then(Commands.literal("status").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     DreamData data = player.getData(DreamAttachments.DREAM);
-                    ctx.getSource().sendSuccess(() -> Component.literal(
+                    DebugMode.success(ctx.getSource(), () -> Component.literal(
                             "Dream: inDream=" + data.isInDream() + ", ticksLeft=" + data.getTicksLeft()
                                     + ", return=" + data.getReturnDim()), false);
                     return 1;
@@ -42,13 +43,13 @@ public final class DreamCommand {
                 .then(Commands.literal("clock")
                         .then(Commands.literal("status").executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
-                            ctx.getSource().sendSuccess(() -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
                             return 1;
                         }))
                         .then(Commands.literal("place").executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
                             boolean ok = DreamClock.placeNow(player);
-                            ctx.getSource().sendSuccess(() -> Component.literal(ok
+                            DebugMode.success(ctx.getSource(), () -> Component.literal(ok
                                     ? "DreamClock: placed at " + DreamClock.status(player)
                                     : "DreamClock: cannot place (need a normal dream and free floor)"), false);
                             return ok ? 1 : 0;
@@ -56,25 +57,25 @@ public final class DreamCommand {
                         .then(Commands.literal("strike").executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
                             DreamClock.skipToStrikes(player);
-                            ctx.getSource().sendSuccess(() -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
                             return 1;
                         }))
                         .then(Commands.literal("chase").executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
                             DreamClock.forceChase(player);
-                            ctx.getSource().sendSuccess(() -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("DreamClock: " + DreamClock.status(player)), false);
                             return 1;
                         })))
                 .then(Commands.literal("mirror")
                         .then(Commands.literal("status").executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
-                            ctx.getSource().sendSuccess(() -> Component.literal(DreamMirror.status(player)), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal(DreamMirror.status(player)), false);
                             return 1;
                         }))
                         .then(Commands.literal("apply").executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
                             boolean ok = DreamMirror.force(player);
-                            ctx.getSource().sendSuccess(() -> Component.literal(ok
+                            DebugMode.success(ctx.getSource(), () -> Component.literal(ok
                                     ? "DreamMirror: applied at current position"
                                     : "DreamMirror: cannot apply (need Overworld, stage >= "
                                             + DreamMirrorTuning.MIN_STAGE + ", and no protected zone)"), false);

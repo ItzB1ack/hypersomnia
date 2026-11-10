@@ -1,5 +1,6 @@
 package com.hypersomnia.scene;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.network.SleepScenePayload;
 import net.minecraft.commands.Commands;
@@ -30,7 +31,7 @@ public final class SceneCommand {
                 .then(Commands.literal("reset").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     p.getData(SceneAttachments.SCENE).setSeen(false);
-                    ctx.getSource().sendSuccess(() -> Component.literal("Scene can play again."), false);
+                    DebugMode.success(ctx.getSource(), () -> Component.literal("Scene can play again."), false);
                     return 1;
                 })));
     }

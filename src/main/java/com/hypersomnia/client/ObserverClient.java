@@ -1,5 +1,6 @@
 package com.hypersomnia.client;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.FatigueTuning;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModSounds;
@@ -1513,7 +1514,7 @@ public final class ObserverClient {
     // Отладка: /hypersomnia_observer ... (обычному игроку не нужна)
     // ------------------------------------------------------------------
     private static int say(CommandSourceStack src, String text) {
-        src.sendSuccess(() -> Component.literal(text), false);
+        DebugMode.success(src, () -> Component.literal(text), false);
         return 1;
     }
 
@@ -1613,7 +1614,7 @@ public final class ObserverClient {
                             }
                             ObserverDirector.listener = line -> {
                                 Minecraft mc = Minecraft.getInstance();
-                                if (mc.gui != null) mc.gui.getChat().addMessage(Component.literal("[director] " + line));
+                                if (DebugMode.enabled() && mc.gui != null) mc.gui.getChat().addMessage(Component.literal("[director] " + line));
                             };
                             return say(ctx.getSource(), "Director: watch on");
                         }))

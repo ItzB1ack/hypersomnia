@@ -1,5 +1,6 @@
 package com.hypersomnia.server;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.ForestReplyTuning;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
@@ -208,7 +209,7 @@ public final class ForestReplyHandler {
     }
 
     private static void debug(ServerPlayer player, String text) {
-        player.sendSystemMessage(Component.literal("Лес отвечает: " + text));
+        DebugMode.chat(player, Component.literal("Лес отвечает: " + text));
     }
 
     @SubscribeEvent

@@ -1,5 +1,6 @@
 package com.hypersomnia.nightmare;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.dream.DreamAttachments;
 import com.hypersomnia.dream.DreamDimension;
@@ -43,20 +44,20 @@ public final class WardEntryQueue {
 
     public static boolean request(ServerPlayer player) {
         if (!player.isAlive()) {
-            player.sendSystemMessage(Component.literal("Ward: cannot enter while dead."));
+            DebugMode.chat(player, Component.literal("Ward: cannot enter while dead."));
             return false;
         }
         if (player.getData(DreamAttachments.DREAM).isInDream()
                 || player.serverLevel().dimension().equals(DreamDimension.LEVEL)) {
-            player.sendSystemMessage(Component.literal("Ward: already in a dream. Use /hypersomnia_nightmare exit first."));
+            DebugMode.chat(player, Component.literal("Ward: already in a dream. Use /hypersomnia_nightmare exit first."));
             return false;
         }
         if (player.server.getLevel(DreamDimension.LEVEL) == null) {
-            player.sendSystemMessage(Component.literal("Ward: dream dimension is missing."));
+            DebugMode.chat(player, Component.literal("Ward: dream dimension is missing."));
             return false;
         }
         REQUESTS.put(player.getUUID(), new Request(player));
-        player.sendSystemMessage(Component.literal("Ward: preparing portals, please wait..."));
+        DebugMode.chat(player, Component.literal("Ward: preparing portals, please wait..."));
         return true;
     }
 
@@ -73,19 +74,19 @@ public final class WardEntryQueue {
             if (player != request.player) { it.remove(); continue; }
             if (!player.isAlive() || !player.serverLevel().dimension().equals(request.startDimension)
                     || player.getData(DreamAttachments.DREAM).isInDream()) {
-                player.sendSystemMessage(Component.literal("Ward: entry cancelled because your state or dimension changed."));
+                DebugMode.chat(player, Component.literal("Ward: entry cancelled because your state or dimension changed."));
                 it.remove();
                 continue;
             }
             ServerLevel dream = server.getLevel(DreamDimension.LEVEL);
             if (dream == null) {
-                player.sendSystemMessage(Component.literal("Ward: dream dimension is missing."));
+                DebugMode.chat(player, Component.literal("Ward: dream dimension is missing."));
                 it.remove();
                 continue;
             }
             if (NightmareSavedData.get(dream).wardBuildFailed()) {
                 it.remove();
-                player.sendSystemMessage(Component.literal("Ward build failed. Inspect latest.log and the world before rebuilding."));
+                DebugMode.chat(player, Component.literal("Ward build failed. Inspect latest.log and the world before rebuilding."));
                 continue;
             }
             if (!NightmareSavedData.get(dream).isBuilt(NightmareDefs.WARD_CORRIDOR)) {
@@ -93,7 +94,7 @@ public final class WardEntryQueue {
                 NightmareBuilder.build(server, NightmareDefs.WARD_CORRIDOR);
                 if (NightmareSavedData.get(dream).wardBuildFailed()) {
                     it.remove();
-                    player.sendSystemMessage(Component.literal("Ward build failed. Inspect latest.log and the world before rebuilding."));
+                    DebugMode.chat(player, Component.literal("Ward build failed. Inspect latest.log and the world before rebuilding."));
                     continue;
                 }
             }
@@ -102,14 +103,14 @@ public final class WardEntryQueue {
             if (result == WardLoopPortals.Result.READY) {
                 it.remove();
                 if (!DreamTransition.enterNightmare(player, NightmareDefs.WARD_CORRIDOR)) {
-                    player.sendSystemMessage(Component.literal("Ward: portals ready, but your current state prevents entry."));
+                    DebugMode.chat(player, Component.literal("Ward: portals ready, but your current state prevents entry."));
                 }
             } else if (result != WardLoopPortals.Result.LOADING) {
                 it.remove();
-                player.sendSystemMessage(Component.literal("Ward portal error: " + result + ". Do not delete portals; send this message and latest.log."));
+                DebugMode.chat(player, Component.literal("Ward portal error: " + result + ". Do not delete portals; send this message and latest.log."));
             } else if (request.attempts >= MAX_ATTEMPTS) {
                 it.remove();
-                player.sendSystemMessage(Component.literal("Ward portal error: LOADING_TIMEOUT. Send latest.log."));
+                DebugMode.chat(player, Component.literal("Ward portal error: LOADING_TIMEOUT. Send latest.log."));
             }
         }
     }

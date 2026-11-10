@@ -1,5 +1,6 @@
 package com.hypersomnia.server;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.lab.LabProtection;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -89,7 +90,7 @@ public final class PresenceTunnelTestCommand {
         }
         final boolean placedItem = spawned;
         final boolean attemptedItem = tryPickaxe;
-        source.sendSuccess(() -> Component.literal("Тест декора: настенный факел установлен. "
+        DebugMode.success(source, () -> Component.literal("Тест декора: настенный факел установлен. "
                 + (placedItem ? "Изношенная кирка лежит у стены." : attemptedItem
                 ? "Кирку создать не удалось." : "В этот раз без кирки.")
                 + " Тоннель не выкапывался; это не автоматическое событие."), false);
@@ -97,7 +98,7 @@ public final class PresenceTunnelTestCommand {
     }
 
     private static int fail(CommandSourceStack source, String text) {
-        source.sendFailure(Component.literal("След присутствия: " + text));
+        DebugMode.failure(source, Component.literal("След присутствия: " + text));
         return 0;
     }
 }

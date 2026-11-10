@@ -1,5 +1,6 @@
 package com.hypersomnia.server;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.dream.DreamDimension;
 import com.hypersomnia.trace.TraceAttachments;
@@ -22,12 +23,12 @@ public final class TraceCommand {
                 .then(Commands.literal("wake").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     if (p.serverLevel().dimension() != DreamDimension.LEVEL) {
-                        ctx.getSource().sendFailure(Component.literal(
+                        DebugMode.failure(ctx.getSource(), Component.literal(
                                 "Следы осколка ставятся только в мире снов: лягте спать."));
                         return 0;
                     }
                     int n = TraceHandler.place(p, p.serverLevel(), p.blockPosition(), true);
-                    ctx.getSource().sendSuccess(() -> Component.literal("Traces added: " + n), false);
+                    DebugMode.success(ctx.getSource(), () -> Component.literal("Traces added: " + n), false);
                     return n;
                 }))
                 .then(Commands.literal("clear").executes(ctx -> {
@@ -37,7 +38,7 @@ public final class TraceCommand {
                 .then(Commands.literal("count").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     int n = p.getData(TraceAttachments.TRACES).all().size();
-                    ctx.getSource().sendSuccess(() -> Component.literal("Traces: " + n), false);
+                    DebugMode.success(ctx.getSource(), () -> Component.literal("Traces: " + n), false);
                     return n;
                 })));
     }

@@ -1,5 +1,6 @@
 package com.hypersomnia.server;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.FatigueData;
 import com.hypersomnia.FatigueTuning;
 import com.hypersomnia.Hypersomnia;
@@ -38,7 +39,7 @@ public final class FatigueCommand {
         ServerPlayer player = source.getPlayerOrException();
         FatigueData data = player.getData(ModAttachments.FATIGUE);
         int percent = Math.round(FatigueTuning.ratio(data.getFatigue()) * 100f);
-        source.sendSuccess(() -> Component.literal(
+        DebugMode.success(source, () -> Component.literal(
                 "Fatigue: " + data.getFatigue() + "/" + FatigueTuning.MAX_FATIGUE
                         + " (" + percent + "%), madness: " + data.getMadness()), false);
         return 1;
@@ -49,7 +50,7 @@ public final class FatigueCommand {
         FatigueData data = player.getData(ModAttachments.FATIGUE);
         data.setFatigue(Math.round(FatigueTuning.MAX_FATIGUE * percent / 100f));
         data.setCollapseTimer(0);
-        source.sendSuccess(() -> Component.literal("Fatigue set to " + percent + "%"), false);
+        DebugMode.success(source, () -> Component.literal("Fatigue set to " + percent + "%"), false);
         return 1;
     }
 }

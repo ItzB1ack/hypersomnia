@@ -1,5 +1,6 @@
 package com.hypersomnia.lab;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.ObserverProgressData;
@@ -48,7 +49,7 @@ public final class LabCommand {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     BlockPos site = LabPlacement.site(p.server);
                     LabSavedData d = LabSavedData.get(p.serverLevel());
-                    ctx.getSource().sendSuccess(() -> Component.literal("Lab entrance x=" + site.getX() + " z=" + site.getZ()
+                    DebugMode.success(ctx.getSource(), () -> Component.literal("Lab entrance x=" + site.getX() + " z=" + site.getZ()
                             + ", built in this world: " + d.built), false);
                     return 1;
                 }))
@@ -64,7 +65,7 @@ public final class LabCommand {
                 .then(Commands.literal("status").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     LabSavedData d = LabSavedData.get(p.serverLevel());
-                    ctx.getSource().sendSuccess(() -> Component.literal("built=" + d.built + " buildFailed=" + d.buildFailed + " dream=" + d.dream
+                    DebugMode.success(ctx.getSource(), () -> Component.literal("built=" + d.built + " buildFailed=" + d.buildFailed + " dream=" + d.dream
                             + " builtMask=" + Integer.toBinaryString(d.builtMask) + " reached=" + d.reached
                             + " locks=" + Integer.toBinaryString(d.locksOpen) + " flags=" + Integer.toBinaryString(d.flags)
                             + " breakers=" + d.breakerSeq + (d.breakerTripped ? " tripped" : "") + " origin=" + d.originX + "," + d.originZ
@@ -72,18 +73,18 @@ public final class LabCommand {
                     return 1;
                 }))
                 .then(Commands.literal("rebuild").executes(ctx -> {
-                    ctx.getSource().sendFailure(Component.literal("WARNING: this destroys lab blocks, stored items and progress. Back up the world first. To proceed: /hypersomnia_lab rebuild confirm"));
+                    DebugMode.failure(ctx.getSource(), Component.literal("WARNING: this destroys lab blocks, stored items and progress. Back up the world first. To proceed: /hypersomnia_lab rebuild confirm"));
                     return 0;
                 }).then(Commands.literal("confirm").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     ServerLevel level = p.serverLevel();
                     boolean dream = level.dimension() == DreamDimension.LEVEL;
                     if (!dream && level.dimension() != Level.OVERWORLD) {
-                        ctx.getSource().sendFailure(Component.literal("Only in Overworld or dream"));
+                        DebugMode.failure(ctx.getSource(), Component.literal("Only in Overworld or dream"));
                         return 0;
                     }
                     if (LabLift.busy(level)) {
-                        ctx.getSource().sendFailure(Component.literal("Wait for the lift to arrive before rebuilding or relocating the lab"));
+                        DebugMode.failure(ctx.getSource(), Component.literal("Wait for the lift to arrive before rebuilding or relocating the lab"));
                         return 0;
                     }
                     LabSavedData d = LabSavedData.get(level);
@@ -91,26 +92,26 @@ public final class LabCommand {
                     d.resetProgress();
                     LabPlacement.build(level, LabPlacement.site(p.server), dream);
                     if (d.buildFailed) {
-                        ctx.getSource().sendFailure(Component.literal("Lab rebuild failed; inspect the server log and world before retrying"));
+                        DebugMode.failure(ctx.getSource(), Component.literal("Lab rebuild failed; inspect the server log and world before retrying"));
                         return 0;
                     }
-                    ctx.getSource().sendSuccess(() -> Component.literal("Lab rebuilt (" + (dream ? "dream" : "real")
+                    DebugMode.success(ctx.getSource(), () -> Component.literal("Lab rebuilt (" + (dream ? "dream" : "real")
                             + "), mask=" + Integer.toBinaryString(d.builtMask)), false);
                     return 1;
                 })))
                 .then(Commands.literal("resite").executes(ctx -> {
-                    ctx.getSource().sendFailure(Component.literal("WARNING: this destroys lab blocks, stored items and progress. Back up the world first. To proceed: /hypersomnia_lab resite confirm"));
+                    DebugMode.failure(ctx.getSource(), Component.literal("WARNING: this destroys lab blocks, stored items and progress. Back up the world first. To proceed: /hypersomnia_lab resite confirm"));
                     return 0;
                 }).then(Commands.literal("confirm").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     ServerLevel level = p.serverLevel();
                     boolean dream = level.dimension() == DreamDimension.LEVEL;
                     if (!dream && level.dimension() != Level.OVERWORLD) {
-                        ctx.getSource().sendFailure(Component.literal("Only in Overworld or dream"));
+                        DebugMode.failure(ctx.getSource(), Component.literal("Only in Overworld or dream"));
                         return 0;
                     }
                     if (LabLift.busy(level)) {
-                        ctx.getSource().sendFailure(Component.literal("Wait for the lift to arrive before rebuilding or relocating the lab"));
+                        DebugMode.failure(ctx.getSource(), Component.literal("Wait for the lift to arrive before rebuilding or relocating the lab"));
                         return 0;
                     }
                     LabSavedData d = LabSavedData.get(level);
@@ -125,12 +126,12 @@ public final class LabCommand {
                     BlockPos site = LabPlacement.site(p.server);
                     LabPlacement.build(level, site, dream);
                     if (d.buildFailed) {
-                        ctx.getSource().sendFailure(Component.literal("Lab build at the new site failed; inspect the server log and world before retrying"));
+                        DebugMode.failure(ctx.getSource(), Component.literal("Lab build at the new site failed; inspect the server log and world before retrying"));
                         return 0;
                     }
                     int z = site.getZ() + 12;
                     p.teleportTo(site.getX() + 0.5, LabPlacement.ground(level, site.getX(), z), z + 0.5);
-                    ctx.getSource().sendSuccess(() -> Component.literal("New site x=" + site.getX() + " z=" + site.getZ()
+                    DebugMode.success(ctx.getSource(), () -> Component.literal("New site x=" + site.getX() + " z=" + site.getZ()
                             + " (try " + ow.siteTry + "). Back up the other world before rebuilding."), false);
                     return 1;
                 })))
@@ -142,7 +143,7 @@ public final class LabCommand {
                             d.reached = IntegerArgumentType.getInteger(ctx, "stop");
                             LabLift.refreshDoors(level, d);
                             d.setDirty();
-                            ctx.getSource().sendSuccess(() -> Component.literal("reached=" + d.reached), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("reached=" + d.reached), false);
                             return 1;
                         })))
                 .then(Commands.literal("lock")
@@ -157,13 +158,13 @@ public final class LabCommand {
                         .then(Commands.literal("on").executes(ctx -> {
                             ServerLevel level = ctx.getSource().getPlayerOrException().serverLevel();
                             LabBreakers.feedOn(level, LabSavedData.get(level));
-                            ctx.getSource().sendSuccess(() -> Component.literal("Main feed on"), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("Main feed on"), false);
                             return 1;
                         }))
                         .then(Commands.literal("reset").executes(ctx -> {
                             ServerLevel level = ctx.getSource().getPlayerOrException().serverLevel();
                             LabBreakers.reset(level, LabSavedData.get(level));
-                            ctx.getSource().sendSuccess(() -> Component.literal("Main feed off, breakers open"), false);
+                            DebugMode.success(ctx.getSource(), () -> Component.literal("Main feed off, breakers open"), false);
                             return 1;
                         })))
                 .then(Commands.literal("index")
@@ -214,7 +215,7 @@ public final class LabCommand {
                                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                                     ArchiveDefs.Station st = ArchiveDefs.station(StringArgumentType.getString(ctx, "station"));
                                     if (st == null) {
-                                        ctx.getSource().sendFailure(Component.literal("Unknown workstation"));
+                                        DebugMode.failure(ctx.getSource(), Component.literal("Unknown workstation"));
                                         return 0;
                                     }
                                     ArchiveAccess.Snapshot snap = ArchiveAccess.snapshot(p, LabSavedData.get(p.serverLevel()), st.id());
@@ -228,12 +229,12 @@ public final class LabCommand {
         ServerLevel level = p.server.overworld();
         LabSavedData d = LabSavedData.get(level);
         if (LabAntenna.drive(d) == null) {
-            p.sendSystemMessage(Component.literal("No ANT-1 in the Overworld lab" + (d.roofPending ? " yet: roof upgrade pending (load the site)" : "")));
+            DebugMode.chat(p, Component.literal("No ANT-1 in the Overworld lab" + (d.roofPending ? " yet: roof upgrade pending (load the site)" : "")));
             return 0;
         }
         if (az >= 0) LabAntenna.set(level, d, az / LabTuning.ANTENNA_STEP * LabTuning.ANTENNA_STEP);
         long seed = LabSavedData.cipherSeed(p.server);
-        p.sendSystemMessage(Component.literal("ANT-1 az " + LabAntenna.azimuth(d.dishAngle) + "  start " + LabAntenna.azimuth(LabVariants.antennaStart(seed))
+        DebugMode.chat(p, Component.literal("ANT-1 az " + LabAntenna.azimuth(d.dishAngle) + "  start " + LabAntenna.azimuth(LabVariants.antennaStart(seed))
                 + "  relay " + LabAntenna.azimuth(LabVariants.antennaTarget(seed)) + "  feed=" + d.hasFlag(LabSavedData.FLAG_FEED)
                 + "  lock B3=" + (d.isLockOpen(LabTuning.LOCK_BUFFER) ? "open" : "closed") + "  displays=" + LabAntenna.count(level, d)));
         return 1;
@@ -250,9 +251,9 @@ public final class LabCommand {
         String msg = "Index rows (memory no.): " + rows + "  answer=" + LabLocks.indexCode(seed)
                 + "  lock=" + (open ? "open" : "closed") + "  memories=" + data.memoriesCount() + "/" + com.hypersomnia.document.MemoryTuning.COUNT
                 + "  draft=" + (data.indexDraft().isEmpty() ? "-" : data.indexDraft()) + "  recordReady=" + data.recordReady();
-        p.sendSystemMessage(Component.literal(msg));
+        DebugMode.chat(p, Component.literal(msg));
         // варианты остальных шифров этого мира (отладка)
-        p.sendSystemMessage(Component.literal("Variants: feed " + LabVariants.feedText(seed, 'C') + " (rev B " + LabVariants.feedText(seed, 'B')
+        DebugMode.chat(p, Component.literal("Variants: feed " + LabVariants.feedText(seed, 'C') + " (rev B " + LabVariants.feedText(seed, 'B')
                 + ")  hatch " + String.format("%04d", LabVariants.hatchCode(seed, false)) + " (rule " + LabVariants.hatchRule(seed)
                 + ", dream " + String.format("%04d", LabTuning.HATCH_DREAM_CODE) + ")  bay " + LabVariants.bayTime(seed)
                 + " -> " + LabVariants.bayCode(seed) + "  posts " + LabVariants.postCode(seed) + " (paper " + LabVariants.planCode(seed)
@@ -263,7 +264,7 @@ public final class LabCommand {
         int[] hold = LabVariants.rackHold(seed);
         StringBuilder racks = new StringBuilder();
         for (int i = 0; i < LabTuning.RACK_HELD; i++) racks.append(i == 0 ? "" : " ").append(hold[i]);
-        p.sendSystemMessage(Component.literal("Lift access: B2->B3 " + LabVariants.stacksCode(seed) + " (empty places " + places
+        DebugMode.chat(p, Component.literal("Lift access: B2->B3 " + LabVariants.stacksCode(seed) + " (empty places " + places
                 + ")  B3->B4 ANT-1 " + LabAntenna.azimuth(LabVariants.antennaStart(seed)) + " -> " + LabAntenna.azimuth(LabVariants.antennaTarget(seed))
                 + " (relay azimuth in BUFFER.LOG; held racks " + racks + ", copy " + hold[LabTuning.RACK_HELD]
                 + ")  B4->B5 " + LabVariants.wardCode(seed) + " (tally groups in the 2D note, B4)"));
@@ -271,7 +272,7 @@ public final class LabCommand {
     }
 
     private static int say(net.minecraft.commands.CommandSourceStack src, String text) {
-        src.sendSuccess(() -> Component.literal(text), false);
+        DebugMode.success(src, () -> Component.literal(text), false);
         return 1;
     }
 }

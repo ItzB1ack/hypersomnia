@@ -1,5 +1,6 @@
 package com.hypersomnia.chase;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.FatigueData;
 import com.hypersomnia.FatigueTuning;
 import com.hypersomnia.Hypersomnia;
@@ -1071,7 +1072,7 @@ public final class ChaseHandler {
             int r = startWatch(t, seconds * 20);
             if (r == 0) {
                 ok++;
-                t.displayClientMessage(Component.literal("Shard: watching you (" + seconds + "s)"), true);
+                DebugMode.overlay(t, Component.literal("Shard: watching you (" + seconds + "s)"));
                 say(src, "Shard: watching " + t.getName().getString() + " for " + seconds + "s");
             } else {
                 say(src, "Shard: " + t.getName().getString() + " - " + ChasePayload.reason(r));
@@ -1096,7 +1097,7 @@ public final class ChaseHandler {
             int r = start(t, force, true);
             if (r == 0) {
                 ok++;
-                t.displayClientMessage(Component.literal("Shard: chase started (test)"), true);
+                DebugMode.overlay(t, Component.literal("Shard: chase started (test)"));
                 say(src, "Shard: chasing " + t.getName().getString() + (force == 2 ? " (real)" : " (teaching)"));
             } else {
                 say(src, "Shard: " + t.getName().getString() + " - " + ChasePayload.reason(r));
@@ -1115,7 +1116,7 @@ public final class ChaseHandler {
             int r = startAmbush(t, at, true);
             if (r == 0) {
                 ok++;
-                t.displayClientMessage(Component.literal("Shard: ambush (test)"), true);
+                DebugMode.overlay(t, Component.literal("Shard: ambush (test)"));
                 say(src, "Shard: ambush on " + t.getName().getString());
             } else {
                 say(src, "Shard: " + t.getName().getString() + " - " + ChasePayload.reason(r));
@@ -1134,7 +1135,7 @@ public final class ChaseHandler {
             }
             n++;
             end(t, run, ChasePayload.O_ABORT);
-            t.displayClientMessage(Component.literal("Shard: stopped (test)"), true);
+            DebugMode.overlay(t, Component.literal("Shard: stopped (test)"));
             say(src, "Shard: stopped for " + t.getName().getString());
         }
         return n;
@@ -1174,7 +1175,7 @@ public final class ChaseHandler {
     }
 
     private static int say(CommandSourceStack src, String text) {
-        src.sendSuccess(() -> Component.literal(text), false);
+        DebugMode.success(src, () -> Component.literal(text), false);
         return 1;
     }
 }

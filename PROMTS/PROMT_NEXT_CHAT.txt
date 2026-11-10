@@ -21,6 +21,21 @@ HYPERSOMNIA — ПРОМТ ДЛЯ НОВОГО ЧАТА (обновлено 2026
 - Не разрушать постройки, инвентари, сохранения, чужие сцены. Мультиплеер и восстановление состояний проектировать отдельно на игрока.
 - Расширять существующие системы, не плодить параллельные. Числа в *Tuning, сервер авторитетен, сеть в *Network, client-only классы не импортировать из common. playToClient регистрировать в common на обеих сторонах через ClientPayloadBridge; RegisterClientPayloadHandlersEvent не использовать. При смене wire-формата думать о версии канала. Старые сохранения не терять. LabAmbient развивать, отдельный LabEpisode не создавать.
 
+СЕССИЯ 2026-11-11 (глобальный выключатель вывода команд; gradle здесь недоступен, компиляция НЕ запускалась, в игре НЕ проверено)
+1. [новое] /hypersomnia debug [true|false] (server/DebugCommand, op 2) + общий com.hypersomnia.DebugMode. По умолчанию false:
+   все команды мода (hypersomnia*, кроме самой debug) ничего не пишут в чат, текст уходит в latest.log.
+   Флаг не сохраняется, после перезапуска снова false. Сама /hypersomnia debug отвечает всегда.
+2. Через DebugMode.success/failure пущены все sendSuccess/sendFailure в Dream/Lab/ObserverProgress/Nightmare/Finale/Trace/
+   Fatigue/Scene/ForestReply/PresenceTunnelTest-командах, ChaseHandler (chase/shard) и ObserverClient. Через DebugMode.chat/overlay
+   — отладочные строки: «Лес отвечает: …», «[scene] woke at tick…», «Shard: … (test)», «Ward: …» (WardEntryQueue), LabCommand.
+   «[director] …» из /hypersomnia_observer watch пишется в чат только при debug=true.
+3. Геймплейные сообщения (translatable hypersomnia.*, замки, капсулы, сессия 47, шприц) не менялись.
+4. Правило: новый вывод команд и отладочных строк — только через DebugMode.
+5. Клиентская /hypersomnia_observer читает тот же статический флаг: в одиночной игре и на LAN-хосте работает, на выделенном
+   сервере клиентский флаг всегда false (включить нельзя) — при необходимости синхронизировать отдельно.
+НЕ ПРОВЕРЕНО: сборка; что при debug=false в чате пусто после каждой команды, а при true сообщения прежние; что ошибки Ward
+видны в latest.log.
+
 НОЧНАЯ СЕССИЯ 2026-11-10 (идёт по PROMTS/NIGHT_PLAN.md; в игре НЕ проверено)
 1. N1: прогнан весь baseline — compileJava, observerSelfTests (100), labSelfTests
    (286+3+8+2839), wardSelfTests (110), finaleSelfTests (513), forestReplySelfTests

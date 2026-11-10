@@ -1,5 +1,6 @@
 package com.hypersomnia.scene;
 
+import com.hypersomnia.DebugMode;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.dream.DreamAttachments;
 import com.hypersomnia.dream.DreamDimension;
@@ -72,7 +73,7 @@ public final class SleepSceneHandler {
         scene.setHold(scene.getHold() - 1);
         if (!player.isSleeping() && scene.getHold() > 0) {
             // ОТЛАДКА (временная): сколько тиков сцены прошло к моменту подъёма
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("[scene] woke at tick "
+            DebugMode.chat(player, net.minecraft.network.chat.Component.literal("[scene] woke at tick "
                     + (SleepSceneTuning.SCENE_TICKS - scene.getHold()) + ", day=" + player.level().isDay()));
             scene.setHold(0); // разбудили извне
         }
