@@ -30,22 +30,45 @@ public final class SleepPenalty {
 
     /** Уровень усталости, до которого она сбрасывается после сна (с учётом безумия). */
     public static int restFatigue(FatigueData data) {
-        float frac = Math.min(FLOOR_CAP, BASE_FLOOR + FLOOR_PER_MADNESS * Math.max(0, data.getMadness()));
+        return restFatigue(data.getMadness());
+    }
+
+    /** То же по числу безумия: чистая формула для тестов и старых сохранений. */
+    public static int restFatigue(int madness) {
+        float frac = Math.min(FLOOR_CAP, BASE_FLOOR + FLOOR_PER_MADNESS * Math.max(0, madness));
         return Math.round(FatigueTuning.MAX_FATIGUE * frac);
+    }
+
+    /** Длительность сонной инерции в секундах; длинное умножение не переполняется. */
+    public static int inertiaSeconds(int madness) {
+        long sec = INERTIA_BASE_SEC + (long) INERTIA_PER_MADNESS_SEC * Math.max(0, madness);
+        return (int) Math.min(INERTIA_CAP_SEC, sec);
+    }
+
+    /** Усиление замедления: II уровень с STRONG_SLOW_MADNESS. */
+    public static int slowAmplifier(int madness) {
+        return Math.max(0, madness) >= STRONG_SLOW_MADNESS ? 1 : 0;
+    }
+
+    /** Длительность тошноты в секундах; 0 — тошноты нет. */
+    public static int nauseaSeconds(int madness) {
+        int m = Math.max(0, madness);
+        if (m < NAUSEA_FROM_MADNESS) return 0;
+        long sec = NAUSEA_BASE_SEC + (long) NAUSEA_PER_MADNESS_SEC * m;
+        return (int) Math.min(NAUSEA_CAP_SEC, sec);
     }
 
     /** Сонная инерция после пробуждения. Вызывать на сервере. */
     public static void applyInertia(ServerPlayer player) {
-        int madness = Math.max(0, player.getData(ModAttachments.FATIGUE).getMadness());
-        int sec = Math.min(INERTIA_CAP_SEC, INERTIA_BASE_SEC + INERTIA_PER_MADNESS_SEC * madness);
-        int ticks = sec * 20;
-        int slowAmp = madness >= STRONG_SLOW_MADNESS ? 1 : 0;
+        int madness = player.getData(ModAttachments.FATIGUE).getMadness();
+        int ticks = inertiaSeconds(madness) * 20;
+        int slowAmp = slowAmplifier(madness);
 
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, slowAmp, false, false, true));
         player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, ticks, 0, false, false, true));
 
-        if (madness >= NAUSEA_FROM_MADNESS) {
-            int nSec = Math.min(NAUSEA_CAP_SEC, NAUSEA_BASE_SEC + NAUSEA_PER_MADNESS_SEC * madness);
+        int nSec = nauseaSeconds(madness);
+        if (nSec > 0) {
             player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, nSec * 20, 0, false, false, true));
         }
     }

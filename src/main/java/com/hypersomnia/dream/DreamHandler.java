@@ -1,10 +1,10 @@
 package com.hypersomnia.dream;
 
 import com.hypersomnia.FatigueData;
-import com.hypersomnia.FatigueTuning;
 import com.hypersomnia.Hypersomnia;
 import com.hypersomnia.ModAttachments;
 import com.hypersomnia.SleepPenalty;
+import com.hypersomnia.SleepRules;
 import com.hypersomnia.chase.ChaseHandler;
 import com.hypersomnia.syringe.SyringeHandler;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,11 +46,11 @@ public final class DreamHandler {
 
         // Кровать: полежал ~4 секунды, и вместо пропуска ночи уходишь в мир снов
         // После финала (FinaleLogic.completed) мир снов закрыт: обычная кровать, ночь пропускается как в ванили
-        if (!dream.isInDream() && !inDreamLevel && player.isSleeping()
-                && player.getSleepTimer() >= DreamTuning.BED_SLEEP_TICKS
-                && !SyringeHandler.isAwake(player) // пока действует шприц, сон не начинается
-                && player.getData(SceneAttachments.SCENE).getHold() <= 0 // пока идёт сцена, не трогаем
-                && !com.hypersomnia.finale.FinaleLogic.completed(player)) {
+        if (SleepRules.shouldEnterDream(dream.isInDream(), inDreamLevel, player.isSleeping(),
+                player.getSleepTimer(), DreamTuning.BED_SLEEP_TICKS,
+                SyringeHandler.isAwake(player), // пока действует шприц, сон не начинается
+                player.getData(SceneAttachments.SCENE).getHold(), // пока идёт сцена, не трогаем
+                com.hypersomnia.finale.FinaleLogic.completed(player))) {
             // Память привычек: где игрок спит (только кровати Верхнего мира)
             if (player.level().dimension() == net.minecraft.world.level.Level.OVERWORLD) {
                 player.getSleepingPos().ifPresent(p -> player.getData(ModAttachments.OBSERVER)
@@ -118,7 +118,9 @@ public final class DreamHandler {
         }
         if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
         FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
-        if (!maySleepThroughDay(player, fatigue)) return;
+        if (!SleepRules.maySleepThroughDay(com.hypersomnia.finale.FinaleLogic.completed(player),
+                player.isCreative(), player.isSpectator(), ChaseHandler.activeFor(player),
+                fatigue.getCollapseTimer() > 0, fatigue.getFatigue())) return;
         // Днём ванильные проверки до монстров не доходят: не обходим «рядом монстры».
         Vec3 bed = Vec3.atBottomCenterOf(event.getPos());
         AABB area = new AABB(bed.x() - 8.0, bed.y() - 5.0, bed.z() - 8.0,
@@ -145,21 +147,12 @@ public final class DreamHandler {
         }
         if (event.getProblem() != Player.BedSleepingProblem.NOT_POSSIBLE_NOW) return;
         FatigueData fatigue = player.getData(ModAttachments.FATIGUE);
-        if (!fatigue.isAnyTimeSleep()) return;
-        if (ChaseHandler.activeFor(player) || com.hypersomnia.finale.FinaleLogic.completed(player)) {
+        if (!SleepRules.mayContinueDaySleep(fatigue.isAnyTimeSleep(),
+                ChaseHandler.activeFor(player), com.hypersomnia.finale.FinaleLogic.completed(player))) {
             fatigue.setAnyTimeSleep(false);
             return;
         }
         event.setContinueSleeping(true);
-    }
-
-    /** Общие условия дневного сна: не погоня, не падение, не креатив/наблюдатель, финал не пройден. */
-    private static boolean maySleepThroughDay(ServerPlayer player, FatigueData fatigue) {
-        return !com.hypersomnia.finale.FinaleLogic.completed(player)
-                && !player.isCreative() && !player.isSpectator()
-                && !ChaseHandler.activeFor(player)
-                && fatigue.getCollapseTimer() <= 0
-                && FatigueTuning.canSleepAtAnyTime(fatigue.getFatigue());
     }
 
     /** Выход из игры во время сна не должен оставлять захваченный дом в памяти сервера. */

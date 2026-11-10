@@ -21,11 +21,16 @@ public class FatigueData implements INBTSerializable<CompoundTag> {
 
     public int getFatigue() { return fatigue; }
     public void setFatigue(int value) { this.fatigue = Mth.clamp(value, 0, FatigueTuning.MAX_FATIGUE); }
-    public void addFatigue(int delta) { setFatigue(this.fatigue + delta); }
+    public void addFatigue(int delta) {
+        setFatigue((int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, (long) fatigue + delta)));
+    }
 
     /** Сколько раз осколок «дошёл до края». Пригодится для сюжета и эскалации. */
     public int getMadness() { return madness; }
-    public void addMadness(int delta) { this.madness = Math.max(0, this.madness + delta); }
+    public void addMadness(int delta) {
+        long value = (long) madness + delta;
+        this.madness = (int) Math.min(Integer.MAX_VALUE, Math.max(0L, value));
+    }
 
     public int getCollapseTimer() { return collapseTimer; }
     public void setCollapseTimer(int ticks) { this.collapseTimer = Math.max(0, ticks); }

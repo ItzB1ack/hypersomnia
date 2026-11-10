@@ -1,0 +1,30 @@
+Усталость и сон (N24, 2026-11-10)
+
+Аудит условий сна и кривой усталости. Логика «можно/нельзя» была размазана
+по DreamHandler и требовала ServerPlayer, поэтому таблицу нельзя было проверить
+без игры. Вынесена в чистый SleepRules; попутно закрыто переполнение штрафов
+безумия на старых сохранениях.
+
+Что изменено:
+1. src/main/java/com/hypersomnia/SleepRules.java — чистые условия:
+   maySleepThroughDay (финал, креатив, наблюдатель, погоня, падение, усталость),
+   mayContinueDaySleep (сессионный флаг anyTimeSleep, погоня, финал) и
+   shouldEnterDream (сон в кровати, 80 тиков, шприц, сцена, финал, измерение).
+2. DreamHandler использует SleepRules; поведение не менялось: днём сон
+   открывается только при усталости >= 75%, монстры рядом по-прежнему мешают,
+   после финала кровать ванильная, шприц и сцена блокируют вход в мир снов.
+3. SleepPenalty: restFatigue(int), inertiaSeconds, slowAmplifier, nauseaSeconds
+   вынесены в чистые формулы и считаются в long. Integer.MAX_VALUE безумия из
+   старого NBT больше не переполняет длительности в отрицательные значения.
+4. FatigueData.addFatigue/addMadness считают в long: огромные прибавки
+   насыщаются границами 0..MAX и Integer.MAX_VALUE, а не переполняются.
+5. src/devtest/java/com/hypersomnia/FatigueSelfTest.java — 118 проверок:
+   границы 0..MAX, кривая 1/тик и восстановление 400/тик, порог 75%,
+   пол усталости 10..35%, инерция 8..60 с, тошнота 3..12 с, таблица дневного
+   сна и входа в сон по всем флагам, рестарт (anyTimeSleep и попытки
+   принудительного сна не пишутся в NBT). src/devtest/fatigue.init.gradle
+   запускает тест задачей fatigueSelfTests.
+
+Проверено: compileJava --offline = 0; fatigueSelfTests = 118;
+observerSelfTests = 111. В игре НЕ проверено: дневной сон на 75% и
+принудительный сон на 100% — PROMTS/INGAME_CHECKLIST.md, P1-1 и P1-2.
