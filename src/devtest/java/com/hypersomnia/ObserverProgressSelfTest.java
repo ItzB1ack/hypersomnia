@@ -103,6 +103,40 @@ public final class ObserverProgressSelfTest {
         check(daySleep.isAnyTimeSleep(), "day sleep permission set");
         daySleep.deserializeNBT(null, daySleep.serializeNBT(null));
         check(!daySleep.isAnyTimeSleep(), "day sleep permission is session-only");
+
+        // Два игрока: прогресс, усталость и погоня живут в отдельных экземплярах и не пересекаются.
+        ObserverProgressData first = new ObserverProgressData();
+        ObserverProgressData second = new ObserverProgressData();
+        first.advanceWriting();
+        first.setExposure(4);
+        first.noteRoute(0, 64, 0);
+        check(second.writingStep() == 0 && second.exposurePoints() == 0 && second.routeCount() == 0,
+                "progress is per player");
+        FatigueData firstFatigue = new FatigueData();
+        FatigueData secondFatigue = new FatigueData();
+        firstFatigue.setFatigue(90);
+        firstFatigue.addMadness(2);
+        firstFatigue.setAnyTimeSleep(true);
+        check(secondFatigue.getFatigue() == 0 && secondFatigue.getMadness() == 0 && !secondFatigue.isAnyTimeSleep(),
+                "fatigue is per player");
+        com.hypersomnia.chase.ChaseData firstChase = new com.hypersomnia.chase.ChaseData();
+        com.hypersomnia.chase.ChaseData secondChase = new com.hypersomnia.chase.ChaseData();
+        firstChase.markStarted(7);
+        check(secondChase.lastDay() == -1 && secondChase.count() == 0, "chase is per player");
+        firstChase.reset();
+        check(secondChase.lastDay() == -1 && secondChase.count() == 0, "chase reset touches one player only");
+        firstFatigue.deserializeNBT(null, new net.minecraft.nbt.CompoundTag());
+        check(firstFatigue.getFatigue() == 0 && firstFatigue.getMadness() == 0,
+                "reload clears one player's fatigue");
+
+        // Блокировка пропуска ночи: две сцены не должны вернуть правило раньше времени.
+        com.hypersomnia.scene.NightSkipGate gate = new com.hypersomnia.scene.NightSkipGate();
+        check(gate.acquire(100) == 100, "first scene saves night-skip rule");
+        check(gate.acquire(101) == -1, "second scene does not overwrite saved rule");
+        check(gate.release() == -1, "first scene keeps night skip blocked");
+        check(gate.release() == 100, "last scene restores night-skip rule");
+        check(gate.release() == -1, "extra release ignored");
+        check(gate.acquire(80) == 80 && gate.forceRelease() == 80, "server stop restores night-skip rule");
         System.out.println("ObserverProgressSelfTest: " + checks + " checks passed.");
     }
 }

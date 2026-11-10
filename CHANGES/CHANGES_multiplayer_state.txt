@@ -1,0 +1,31 @@
+Мультиплеер и изоляция состояния (N2, 2026-11-10)
+
+Аудит per-player состояния и общих статиков. Найден и исправлен один реальный
+баг: SleepSceneHandler хранил исходное значение RULE_PLAYERS_SLEEPING_PERCENTAGE
+в одном статике savedPercent. Если сцена «This isn't a dream» шла у двух игроков
+одновременно, вторая сцена не запоминала правило, а выход первой возвращал 100%
+раньше времени, пока вторая ещё держала игрока в кровати.
+
+Что изменено:
+1. src/main/java/com/hypersomnia/scene/NightSkipGate.java — чистый учёт
+   одновременных удержаний: первый acquire запоминает текущее правило, последний
+   release возвращает его; forceRelease снимает всё при остановке сервера.
+2. SleepSceneHandler использует NightSkipGate вместо savedPercent. Добавлен
+   onLogout: выход из игры посреди сцены сбрасывает hold и освобождает правило,
+   иначе оно оставалось на 101% до возвращения игрока. onServerStopping
+   принудительно восстанавливает правило.
+3. ObserverProgressSelfTest: проверки двух независимых игроков для
+   ObserverProgressData, FatigueData и ChaseData (включая reset/reload одного
+   без влияния на другого) и проверки счётчика NightSkipGate: две сцены,
+   освобождение по одной, лишний release, аварийное восстановление.
+
+Аудит остальных статиков: ChaseHandler, ShaftHandler, WardEntryQueue,
+WardGhostSync, WardScenarioHandler, AmbushHandler, DoorEpisodeHandler,
+FinaleHandler, ForestReplyHandler, LabAmbientHandler, LabHandler,
+LabPathHandler, LiftRide, MadnessSync, NoraRoomHandler и LabLift уже чистят
+свои UUID-карты на logout/stop; DreamMirror.abort вызывается из
+DreamHandler.onLogout. LabSavedData — намеренно общий мир; SleepSceneState
+сбрасывается на клиенте при LoggingOut; HauntedTitle — клиентское меню.
+
+Проверено: compileJava --offline = 0; observerSelfTests = 111 проверок.
+В игре НЕ проверено: нужны два клиента (см. PROMTS/INGAME_CHECKLIST.md, P0-4).

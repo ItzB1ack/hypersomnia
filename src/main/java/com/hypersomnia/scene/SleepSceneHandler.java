@@ -10,6 +10,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.server.MinecraftServer;
@@ -82,28 +83,45 @@ public final class SleepSceneHandler {
     }
 
     // ---- Блок пропуска ночи на время сцены: правило ставим в 101%, потом возвращаем ----
-    private static int savedPercent = -1;
+    // Правило общее для сервера, а сцены могут идти у нескольких игроков сразу: первый держатель
+    // запоминает исходное значение, последний возвращает. Иначе вторая сцена не сохраняет правило,
+    // а выход первой возвращает его слишком рано.
+    private static final NightSkipGate NIGHT_SKIP = new NightSkipGate();
 
     private static void blockNightSkip(MinecraftServer server) {
         GameRules.IntegerValue rule = server.getGameRules().getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
-        if (savedPercent < 0) savedPercent = rule.get();
-        rule.set(101, server);
+        if (NIGHT_SKIP.acquire(rule.get()) >= 0) rule.set(101, server);
     }
 
     private static void releaseNightSkip(MinecraftServer server) {
-        if (savedPercent < 0) return;
-        server.getGameRules().getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE).set(savedPercent, server);
-        savedPercent = -1;
+        int restore = NIGHT_SKIP.release();
+        if (restore >= 0) server.getGameRules().getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE).set(restore, server);
+    }
+
+    private static void restoreNightSkip(MinecraftServer server) {
+        int restore = NIGHT_SKIP.forceRelease();
+        if (restore >= 0) server.getGameRules().getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE).set(restore, server);
+    }
+
+    /** Выход из игры посреди сцены: снять удержание, иначе правило останется на 101 до возвращения игрока. */
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        SceneData scene = player.getData(SceneAttachments.SCENE);
+        if (scene.getHold() <= 0) return;
+        scene.setHold(0);
+        releaseNightSkip(player.server);
     }
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
-        releaseNightSkip(event.getServer());
+        restoreNightSkip(event.getServer());
     }
 
     /** Страховка после краша посреди сцены: правило осталось на 101. */
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
+        NIGHT_SKIP.forceRelease(); // счётчик мог остаться от прошлого сервера в том же JVM
         GameRules.IntegerValue rule = event.getServer().getGameRules().getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
         if (rule.get() == 101) rule.set(100, event.getServer());
     }
