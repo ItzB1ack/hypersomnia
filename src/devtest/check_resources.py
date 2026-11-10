@@ -71,8 +71,59 @@ if missing_en:
 if missing_ru:
     fail(assets / 'lang/ru_ru.json', f'missing {len(missing_ru)} keys from en_us.json, e.g. {", ".join(missing_ru[:5])}')
 
+# --- text hygiene: placeholders, empty values, forbidden formatting ---------
+import collections
+import re
+
+PLACEHOLDER = re.compile(r'%(?:%|\d+\$[sd]|[sd])')
+
+
+def placeholders(value):
+    return collections.Counter(PLACEHOLDER.findall(value))
+
+
+for key in sorted(set(english) & set(russian)):
+    en_value = english[key]
+    ru_value = russian[key]
+    if not isinstance(en_value, str) or not isinstance(ru_value, str):
+        continue
+    en_ph = placeholders(en_value)
+    ru_ph = placeholders(ru_value)
+    if en_ph != ru_ph:
+        fail(assets / 'lang/en_us.json', f'{key}: placeholder mismatch en={dict(en_ph)} ru={dict(ru_ph)}')
+    for lang, value in (('en_us', en_value), ('ru_ru', ru_value)):
+        if not value.strip():
+            fail(assets / f'lang/{lang}.json', f'{key}: empty value')
+        if re.search(r'§[kmKM]', value):
+            fail(assets / f'lang/{lang}.json', f'{key}: forbidden formatting code')
+
+# --- unused keys: warning only ---------------------------------------------
+corpus = ''
+for path in (root / 'src/main/java').rglob('*.java'):
+    corpus += path.read_text(encoding='utf-8', errors='replace')
+for path in resources.rglob('*.json'):
+    if '/lang/' in path.as_posix():
+        continue
+    corpus += path.read_text(encoding='utf-8', errors='replace')
+literals = set(re.findall(r'"((?:[^"\\]|\\.)*)"', corpus))
+
+
+def used_key(key):
+    if key in corpus:
+        return True
+    parts = key.split('.')
+    for i in range(2, len(parts) + 1):
+        if '.'.join(parts[:i]) + '.' in literals:
+            return True
+    return False
+
+
+unused = [key for key in sorted(english) if key.startswith('hypersomnia.') and not used_key(key)]
+if unused:
+    print(f'WARN: {len(unused)} unused lang keys, e.g. {", ".join(unused[:5])}')
+
 if errors:
     print('\n'.join(errors))
     raise SystemExit(f'FAILED: {len(errors)} resource problems')
 print(f'OK: {checked} JSON files, internal model/texture references, registered sound files,'
-      f' advancement texts and {len(english)} lang keys (en/ru parity)')
+      f' advancement texts and {len(english)} lang keys (en/ru parity, placeholders, empty values, §k/§m)')
