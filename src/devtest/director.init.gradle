@@ -1,0 +1,25 @@
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
+// ./gradlew -I src/devtest/director.init.gradle directorSelfTests
+gradle.projectsEvaluated {
+    def p = gradle.rootProject
+    def output = p.layout.buildDirectory.dir('director-selftests')
+    def compile = p.tasks.register('compileDirectorSelfTests', JavaCompile) {
+        dependsOn p.tasks.named('classes')
+        source p.fileTree('src/devtest/java') { include '**/DirectorSelfTest.java' }
+        classpath = p.files(p.sourceSets.main.output, p.configurations.compileClasspath)
+        classpath = p.files(p.sourceSets.main.output, p.configurations.compileClasspath)
+        destinationDirectory = output
+        javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+    p.tasks.register('directorSelfTests', JavaExec) {
+        dependsOn compile
+        classpath = p.files(output, p.sourceSets.main.runtimeClasspath)
+        javaLauncher = p.javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+        mainClass = 'com.hypersomnia.DirectorSelfTest'
+    }
+}

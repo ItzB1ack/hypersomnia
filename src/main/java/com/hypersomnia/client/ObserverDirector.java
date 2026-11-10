@@ -92,9 +92,12 @@ public final class ObserverDirector {
     private static int decide;
     private static long clock;
     private static final long[] strongAt = new long[8];
+    static { java.util.Arrays.fill(strongAt, -1L); }
     private static int strongHead;
     private static int ruleCooldown;
     private static Kind lastKind;
+    /** Прошлый эпизод был сильным: следующий сильный не начинаем без слабого между ними. */
+    private static boolean lastStrong;
     private static int lastGhostVariant = -1;
     private static int sinceCalm;
     private static float pressure;
@@ -145,9 +148,7 @@ public final class ObserverDirector {
         float d = pressureTarget - pressure;
         pressure = clamp01(pressure + Math.max(-ObserverTuning.PRESSURE_FALL_PER_TICK,
                 Math.min(ObserverTuning.PRESSURE_RISE_PER_TICK, d)));
-        budget = Math.min(ObserverTuning.DIRECTOR_BUDGET_CAP, budget + ObserverTuning.DIRECTOR_REGEN_BASE
-                + ObserverTuning.DIRECTOR_REGEN_PER_PRESSURE * pressure
-                + ObserverTuning.DIRECTOR_REGEN_PER_STAGE * stage);
+        budget = DirectorRules.regen(budget, pressure, stage);
         if (silence > 0) silence--;
         if (ruleCooldown > 0) ruleCooldown--;
         for (int i = 0; i < N; i++) if (cooldown[i] > 0) cooldown[i]--;
@@ -233,7 +234,8 @@ public final class ObserverDirector {
         if (stage < ObserverTuning.EP_MIN_STAGE[i]) return "stage " + stage + " < " + ObserverTuning.EP_MIN_STAGE[i];
         if (cooldown[i] > 0) return "cooldown " + cooldown[i];
         if (k != Kind.BED && budget < ObserverTuning.EP_COST[i]) return String.format("budget %.0f < %.0f", budget, ObserverTuning.EP_COST[i]);
-        if (ObserverTuning.EP_STRONG[i] && !strongRoom()) return "strong limit";
+        if (ObserverTuning.EP_STRONG[i] && lastStrong) return "strong after strong";
+        if (ObserverTuning.EP_STRONG[i] && !DirectorRules.strongRoom(strongRecent(), stage)) return "strong limit";
         if (k == Kind.DOOR && !doorNearby) return "no door nearby";
         if (k == Kind.CHASE && ObserverState.days < ChaseState.nextDay)
             return "days " + ObserverState.days + " < " + ChaseState.nextDay;
@@ -251,7 +253,8 @@ public final class ObserverDirector {
                 p.figure = !p.sign
                         || RANDOM.nextFloat() >= ObserverTuning.NO_CONTINUE_CHANCE * (1f - ObserverTuning.NO_CONTINUE_PRESSURE_CUT * pressure);
                 p.scare = dream && stage >= ObserverTuning.SCARE_MIN_STAGE && cooldown[Kind.SCARE.ordinal()] == 0
-                        && strongRoom() && RANDOM.nextFloat() < ObserverTuning.SCARE_PLAN_CHANCE_BY_STAGE[stage];
+                        && DirectorRules.mayStartStrong(lastStrong, strongRecent(), stage)
+                        && RANDOM.nextFloat() < ObserverTuning.SCARE_PLAN_CHANCE_BY_STAGE[stage];
                 p.recognition = !dream && spotN > 0
                         && stage >= ObserverTuning.RECOGNITION_MIN_STAGE && RANDOM.nextFloat() < ObserverTuning.RECOGNITION_CHANCE;
                 p.useAnchor = !dream && RANDOM.nextFloat() < ObserverTuning.ANCHOR_CHANCE_BY_STAGE[stage];
@@ -337,9 +340,10 @@ public final class ObserverDirector {
         offer = null;
         current = p;
         p.ticks = 0;
-        budget = Math.max(0f, budget - ObserverTuning.EP_COST[p.kind.ordinal()]);
+        budget = DirectorRules.spend(budget, p.kind.ordinal());
         if (p.ruleBreak) ruleCooldown = ObserverTuning.RULE_COOLDOWN;
         if (p.strong) markStrong();
+        lastStrong = p.strong;
         lastKind = p.kind;
         if (p.kind == Kind.GHOST) lastGhostVariant = p.variant;
         waiting = "episode " + p.kind;
@@ -366,11 +370,10 @@ public final class ObserverDirector {
         // Прерванный эпизод, который уже шёл какое-то время (игрок слышал шаги или дверь, видел фигуру), считается
         // состоявшимся: иначе экран, открытый на звук шагов, давал бы новый эпизод через полминуты.
         boolean noticed = o != Outcome.ABORT || p.ticks >= ObserverTuning.ABORT_NOTICED_TICKS;
-        int s;
-        if (!noticed) s = ObserverTuning.SILENCE_AFTER_ABORT;
-        else s = Math.max(ObserverTuning.SILENCE_AFTER_BY_STAGE[stage], p.strong ? ObserverTuning.SILENCE_AFTER_STRONG : 0);
+        int s = DirectorRules.silenceAfter(noticed, p.strong, stage);
         silence = Math.max(silence, s);
         lastEndAt = clock;
+        lastStrong = p.strong;
         record("end " + p.describe() + " -> " + o + ", silence " + silence);
         if (noticed && ++sinceCalm >= ObserverTuning.CALM_EVERY) {
             sinceCalm = 0;
@@ -391,7 +394,10 @@ public final class ObserverDirector {
     public static void externalChase() {
         int i = Kind.CHASE.ordinal();
         cooldown[i] = Math.max(cooldown[i], ObserverTuning.EP_COOLDOWN[i]);
+        if (offer != null) drop("external chase");
         lastKind = Kind.CHASE;
+        lastStrong = true;
+        markStrong();
         silence = Math.max(silence, ObserverTuning.SILENCE_AFTER_STRONG);
         lastEndAt = clock;
         record("external chase -> silence " + silence);
@@ -404,6 +410,7 @@ public final class ObserverDirector {
         if (cooldown[Kind.SCARE.ordinal()] > 0) return false;
         p.scareDone = true;
         p.strong = true;
+        lastStrong = true;
         cooldown[Kind.SCARE.ordinal()] = ObserverTuning.EP_COOLDOWN[Kind.SCARE.ordinal()];
         markStrong();
         record("scare in " + p.describe());
@@ -418,7 +425,7 @@ public final class ObserverDirector {
     public static String lastRefusal() { return lastRefusal; }
     public static int strongRecent() {
         int n = 0;
-        for (long t : strongAt) if (t > 0 && clock - t < ObserverTuning.STRONG_WINDOW_TICKS) n++;
+        for (long t : strongAt) if (t >= 0 && clock - t < ObserverTuning.STRONG_WINDOW_TICKS) n++;
         return n;
     }
 
@@ -476,7 +483,7 @@ public final class ObserverDirector {
     }
 
     private static boolean strongRoom() {
-        return strongRecent() < ObserverTuning.STRONG_PER_WINDOW_BY_STAGE[stage];
+        return DirectorRules.strongRoom(strongRecent(), stage);
     }
 
     private static void drop(String reason) {
@@ -519,7 +526,8 @@ public final class ObserverDirector {
         silence = 0;
         ruleCooldown = 0;
         java.util.Arrays.fill(cooldown, 0);
-        java.util.Arrays.fill(strongAt, 0L);
+        java.util.Arrays.fill(strongAt, -1L);
+        lastStrong = false;
         lastEndAt = -1;
     }
 
@@ -555,7 +563,7 @@ public final class ObserverDirector {
         out.add("waiting: " + (waiting.isEmpty() ? "-" : waiting));
         out.add("last refusal: " + lastRefusal + (lastRefusalAt < 0 ? "" : " (" + (clock - lastRefusalAt) / 20 + " s ago)"));
         out.add(String.format("strong %d/%d per %d s, rule cooldown %d s, last kind %s, gaze %d ticks, chase from day %d (now %d)",
-                strongRecent(), ObserverTuning.STRONG_PER_WINDOW_BY_STAGE[stage], ObserverTuning.STRONG_WINDOW_TICKS / 20,
+                strongRecent(), DirectorRules.strongLimit(stage), ObserverTuning.STRONG_WINDOW_TICKS / 20,
                 ruleCooldown / 20, lastKind, ObserverTuning.gazeTicks(stage), ChaseState.nextDay, ObserverState.days));
         StringBuilder c = new StringBuilder("cooldowns s:");
         for (Kind k : Kind.values()) c.append(' ').append(k.name().toLowerCase()).append('=').append(cooldown[k.ordinal()] / 20);
@@ -572,13 +580,14 @@ public final class ObserverDirector {
         budget = ObserverTuning.DIRECTOR_BUDGET_START;
         silence = ObserverTuning.SILENCE_AT_START;
         java.util.Arrays.fill(cooldown, 0);
-        java.util.Arrays.fill(strongAt, 0L);
+        java.util.Arrays.fill(strongAt, -1L);
         current = null;
         offer = null;
         offerTtl = 0;
         decide = 0;
         ruleCooldown = 0;
         lastKind = null;
+        lastStrong = false;
         lastGhostVariant = -1;
         sinceCalm = 0;
         pressure = 0f;
