@@ -43,6 +43,13 @@ HYPERSOMNIA — ПРОМТ ДЛЯ НОВОГО ЧАТА (обновлено 2026
    dream.clock.found/strike/caught, session47.no_response/delayed/lost),
    паритет 968/968. Чекер краснеет на подложенных расхождениях (проверено).
 
+4. N25: check_resources.py проверяет ссылки blockstates -> models, particles ->
+   textures/particle/*.png, модели -> parent/model и текстуры, sounds.json -> .ogg
+   (было), валидность всех *.mcmeta, включая pack.mcmeta. Осиротевшие ассеты —
+   предупреждение: сейчас 3 (models/block/breaker_off.json, breaker_on.json,
+   textures/entity/observer_eyes.png). Подложенные битая ссылка и битый .mcmeta
+   ловятся (проверено).
+
 ЧТО СДЕЛАНО В ЭТОЙ СЕССИИ (архив A.5, отладка ускорения стадии, сон и шприцы, засада, кадр «заметил», скример поимки; compileJava --offline проходит; в игре НЕ проверено)
 Запрос пользователя: продолжить разработку по плану, пропуская эмбиент. Взяты A.5 и проверка уже реализованного ускорения стадии.
 1. [новое] Архив: после стадии 5 (LabTuning.ARCHIVE_MISMATCH_STAGE) первое за запуск игры открытие заголовка

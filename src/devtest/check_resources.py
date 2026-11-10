@@ -30,6 +30,13 @@ for path in resources.rglob('*.json'):
     except (OSError, ValueError) as exc:
         fail(path, str(exc))
 
+for path in resources.rglob('*.mcmeta'):
+    try:
+        parsed[path] = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=unique_pairs)
+        checked += 1
+    except (OSError, ValueError) as exc:
+        fail(path, str(exc))
+
 for path, obj in parsed.items():
     if '/models/' not in path.as_posix():
         continue
@@ -43,6 +50,26 @@ for path, obj in parsed.items():
             ref = assets / ('models' if key in ('parent', 'model') else 'textures') / (name + ('.json' if key in ('parent', 'model') else '.png'))
             if not ref.is_file(): fail(path, f'missing reference {value} ({key})')
     walk(obj)
+
+for path, obj in parsed.items():
+    posix = path.as_posix()
+    if '/blockstates/' in posix:
+        def walk_models(value, key=''):
+            if isinstance(value, dict):
+                for k, v in value.items(): walk_models(v, k)
+            elif isinstance(value, list):
+                for v in value: walk_models(v, key)
+            elif isinstance(value, str) and key == 'model' and value.startswith('hypersomnia:'):
+                name = value.split(':', 1)[1]
+                if not (assets / 'models' / (name + '.json')).is_file():
+                    fail(path, f'missing blockstate model {value}')
+        walk_models(obj)
+    elif '/particles/' in posix:
+        for texture in obj.get('textures', []):
+            if isinstance(texture, str) and texture.startswith('hypersomnia:'):
+                name = texture.split(':', 1)[1]
+                if not (assets / 'textures/particle' / (name + '.png')).is_file():
+                    fail(path, f'missing particle texture {texture}')
 
 sounds_path = assets / 'sounds.json'
 for event, spec in parsed.get(sounds_path, {}).items():
@@ -121,6 +148,71 @@ def used_key(key):
 unused = [key for key in sorted(english) if key.startswith('hypersomnia.') and not used_key(key)]
 if unused:
     print(f'WARN: {len(unused)} unused lang keys, e.g. {", ".join(unused[:5])}')
+
+# --- orphan assets: warning only -------------------------------------------
+refs = set()
+for path, obj in parsed.items():
+    posix = path.as_posix()
+    if '/models/' in posix:
+        def walk_refs(value, key=''):
+            if isinstance(value, dict):
+                for k, v in value.items(): walk_refs(v, k)
+            elif isinstance(value, list):
+                for v in value: walk_refs(v, key)
+            elif isinstance(value, str) and value.startswith('hypersomnia:'):
+                name = value.split(':', 1)[1]
+                refs.add(('models/' + name + '.json') if key in ('parent', 'model')
+                         else ('textures/' + name + '.png'))
+        walk_refs(obj)
+    elif '/blockstates/' in posix:
+        def walk_blockstate(value):
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    if k == 'model' and isinstance(v, str) and v.startswith('hypersomnia:'):
+                        refs.add('models/' + v.split(':', 1)[1] + '.json')
+                    else:
+                        walk_blockstate(v)
+            elif isinstance(value, list):
+                for v in value: walk_blockstate(v)
+        walk_blockstate(obj)
+    elif '/particles/' in posix:
+        for texture in obj.get('textures', []):
+            if isinstance(texture, str) and texture.startswith('hypersomnia:'):
+                refs.add('textures/particle/' + texture.split(':', 1)[1] + '.png')
+
+sounds_path = assets / 'sounds.json'
+for event, spec in parsed.get(sounds_path, {}).items():
+    for sound in spec.get('sounds', []):
+        name = sound if isinstance(sound, str) else sound.get('name', '')
+        if name.startswith('hypersomnia:'):
+            refs.add('sounds/' + name.split(':', 1)[1] + '.ogg')
+
+orphans = []
+for path in assets.rglob('*'):
+    if not path.is_file() or path.suffix == '.mcmeta':
+        continue
+    rel = path.relative_to(assets).as_posix()
+    if rel.startswith('lang/') or rel in refs:
+        continue
+    stem = rel.rsplit('.', 1)[0]
+    ns = stem
+    for prefix in ('textures/', 'models/', 'sounds/', 'blockstates/'):
+        if stem.startswith(prefix):
+            ns = stem[len(prefix):]
+            break
+    if stem in corpus or ns in corpus or ('hypersomnia:' + ns) in corpus or path.stem in corpus:
+        continue
+    # dynamic names: textures/misc/trace_<type>_<n>.png, ..._r.png
+    dynamic = False
+    for i, ch in enumerate(stem):
+        if ch == '_' and stem[:i + 1] in corpus:
+            dynamic = True
+            break
+    if not dynamic:
+        orphans.append(rel)
+if orphans:
+    print(f'WARN: {len(orphans)} orphan assets, e.g. {", ".join(sorted(orphans)[:5])}')
+
 
 if errors:
     print('\n'.join(errors))

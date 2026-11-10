@@ -1,0 +1,21 @@
+Resource reference checks (N25, 2026-11-10)
+
+src/devtest/check_resources.py расширен:
+
+1. blockstates: каждый hypersomnia:<model> в variants/multipart существует как
+   models/<model>.json.
+2. particles: каждый hypersomnia:<name> в textures существует как
+   textures/particle/<name>.png.
+3. models: parent/model и textures проверялись и раньше; теперь в тот же проход
+   попадают item-модели с overrides.
+4. sounds.json: каждый hypersomnia:<name> типа file существует как
+   sounds/<name>.ogg (было).
+5. Все *.mcmeta в src/main/resources (включая pack.mcmeta) должны быть валидным
+   JSON.
+6. Осиротевшие ассеты (нет ссылки в JSON/Java, с учётом динамических префиксов
+   вида textures/misc/trace_<type>_<n>.png) выводятся предупреждением, не
+   ошибкой. Сейчас их 3: models/block/breaker_off.json, breaker_on.json,
+   textures/entity/observer_eyes.png. Не удалялись: решение за пользователем.
+
+Проверено подложенными поломками: blockstate на несуществующую модель и битый
+heart.png.mcmeta дают FAILED и код 1; после отката — OK.
