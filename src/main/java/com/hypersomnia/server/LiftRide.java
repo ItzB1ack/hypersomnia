@@ -310,9 +310,8 @@ public final class LiftRide {
         // Старый режим: скрываем плиту только когда клиент уже посадил игрока на сиденье (после калибровки).
         if (!volume && !srcHidden) hideSourceCover();
         if (t < moveTicks + SETTLE_TICKS) t++;
-        double k = (double) Math.min(t, moveTicks) / moveTicks;
-        double s = k * k * k * (k * (k * 6 - 15) + 10); // smootherstep: без рывка на концах
-        double arc = -dip * Math.sin(Math.PI * s) * Math.sin(Math.PI * s);
+        double s = LiftProfile.progress(t, moveTicks); // smootherstep: без рывка на концах
+        double arc = LiftProfile.arc(dip, s);
         if (volume) {
             updateVolume(s, arc);
         } else {

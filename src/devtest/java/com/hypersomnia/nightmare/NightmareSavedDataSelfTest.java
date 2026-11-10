@@ -127,6 +127,39 @@ public final class NightmareSavedDataSelfTest {
         highTrips.put("trips", highTripTag);
         check(ShaftStorage.load(highTrips, null).trips(first) == 999, "trip counter is capped at 999");
 
+        // ---- Повторная постройка и повторный вход (N12) ----
+        ShaftStorage rebuild = new ShaftStorage();
+        UUID rider = UUID.randomUUID();
+        check(rebuild.reserve(rider) == 0, "rebuild: fresh lane starts at 0");
+        check(rebuild.reserve(rider) == 0, "rebuild: repeated reserve is idempotent");
+        rebuild.setFailed(0);
+        check(rebuild.failed(0) && !rebuild.built(0), "rebuild: failed lane is not built");
+        UUID next = UUID.randomUUID();
+        check(rebuild.reserve(next) == 1, "rebuild: failed lane is not handed out");
+        rebuild.setBuilt(0);
+        check(rebuild.built(0) && !rebuild.failed(0), "rebuild: building clears the failure flag");
+        rebuild.setBuilt(0);
+        check(rebuild.built(0), "rebuild: repeated setBuilt is idempotent");
+
+        rebuild.resetBuilds();
+        check(!rebuild.built(0) && !rebuild.failed(0), "rebuild: reset clears both masks");
+        check(rebuild.layout() == NightmareTuning.SHAFT_LAYOUT, "rebuild: reset records the current layout");
+        check(rebuild.lane(rider) == 0 && rebuild.lane(next) == 1, "rebuild: reset keeps lane reservations");
+        check(rebuild.trips(rider) == 0, "rebuild: reset keeps trip counters");
+
+        rebuild.addTrip(rider);
+        for (int i = 0; i < 1200; i++) rebuild.addTrip(rider);
+        check(rebuild.trips(rider) == 999, "rebuild: addTrip caps at 999");
+        rebuild.release(rider);
+        check(rebuild.lane(rider) == -1 && rebuild.trips(rider) == 0, "rebuild: release clears lane and trips");
+        check(rebuild.reserve(rider) == 0, "rebuild: released lane is reusable");
+        check(rebuild.lane(next) == 1, "rebuild: release does not touch the other lane");
+
+        // Журнал шахты переживает сохранение и повторную загрузку без изменений.
+        CompoundTag rebuildTag = rebuild.save(new CompoundTag(), null);
+        CompoundTag rebuildAgain = ShaftStorage.load(rebuildTag, null).save(new CompoundTag(), null);
+        check(rebuildTag.equals(rebuildAgain), "rebuild: shaft save/load/save is idempotent");
+
         System.out.println("NightmareSavedDataSelfTest: " + checks + " checks passed.");
     }
 }

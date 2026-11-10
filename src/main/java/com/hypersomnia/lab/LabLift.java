@@ -51,6 +51,8 @@ public final class LabLift {
     }
 
     private static final List<Trip> TRIPS = new ArrayList<>();
+    /** Пауза после закрытия двери, прежде чем кабина начнёт движение. */
+    private static final int START_DELAY = 10;
 
     /** Кабина остановки n: клетки x-1..x+1, z-1..z+1, три блока вверх (низ включает плиту пола — для восстановления). */
     public static AABB cabin(LabSavedData d, int n) {
@@ -121,7 +123,8 @@ public final class LabLift {
             return;
         }
         // [новое] Время поездки — по реальной высоте: G↔B1 выше одного этажа, иначе кабина летела бы слишком быстро.
-        int ticks = LabTuning.LIFT_BASE_TICKS + Math.abs(d.stopY[target] - d.stopY[from]) * LabTuning.LIFT_PER_BLOCK;
+        int ticks = com.hypersomnia.server.LiftProfile.labTripTicks(
+                LabTuning.LIFT_BASE_TICKS, LabTuning.LIFT_PER_BLOCK, d.stopY[from], d.stopY[target]);
         TRIPS.add(new Trip(level, from, target, ticks));
         setDoor(level, d, from, true);
         d.closedDoor = from;
@@ -149,7 +152,8 @@ public final class LabLift {
         boolean volume = true;
         t.ride = com.hypersomnia.server.LiftRide.start(t.level, new BlockPos(d.originX - 2, y - 1, d.originZ - 2),
                 new BlockPos(d.originX + 2, y + 5, d.originZ + 2), inside, 0, d.stopY[t.to] - y, 0, 0,
-                Math.max(10, t.total - 10 - com.hypersomnia.server.LiftRide.PAD_TICKS), volume);
+                com.hypersomnia.server.LiftProfile.labMoveTicks(t.total, START_DELAY,
+                        com.hypersomnia.server.LiftRide.PAD_TICKS), volume);
     }
 
     private static void finish(Trip t) {
@@ -165,10 +169,10 @@ public final class LabLift {
                 double[] end = t.ride.finalPos(p);
                 // [важно] Никогда не оставляем игрока ниже пола целевой кабины: иначе он «проваливается»
                 // в пол на блок и следующая поездка начинается из-под пола.
-                double endY = Math.max(end[1], d.stopY[t.to]);
+                double endY = com.hypersomnia.server.LiftProfile.safeEndY(end[1], d.stopY[t.to]);
                 // Любое утопание в пол исправляем, даже меньше порога 0.5: иначе игрок остаётся в плите.
-                boolean sunk = p.getY() < endY - 0.01;
-                if (sunk || p.position().distanceToSqr(end[0], endY, end[2]) > 0.25)
+                if (com.hypersomnia.server.LiftProfile.snapNeeded(p.getY(), endY,
+                        p.getX() - end[0], p.getZ() - end[2], 0.25))
                     p.teleportTo(level, end[0], endY, end[2], p.getYRot(), p.getXRot());
             } else {
                 p.teleportTo(level, p.getX(), p.getY() + dy, p.getZ(), p.getYRot(), p.getXRot());
@@ -212,7 +216,7 @@ public final class LabLift {
         while (it.hasNext()) {
             Trip t = it.next();
             t.elapsed++;
-            if (t.ride == null && t.elapsed >= 10) startRide(t);
+            if (t.ride == null && t.elapsed >= START_DELAY) startRide(t);
             if (t.ride != null) t.ride.tick();
             if (--t.ticks > 0 || (t.ride != null && !t.ride.motionDone())) continue;
             it.remove();

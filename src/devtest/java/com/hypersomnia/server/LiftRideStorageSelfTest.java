@@ -133,6 +133,24 @@ public final class LiftRideStorageSelfTest {
         check(stateAt(cleanedTag, provider, BlockPos.asLong(0, 1, 0)) == null,
                 "invalid block id is not restored at the origin");
 
+        // Повторное «скрытие» после возврата и повторное сохранение не должны терять или дублировать блок.
+        LiftRideStorage again = new LiftRideStorage();
+        again.remember(stone, Blocks.STONE.defaultBlockState());
+        again.forget(stone);
+        check(again.save(new CompoundTag(), provider).getList("blocks", Tag.TAG_COMPOUND).isEmpty(),
+                "forget leaves an empty journal");
+        again.remember(stone, Blocks.DEEPSLATE.defaultBlockState());
+        CompoundTag remade = again.save(new CompoundTag(), provider);
+        check(remade.getList("blocks", Tag.TAG_COMPOUND).size() == 1, "re-hiding the same position stores one entry");
+        check(Blocks.DEEPSLATE.defaultBlockState().equals(stateAt(remade, provider, stone.asLong())),
+                "re-hiding the same position keeps the latest state");
+
+        // Рестарт посреди рейса: журнал читается и пишется без потерь сколько угодно раз.
+        CompoundTag once = copy.save(new CompoundTag(), provider);
+        CompoundTag twice = LiftRideStorage.load(once, provider).save(new CompoundTag(), provider);
+        check(once.equals(twice), "journal save/load/save is idempotent");
+        check(twice.getList("blocks", Tag.TAG_COMPOUND).size() == 1, "idempotent journal keeps its block");
+
         System.out.println("LiftRideStorageSelfTest: " + checks + " checks passed.");
     }
 }

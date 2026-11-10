@@ -92,8 +92,8 @@ public final class ShaftHandler {
         if (!leave && target != floor) p.displayClientMessage(Component.translatable("hypersomnia.nightmare.shaft.mismatch"), true);
         if (!ShaftBuilder.setDoor(p.serverLevel(), lane, from, true)) return false;
         ShaftBuilder.lamp(p.serverLevel(), lane, from, true);
-        int ticks = NightmareTuning.SHAFT_TRIP_TICKS + Math.min(NightmareTuning.SHAFT_TRIP_EXTRA_MAX,
-                done * NightmareTuning.SHAFT_TRIP_EXTRA_TICKS);
+        int ticks = com.hypersomnia.server.LiftProfile.shaftTripTicks(NightmareTuning.SHAFT_TRIP_TICKS,
+                NightmareTuning.SHAFT_TRIP_EXTRA_TICKS, NightmareTuning.SHAFT_TRIP_EXTRA_MAX, done);
         TRIPS.put(p.getUUID(), new Trip(lane, from, leave ? 0 : ShaftBuilder.slotOf(floor), floor, ticks));
         return true;
     }
@@ -137,8 +137,8 @@ public final class ShaftHandler {
                 int dy = ShaftBuilder.y(t.target) - ShaftBuilder.y(t.from);
                 int dip = t.target == t.from ? NightmareTuning.SHAFT_DROP : 0;
                 int distance = Math.max(Math.abs(dy), dip);
-                int moveTicks = Math.max(distance * NightmareTuning.SHAFT_STEP_TICKS,
-                        t.ticks - com.hypersomnia.server.LiftRide.PAD_TICKS);
+                int moveTicks = com.hypersomnia.server.LiftProfile.shaftMoveTicks(distance,
+                        NightmareTuning.SHAFT_STEP_TICKS, t.ticks, com.hypersomnia.server.LiftRide.PAD_TICKS);
                 t.ride = com.hypersomnia.server.LiftRide.start(world, ShaftBuilder.shellMin(t.lane, t.from), ShaftBuilder.shellMax(t.lane, t.from),
                         java.util.List.of(p), 0, dy, 0, dip, moveTicks, true);
             }
@@ -153,10 +153,10 @@ public final class ShaftHandler {
             // в конечной точке, поэтому поправляем позицию только при заметном расхождении.
             if (end != null) {
                 // [важно] Не оставляем игрока ниже пола целевой кабины: иначе он проваливается на блок.
-                double endY = Math.max(end[1], destination.getY());
+                double endY = com.hypersomnia.server.LiftProfile.safeEndY(end[1], destination.getY());
                 // Любое утопание в пол исправляем, даже меньше порога 0.5: иначе игрок остаётся в плите.
-                boolean sunk = p.getY() < endY - 0.01;
-                if (sunk || p.position().distanceToSqr(end[0], endY, end[2]) > 0.25)
+                if (com.hypersomnia.server.LiftProfile.snapNeeded(p.getY(), endY,
+                        p.getX() - end[0], p.getZ() - end[2], 0.25))
                     p.teleportTo(world, end[0], endY, end[2], p.getYRot(), p.getXRot());
             } else p.teleportTo(world, destination.getX() + 0.5, destination.getY(), destination.getZ() + 0.5, p.getYRot(), p.getXRot());
             p.resetFallDistance();

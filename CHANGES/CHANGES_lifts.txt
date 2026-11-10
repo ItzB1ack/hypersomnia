@@ -1,0 +1,63 @@
+N12. Лифты и шахты: профиль рейса и восстановление
+==================================================
+
+Что изменено
+------------
+1. Новый server/LiftProfile — чистые формулы, общие для LiftRide, LabLift и
+   ShaftHandler:
+   - smootherstep(k) = 6k^5 - 15k^4 + 10k^3 с ограничением k в [0,1];
+   - progress(t, moveTicks) — прогресс по тику, moveTicks не меньше 1;
+   - arc(dip, s) = -dip*sin^2(pi*s) и offsetY(dy, dip, s);
+   - safeEndY(rideEndY, floorY) = max — игрок никогда не остаётся ниже пола;
+   - snapNeeded(y, endY, dx, dz, tolSqr) — утопание в пол или заметное
+     расхождение с концом рейса;
+   - labTripTicks = 50 + |dy|*2, shaftTripTicks = 80 + 20*поездка (не больше
+     +160), labMoveTicks и shaftMoveTicks.
+   Поведение не менялось: те же числа и тот же порядок вычислений, но теперь
+   они в одном месте и проверяются без мира.
+
+2. LiftRide.tick использует LiftProfile.progress/arc. LabLift.request,
+   startRide и finish — labTripTicks/labMoveTicks/safeEndY/snapNeeded;
+   ShaftHandler.request и tick — shaftTripTicks/shaftMoveTicks/safeEndY/
+   snapNeeded. Магические 10 в LabLift заменены константой START_DELAY.
+
+3. LiftProfileSelfTest (src/devtest, задача liftSelfTests) — 2238 проверок:
+   s(0)=0, s(1)=1, s(0.5)=0.5, монотонность на 1000 точках, нулевые
+   производные на концах, ограничение k; дуга 0 в концах и -dip в середине;
+   тайминги лаборатории и шахты (рост, потолок +160, отрицательные поездки);
+   moveTicks; safeEndY и snapNeeded; геометрия шахты B6..B8, slotOf, index,
+   y, shaftBottom/shaftTop, spawn/panel, оболочка 5x5x5, inShaft.
+
+4. LiftRideStorageSelfTest дополнен повторным скрытием/возвратом и
+   идемпотентным save/load/save (19 проверок). NightmareSavedDataSelfTest
+   проверяет повторную постройку секций: failed-полоса не выдаётся reserve,
+   setBuilt снимает failed, resetBuilds чистит маски и пишет layout, release
+   освобождает lane, addTrip ограничен 999, журнал идемпотентен (44).
+   LabShaftSelfTest — 8 проверок геометрии G↔B1.
+
+5. Аудит сценариев N12: игрок не замуровывается (safeEndY + snapNeeded),
+   скрытые блоки возвращаются в end() и при следующем запуске через
+   LiftRideStorage; рестарт посреди рейса: журнал читается/пишется без потерь,
+   LabLift.onStarted открывает двери, ShaftHandler.login возвращает игрока в
+   ближайшую кабину; два пассажира едут в одном LiftRide (Rider на каждого),
+   два рейса изолированы по UUID; смерть/выход во время рейса завершают его
+   через release/logout/abort и возвращают дверь; повторная постройка шахты
+   идемпотентна по built/failed/layout. Поведение не менялось — проверено.
+
+Проверка
+--------
+- .\gradlew compileJava --offline — 0.
+- .\gradlew -I src/devtest/lift.init.gradle liftSelfTests — 2238 + 19 + 44 + 8.
+- .\gradlew -I src/devtest/saveddata.init.gradle savedDataSelfTests — 23 + 19 + 44.
+- .\gradlew -I src/devtest/lab.init.gradle labSelfTests — 286 + 23 + 8 + 2839.
+- .\gradlew -I src/devtest/chase.init.gradle chaseSelfTests — 615.
+- python src/devtest/check_resources.py — OK (3 осиротевших ассета —
+  предупреждение).
+- python src/devtest/check_network_sides.py — OK.
+
+В игре НЕ проверено
+-------------------
+P1-14 чек-листа: плавность LabLift G↔B1 и SHAFT, отсутствие задевания стен,
+пола G и потолка B1, два пассажира одновременно, выход/смерть/телепорт во
+время рейса, повторная постройка шахты после resetBuilds. P0-5: жёсткое
+падение сервера посреди рейса и возврат скрытых блоков при следующем запуске.
