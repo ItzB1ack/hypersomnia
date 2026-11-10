@@ -30,6 +30,13 @@ HYPERSOMNIA — ПРОМТ ДЛЯ НОВОГО ЧАТА (обновлено 2026
    NightmareNetwork, NightmareState; DATA_VERSION 4 -> 5; паритет lang 976/976;
    HEAD на старте 4f1f7b3.
 
+2. N4: check_network_sides.py расширен: каждый CustomPacketPayload зарегистрирован
+   ровно один раз; playToClient — через ClientPayloadBridge или common-lambda,
+   playToServer — статический метод не из client; у каждого registrar явная версия
+   канала; bridge-поле/обёртка/биндинг сверяются 1:1; в common/network нет
+   client-импортов и method reference. 36 payload, 21 bridge, 16 регистраторов.
+   Чекер краснеет на искусственной поломке (проверено, файл откатан).
+
 ЧТО СДЕЛАНО В ЭТОЙ СЕССИИ (архив A.5, отладка ускорения стадии, сон и шприцы, засада, кадр «заметил», скример поимки; compileJava --offline проходит; в игре НЕ проверено)
 Запрос пользователя: продолжить разработку по плану, пропуская эмбиент. Взяты A.5 и проверка уже реализованного ускорения стадии.
 1. [новое] Архив: после стадии 5 (LabTuning.ARCHIVE_MISMATCH_STAGE) первое за запуск игры открытие заголовка

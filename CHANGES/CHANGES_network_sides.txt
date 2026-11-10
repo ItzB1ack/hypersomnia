@@ -1,0 +1,19 @@
+Network side checker (N4, 2026-11-10)
+
+src/devtest/check_network_sides.py теперь проверяет не только bridge/setup, но и
+всю сетевую симметрию:
+
+1. Каждый класс из network/, реализующий CustomPacketPayload, зарегистрирован
+   ровно один раз во всех *Network.java и в Hypersomnia.java.
+2. playToClient: хендлер — ClientPayloadBridge::* или common-lambda без клиентских
+   импортов; playToServer: статический метод класса, который не лежит в client.
+3. У каждого registrar есть явная версия канала ("1", "2", ...); пустая или
+   нечисловая версия — ошибка.
+4. Поля ClientPayloadBridge, их обёртки и биндинги в ClientPayloadSetup
+   совпадают 1:1; зарегистрированные bridge-методы не висят без обёртки.
+5. В common/network и Hypersomnia.java нет импортов net.minecraft.client и
+   com.hypersomnia.client, нет method reference на client-классы.
+
+Проверка искусственной поломки: подмена серверного хендлера на
+ClientPayloadBridge::labLock даёт ошибку и ненулевой код возврата; файл после
+проверки откатан. На main: 36 payload, 21 client binding, 16 registrars.
