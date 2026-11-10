@@ -1,0 +1,33 @@
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
+// ./gradlew -I src/devtest/saveddata.init.gradle savedDataSelfTests
+gradle.projectsEvaluated {
+    def p = gradle.rootProject
+    def output = p.layout.buildDirectory.dir('saveddata-selftests')
+    def compile = p.tasks.register('compileSavedDataSelfTests', JavaCompile) {
+        dependsOn p.tasks.named('classes')
+        source p.fileTree('src/devtest/java') {
+            include '**/LabSavedDataSelfTest.java', '**/NightmareSavedDataSelfTest.java', '**/LiftRideStorageSelfTest.java'
+        }
+        classpath = p.files(p.sourceSets.main.output, p.configurations.compileClasspath)
+        destinationDirectory = output
+        javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+    def runners = [
+            'com.hypersomnia.lab.LabSavedDataSelfTest',
+            'com.hypersomnia.nightmare.NightmareSavedDataSelfTest',
+            'com.hypersomnia.server.LiftRideStorageSelfTest'
+    ].collect { mainClassName ->
+        p.tasks.register('run' + mainClassName.tokenize('.').last(), JavaExec) {
+            dependsOn compile
+            classpath = p.files(output, p.sourceSets.main.runtimeClasspath)
+            javaLauncher = p.javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+            mainClass = mainClassName
+        }
+    }
+    p.tasks.register('savedDataSelfTests') { dependsOn runners }
+}

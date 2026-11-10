@@ -11,6 +11,8 @@ import java.util.UUID;
 /** Личные секции шахты; аренда сохраняется и на время отключения игрока. */
 public final class ShaftStorage extends SavedData {
     private static final String NAME = "hypersomnia_shaft";
+    /** Версия формата; 0 — сохранения до появления поля version. */
+    public static final int DATA_VERSION = 1;
     private int builtMask, failedMask, layout;
     private final Map<UUID, Integer> lanes = new HashMap<>();
     private final Map<UUID, Integer> trips = new HashMap<>();
@@ -39,6 +41,7 @@ public final class ShaftStorage extends SavedData {
     public void setFailed(int lane) { failedMask |= 1 << lane; setDirty(); }
 
     @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+        tag.putInt("version", DATA_VERSION);
         tag.putInt("built", builtMask); tag.putInt("failed", failedMask); tag.putInt("layout", layout);
         CompoundTag entries = new CompoundTag();
         lanes.forEach((id, lane) -> entries.putInt(id.toString(), lane));
@@ -48,9 +51,17 @@ public final class ShaftStorage extends SavedData {
         tag.put("trips", tripTag);
         return tag;
     }
-    private static ShaftStorage load(CompoundTag tag, HolderLookup.Provider provider) {
+    static ShaftStorage load(CompoundTag tag, HolderLookup.Provider provider) {
         ShaftStorage result = new ShaftStorage();
         result.builtMask = tag.getInt("built"); result.failedMask = tag.getInt("failed"); result.layout = tag.getInt("layout");
+        int version = tag.getInt("version");
+        if (version < 1) {
+            // Старый формат: в масках могли остаться биты несуществующих секций.
+            int mask = (1 << NightmareTuning.SHAFT_LANES) - 1;
+            result.builtMask &= mask;
+            result.failedMask &= mask;
+        }
+        if (result.layout < 0) result.layout = 0;
         CompoundTag entries = tag.getCompound("lanes");
         for (String key : entries.getAllKeys()) {
             try {
@@ -61,9 +72,13 @@ public final class ShaftStorage extends SavedData {
         }
         CompoundTag tripTag = tag.getCompound("trips");
         for (String key : tripTag.getAllKeys()) {
-            try { result.trips.put(UUID.fromString(key), Math.max(0, tripTag.getInt(key))); }
-            catch (IllegalArgumentException ignored) { }
+            try {
+                result.trips.put(UUID.fromString(key), Math.min(999, Math.max(0, tripTag.getInt(key))));
+            } catch (IllegalArgumentException ignored) { }
         }
+        // Осиротевшие счётчики поездок без секции не нужны: ShaftHandler читает их
+        // только для игрока, который держит lane.
+        result.trips.keySet().removeIf(id -> !result.lanes.containsKey(id));
         return result;
     }
 }

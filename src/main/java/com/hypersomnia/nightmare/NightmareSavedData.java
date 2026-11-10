@@ -9,6 +9,8 @@ import java.util.UUID;
 /** Какие кошмары построены. Хранится в данных измерения снов. */
 public final class NightmareSavedData extends SavedData {
     private static final String NAME = "hypersomnia_nightmare";
+    /** Версия формата; 0 — сохранения до появления поля version. */
+    public static final int DATA_VERSION = 1;
     private int builtMask;
     private final int[] layouts = new int[8];
     private boolean wardBuildFailed;
@@ -52,6 +54,7 @@ public final class NightmareSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+        tag.putInt("version", DATA_VERSION);
         tag.putInt("built", builtMask);
         tag.putIntArray("layouts", layouts);
         if (wardBuildFailed) tag.putBoolean("wardBuildFailed", true);
@@ -67,6 +70,11 @@ public final class NightmareSavedData extends SavedData {
         d.builtMask = tag.getInt("built");
         int[] l = tag.getIntArray("layouts");
         System.arraycopy(l, 0, d.layouts, 0, Math.min(l.length, d.layouts.length));
+        if (tag.getInt("version") < 1) {
+            // Старый формат: мусорные отрицательные layout не должны совпасть
+            // с текущими константами и заблокировать перестройку комнаты.
+            for (int i = 0; i < d.layouts.length; i++) if (d.layouts[i] < 0) d.layouts[i] = 0;
+        }
         d.wardBuildFailed = tag.getBoolean("wardBuildFailed");
         d.roundsBuildFailed = tag.getBoolean("roundsBuildFailed");
         d.sessionBuildFailed = tag.getBoolean("sessionBuildFailed");

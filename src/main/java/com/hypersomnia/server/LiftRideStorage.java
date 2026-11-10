@@ -1,5 +1,6 @@
 package com.hypersomnia.server;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
@@ -11,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
+import org.slf4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +26,9 @@ import java.util.Map;
  */
 public final class LiftRideStorage extends SavedData {
     private static final String NAME = "hypersomnia_lift_ride";
+    /** Версия формата; 0 — сохранения до появления поля version. */
+    public static final int DATA_VERSION = 1;
+    private static final Logger LOGGER = LogUtils.getLogger();
     private final Map<Long, BlockState> hidden = new HashMap<>();
 
     public static LiftRideStorage get(ServerLevel level) {
@@ -50,6 +55,7 @@ public final class LiftRideStorage extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+        tag.putInt("version", DATA_VERSION);
         ListTag list = new ListTag();
         hidden.forEach((key, state) -> {
             CompoundTag entry = new CompoundTag();
@@ -61,13 +67,31 @@ public final class LiftRideStorage extends SavedData {
         return tag;
     }
 
-    private static LiftRideStorage load(CompoundTag tag, HolderLookup.Provider provider) {
+    static LiftRideStorage load(CompoundTag tag, HolderLookup.Provider provider) {
         LiftRideStorage result = new LiftRideStorage();
-        HolderLookup.RegistryLookup<Block> blocks = provider.lookupOrThrow(Registries.BLOCK);
         ListTag list = tag.getList("blocks", Tag.TAG_COMPOUND);
+        if (list.isEmpty()) return result;
+        HolderLookup.RegistryLookup<Block> blocks = provider.lookupOrThrow(Registries.BLOCK);
         for (int i = 0; i < list.size(); i++) {
             CompoundTag entry = list.getCompound(i);
-            result.hidden.put(entry.getLong("pos"), NbtUtils.readBlockState(blocks, entry.getCompound("state")));
+            if (!entry.contains("pos", Tag.TAG_LONG) || !entry.contains("state", Tag.TAG_COMPOUND)) {
+                LOGGER.warn("Lift ride journal: skipping malformed entry {}", i);
+                continue;
+            }
+            BlockState state;
+            try {
+                state = NbtUtils.readBlockState(blocks, entry.getCompound("state"));
+            } catch (RuntimeException error) {
+                LOGGER.warn("Lift ride journal: skipping unreadable block state at {}", entry.getLong("pos"), error);
+                continue;
+            }
+            // readBlockState возвращает воздух для неизвестного блока. Возвращать
+            // воздух на место скрытого блока нельзя: это удалит то, что там сейчас.
+            if (state.isAir()) {
+                LOGGER.warn("Lift ride journal: unknown block at {}, leaving the world as is", entry.getLong("pos"));
+                continue;
+            }
+            result.hidden.put(entry.getLong("pos"), state);
         }
         return result;
     }

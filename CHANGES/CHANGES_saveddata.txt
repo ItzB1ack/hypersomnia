@@ -1,0 +1,29 @@
+Сохранения и рестарт (N3, 2026-11-10)
+
+Аудит четырёх SavedData: LabSavedData, NightmareSavedData, ShaftStorage и
+LiftRideStorage. LabSavedData уже имел DATA_VERSION=5 и миграции v2/v3/v5;
+остальные три не писали версию и не переживали битые записи.
+
+Что изменено:
+1. NightmareSavedData — DATA_VERSION=1, поле version в save/load. Старые
+   сохранения без version нормализуют отрицательные layout в 0, чтобы мусор
+   не совпал с текущими константами и не заблокировал перестройку комнаты.
+2. ShaftStorage — DATA_VERSION=1, поле version. Старые маски обрезаются по
+   числу секций, отрицательный layout сбрасывается в 0. Загрузка отбрасывает
+   битые UUID, дубликаты lane и номера вне диапазона, чистит осиротевшие
+   счётчики поездок без lane и клампит trips в 0..999.
+3. LiftRideStorage — DATA_VERSION=1, поле version, логгер. Загрузка
+   пропускает записи без pos/state, нечитаемый block id и состояния, которые
+   readBlockState превратил в воздух: воздух на месте скрытого блока не
+   возвращается, иначе рейс удалил бы то, что там стоит сейчас. load сделан
+   package-private для тестов.
+4. Тесты: LabSavedDataSelfTest расширен полным round-trip, миграциями,
+   обрезанными массивами и дубликатами; добавлены NightmareSavedDataSelfTest
+   и LiftRideStorageSelfTest; src/devtest/saveddata.init.gradle запускает все
+   три (savedDataSelfTests, 66 проверок).
+
+Проверено: compileJava --offline = 0; savedDataSelfTests = 66 (Lab 23,
+Nightmare+Shaft 29, LiftRide 14); labSelfTests = 286+23+8+2839;
+observerSelfTests = 111; check_resources.py и check_network_sides.py — OK.
+В игре НЕ проверено: рестарт посреди сна/рейса/капсулы/кошмара и загрузка
+старого мира — PROMTS/INGAME_CHECKLIST.md, P0-2 и P0-3.
