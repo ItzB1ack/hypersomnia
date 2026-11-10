@@ -786,19 +786,10 @@ public final class ChaseHandler {
      */
     private static Vec3 spotBehind(ServerPlayer player, ServerLevel level, double dist) {
         Vec3 look = player.getViewVector(1.0f);
-        Vec3 dir = new Vec3(look.x, 0, look.z);
-        dir = dir.lengthSqr() < 1.0E-4 ? new Vec3(0, 0, 1) : dir.normalize().scale(-1);
         Vec3 base = player.position();
-        double[] angles = {0, 15, -15, 30, -30, 45, -45, 60, -60};
-        for (double d : new double[]{dist, dist - 2, dist + 2, dist - 4, dist - 6}) {
-            if (d < 4) continue;
-            for (double deg : angles) {
-                double rad = Math.toRadians(deg);
-                double dx = dir.x * Math.cos(rad) - dir.z * Math.sin(rad);
-                double dz = dir.x * Math.sin(rad) + dir.z * Math.cos(rad);
-                Vec3 ground = floorAt(level, base.add(dx * d, 0, dz * d));
-                if (ground != null) return ground;
-            }
+        for (Vec3 offset : ChaseSpawn.behind(look, dist)) {
+            Vec3 ground = floorAt(level, base.add(offset));
+            if (ground != null) return ground;
         }
         return null;
     }
@@ -809,19 +800,10 @@ public final class ChaseHandler {
      */
     private static Vec3 spotAround(ServerPlayer player, ServerLevel level, boolean front) {
         Vec3 look = player.getViewVector(1.0f);
-        Vec3 dir = new Vec3(look.x, 0, look.z);
-        dir = dir.lengthSqr() < 1.0E-4 ? new Vec3(0, 0, 1) : dir.normalize();
-        if (!front) dir = dir.scale(-1);
         Vec3 base = player.position();
-        double[] angles = {0, 20, -20, 40, -40, 60, -60, 90, -90, 180};
-        for (double dist : new double[]{6, 7, 8, 5, 9}) {
-            for (double deg : angles) {
-                double rad = Math.toRadians(deg);
-                double dx = dir.x * Math.cos(rad) - dir.z * Math.sin(rad);
-                double dz = dir.x * Math.sin(rad) + dir.z * Math.cos(rad);
-                Vec3 ground = floorAt(level, base.add(dx * dist, 0, dz * dist));
-                if (ground != null) return ground;
-            }
+        for (Vec3 offset : ChaseSpawn.around(look, front)) {
+            Vec3 ground = floorAt(level, base.add(offset));
+            if (ground != null) return ground;
         }
         return null;
     }

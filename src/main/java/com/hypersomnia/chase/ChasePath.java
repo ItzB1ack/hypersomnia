@@ -56,15 +56,24 @@ final class ChasePath {
         }
     }
 
-    // Что в клетке
-    private static final byte UNKNOWN = 0;
-    private static final byte OPEN = 1;    // пусто (трава, цветы, факел, открытая дверь)
-    private static final byte LOW = 2;     // низкий блок внизу клетки (плита, ковёр, снег): стоят на нём
-    private static final byte SOLID = 3;   // твёрдое
-    private static final byte DOOR = 4;    // закрытая дверь
-    private static final byte CLIMB = 5;   // лестница, лиана, леса
-    private static final byte WATER = 6;   // вода без твёрдого блока
-    private static final byte DANGER = 7;  // лава, огонь, магма, кактус, паутина...
+    // Что в клетке (package-private: тем же таблицам следует ChasePathSelfTest на искусственных сетках)
+    static final byte UNKNOWN = 0;
+    static final byte OPEN = 1;    // пусто (трава, цветы, факел, открытая дверь)
+    static final byte LOW = 2;     // низкий блок внизу клетки (плита, ковёр, снег): стоят на нём
+    static final byte SOLID = 3;   // твёрдое
+    static final byte DOOR = 4;    // закрытая дверь
+    static final byte CLIMB = 5;   // лестница, лиана, леса
+    static final byte WATER = 6;   // вода без твёрдого блока
+    static final byte DANGER = 7;  // лава, огонь, магма, кактус, паутина...
+
+    /**
+     * Источник клеток для A*: настоящий мир (ChasePath поверх ServerLevel) или искусственная сетка в self-test.
+     * floor возвращает высоту пола в клетке ног или NaN, если стоять нельзя.
+     */
+    interface Grid {
+        byte kind(int x, int y, int z);
+        double floor(int x, int y, int z);
+    }
 
     /** Ниже этого верх блока в клетке — «низкий» (на нём стоят в той же клетке). */
     private static final double LOW_MAX = 0.6;
@@ -78,6 +87,8 @@ final class ChasePath {
     private static final int[] DZ = {0, 0, 1, -1, 1, -1, 1, -1};
 
     private final ServerLevel level;
+    /** Искусственная сетка для self-test; null — настоящий мир. */
+    private final Grid grid;
     private final Long2ByteOpenHashMap kinds = new Long2ByteOpenHashMap();
     private final Long2DoubleOpenHashMap tops = new Long2DoubleOpenHashMap();
     private final Long2DoubleOpenHashMap floors = new Long2DoubleOpenHashMap();
@@ -90,6 +101,14 @@ final class ChasePath {
 
     ChasePath(ServerLevel level) {
         this.level = level;
+        this.grid = null;
+        floors.defaultReturnValue(Double.NEGATIVE_INFINITY);
+    }
+
+    /** Сетка для self-test: мир не нужен, A* читает клетки напрямую. */
+    ChasePath(Grid grid) {
+        this.level = null;
+        this.grid = grid;
         floors.defaultReturnValue(Double.NEGATIVE_INFINITY);
     }
 
@@ -98,6 +117,7 @@ final class ChasePath {
     // ------------------------------------------------------------------
 
     private byte kind(int x, int y, int z) {
+        if (grid != null) return grid.kind(x, y, z);
         long key = BlockPos.asLong(x, y, z);
         byte k = kinds.get(key);
         if (k != UNKNOWN) return k;
@@ -146,6 +166,7 @@ final class ChasePath {
 
     /** Высота пола, если в клетке (ноги в ней, голова выше) можно стоять, иначе NaN. */
     double floor(int x, int y, int z) {
+        if (grid != null) return grid.floor(x, y, z);
         long key = BlockPos.asLong(x, y, z);
         double v = floors.get(key);
         if (v != Double.NEGATIVE_INFINITY) return v;
