@@ -31,6 +31,10 @@ FURN = set("TRDdVZFphHCIvru+~")
 EQUIP = ("crac", "ups", "battery")             # LabBlueprint.EQUIP
 FLOOR = set(".*vru123456789")                          # LabBuilder.walkable: где можно встать
 SIGN_LINE_WARN = 16
+# Карты (station/finale/bed/capsule/panel/cabinet и родственные) строятся раньше мебели.
+MAP_KINDS = ("station", "finale", "bed", "capsule", "panel", "knock", "rack", "equip", "stack", "cabinet")
+# Символы, которые column() строит как стену, окно или кабину: карта на такой клетке не встанет.
+STRUCTURAL = set("#=lL@YEw")
 
 
 def tuning(name, default):
@@ -159,6 +163,22 @@ def check(name, text, docs=None, stations=None, ru=None):
                     if p not in FLOOR and p not in "LY@":
                         errs.append("passage (%d,%d) blocked by '%s' at (%d,%d)" % (x, z, p, px, pz))
 
+    # проём — ровно одна клетка-маркер: два соседних '='/ворота дали бы дыру шире 3
+    markers = set(doors)
+    for (x, z) in doors:
+        for dx, dz in ORDER:
+            nxt = (x + dx, z + dz)
+            if nxt in markers and (x, z) < nxt:
+                errs.append("passage (%d,%d) touches another passage marker at (%d,%d)" % (x, z, nxt[0], nxt[1]))
+
+    # табличка не должна висеть вплотную к проёму: её читают с порога, а не из проёма
+    for ch in f.signs:
+        for (x, z) in f.cells(ch):
+            close = [(px, pz) for (px, pz) in doors if max(abs(x - px), abs(z - pz)) < 2]
+            if close:
+                errs.append("sign %s at (%d,%d) is within 1 cell of passage (%d,%d)"
+                            % (ch, x, z, close[0][0], close[0][1]))
+
     for z in range(f.d):
         for x in range(f.w):
             c = at(x, z)
@@ -214,6 +234,49 @@ def check(name, text, docs=None, stations=None, ru=None):
     if f.cells("I") and (not hm or int(hm.group(1)) < 3):
         errs.append("upright capsule 'I' needs 'height' >= 3 (has %s)" % (hm.group(1) if hm else "none"))
 
+    # карты важнее мебели: один символ не может быть двумя картами, карта не ставится
+    # на стену/окно/кабину, а изножье кровати не должно затирать карту в соседней клетке
+    map_kinds = {
+        "station": set(f.stations), "finale": set(f.finale), "bed": f.beds,
+        "capsule": f.capsules, "panel": f.panels, "knock": f.knocks,
+        "rack": f.racks, "equip": f.equips, "stack": f.stacks,
+        "cabinet": f.cabinets, "gate": f.gates, "lock": f.locks, "sign": set(f.signs),
+    }
+    owner = {}
+    for kind, chars in map_kinds.items():
+        for ch in chars:
+            if ch in owner and owner[ch] != kind:
+                errs.append("symbol '%s' is both %s and %s" % (ch, owner[ch], kind))
+            owner.setdefault(ch, kind)
+    for kind in MAP_KINDS + ("lock", "sign"):
+        for ch in map_kinds[kind]:
+            if ch in STRUCTURAL:
+                errs.append("%s '%s' is a structural cell" % (kind, ch))
+    map_cells = set()
+    for kind in MAP_KINDS + ("lock",):
+        for ch in map_kinds[kind]:
+            map_cells.update(f.cells(ch))
+    for ch in f.beds:
+        for (x, z) in f.cells(ch):
+            wo = f.first_wall(x, z) or (-1, 0)
+            fx, fz = x - wo[0], z - wo[1]
+            if (fx, fz) in map_cells:
+                errs.append("bed %s at (%d,%d): foot (%d,%d) overwrites '%s'"
+                            % (ch, x, z, fx, fz, at(fx, fz)))
+    for ch, part in f.finale.items():
+        if part != "bed":
+            continue
+        for (x, z) in f.cells(ch):
+            wo = f.first_wall(x, z) or (-1, 0)
+            fx, fz = x - wo[0], z - wo[1]
+            if (fx, fz) in map_cells:
+                errs.append("finale bed %s at (%d,%d): foot (%d,%d) overwrites '%s'"
+                            % (ch, x, z, fx, fz, at(fx, fz)))
+    # замок ставится после мебели: если его символ — мебель, furniture() съест клетку
+    for ch in f.locks:
+        if ch in FURN:
+            errs.append("lock %s uses furniture symbol '%s'" % (ch, ch))
+
     # обход от центра кабины
     start = f.cells("@")
     reach = set()
@@ -247,13 +310,19 @@ def check(name, text, docs=None, stations=None, ru=None):
             for x in range(f.w):
                 c = at(x, z)
                 what = None
-                if c.isdigit() or c in f.locks or c == "E":
+                if c.isdigit() or c == "E":
                     if (x, z) not in reach:
                         what = "sign/panel"
-                elif c in f.cabinets or c in f.stations or c in f.knocks or c in f.capsules or (
+                elif c in f.locks:
+                    if (x, z) not in reach:
+                        what = "lock"
+                elif c in f.cabinets:
+                    if not near(x, z):
+                        what = "cabinet"
+                elif c in f.stations or c in f.knocks or c in f.capsules or (
                         c in f.panels and not f.maps["panel"][c].startswith("-")):
                     if not near(x, z):
-                        what = "cabinet/station/panel/knock/capsule"
+                        what = "station/knock/panel/capsule"
                 elif c == "C":
                     if not near(x, z):
                         what = "capsule"

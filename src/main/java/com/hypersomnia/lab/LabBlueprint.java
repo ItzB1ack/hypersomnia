@@ -42,6 +42,14 @@ public final class LabBlueprint {
     /** Виды оборудования строки equip: прецизионный кондиционер, шкаф ИБП, батарейный шкаф (индекс = equips[c][0]). */
     public static final String[] EQUIP = {"crac", "ups", "battery"};
 
+    /** Символ, который LabBuilder.furniture обрабатывает как мебель; карты и замки важнее. */
+    public static boolean furnitureSymbol(char c) {
+        return switch (c) {
+            case 'T', 'R', 'D', 'd', 'V', 'Z', 'F', 'p', 'h', 'H', 'C', 'I', 'v', 'w', 'r', 'u', '+', '~' -> true;
+            default -> false;
+        };
+    }
+
     public final String name;
     public final boolean dream;
     public final int height;
