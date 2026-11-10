@@ -77,7 +77,11 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     public void markSession47Seen() { session47Seen = true; dirty = true; }
     public int memoriesCount() { return Integer.bitCount(memories); }
     /** Заглушка до пункта 2: index 0..6 = номер воспоминания. */
-    public void addMemory(int index) { memories |= 1 << index; dirty = true; }
+    public void addMemory(int index) {
+        if (index < 0 || index >= com.hypersomnia.document.MemoryTuning.COUNT) return;
+        memories |= 1 << index;
+        dirty = true;
+    }
     public void setMemoriesCount(int n) { memories = (1 << Math.max(0, Math.min(7, n))) - 1; dirty = true; }
     public void markDirty() { dirty = true; }
     /** Стадия осколка: заданная отладкой или по формуле ObserverTuning.stage (дни + воспоминания). */
@@ -158,12 +162,20 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
     }
 
     public int notesCount() { return Integer.bitCount(notes); }
-    public boolean hasNote(int i) { return (notes & (1 << i)) != 0; }
-    public void addNote(int i) { notes |= 1 << i; }
+    public boolean hasNote(int i) { return i >= 0 && i < ObserverTuning.NOTE_PAGES.length && (notes & (1 << i)) != 0; }
+    public void addNote(int i) {
+        if (i < 0 || i >= ObserverTuning.NOTE_PAGES.length) return;
+        notes |= 1 << i;
+    }
     public void resetNotes() { notes = 0; clearPending(); noteThisSleep = false; }
 
-    public void addDrawing(int i) { drawings |= 1 << i; }
-    public boolean hasDrawing(int i) { return (drawings & (1 << i)) != 0; }
+    public void addDrawing(int i) {
+        if (i < 0 || i > com.hypersomnia.document.DrawingTuning.BLANK_INDEX) return;
+        drawings |= 1 << i;
+    }
+    public boolean hasDrawing(int i) {
+        return i >= 0 && i <= com.hypersomnia.document.DrawingTuning.BLANK_INDEX && (drawings & (1 << i)) != 0;
+    }
     /** Найдено рисунков из условия секрета (без пустого листа). */
     public int drawingsCount() { return Integer.bitCount(drawings & ((1 << com.hypersomnia.document.DrawingTuning.COUNT) - 1)); }
     public boolean hasBlank() { return hasDrawing(com.hypersomnia.document.DrawingTuning.BLANK_INDEX); }
@@ -378,10 +390,11 @@ public class ObserverProgressData implements INBTSerializable<CompoundTag> {
         writingStep = Math.max(0, tag.getInt("writing_step"));
         days = Math.max(0, tag.getInt("days"));
         ticks = Math.max(0, tag.getInt("ticks"));
-        memories = tag.getInt("memories") & 0x7F;
+        memories = tag.getInt("memories") & ((1 << com.hypersomnia.document.MemoryTuning.COUNT) - 1);
         session47Seen = tag.getBoolean("session47_seen");
-        notes = tag.getInt("notes");
-        drawings = tag.getInt("drawings");
+        notes = tag.getInt("notes") & ((1 << ObserverTuning.NOTE_PAGES.length) - 1);
+        drawings = tag.getInt("drawings")
+                & ((1 << (com.hypersomnia.document.DrawingTuning.BLANK_INDEX + 1)) - 1);
         int pn = tag.contains("pending_note") ? tag.getInt("pending_note") : -1;
         int pw = tag.contains("pending_way") ? tag.getInt("pending_way") : -1;
         // Отложенные варианты — только BED, CONTAINER, WINDOW. Старый или повреждённый NBT не индексируем.
